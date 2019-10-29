@@ -1,0 +1,4 @@
+ clang-tidy -checks="-*,modernize*,clang-analyzer-*,cppcoreguidelines-*,performance*" --fix-errors -fix --header-filter="FiledTree.h" FiledTree.cpp -- -I/work/root/v6.16.00/include
+clang-tidy -checks="-*,modernize*,clang-analyzer-*,cppcoreguidelines-*,performance*"  --fix-errors -fix --header-filter="Bins.h" Bins.cpp -- -I/work/root/v6.16.00/include 
+clang-tidy -checks="-*,modernize*,clang-analyzer-*,cppcoreguidelines-*,performance*"  --fix-errors -fix --header-filter="Binner.h" Binner.cpp -- -I/work/root/v6.16.00/include
+
