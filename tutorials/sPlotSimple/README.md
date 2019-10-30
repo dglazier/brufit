@@ -1,7 +1,12 @@
 # sPlot with simple Gaussian and polynomial PDFs
 
-You can try using the Jupyter Notebook or
-to run with interactive ROOT session follow 
+You can try using the Jupyter Notebook
+
+The fully run notebooks are saved as html files in this directory
+
+      sPlotSimple.html
+
+or to run with interactive ROOT session follow 
 
 Generate a test data set using standard ROOT
 
