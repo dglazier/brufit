@@ -102,3 +102,26 @@ and
 	brufit FitHSSimpleBins.C
 
 ### Performing fits to sinusiodal distributions with weights
+
+      cp -r $BRUFIT/tutorials/WeightedObservable .
+      cd WeightedObservable
+
+
+#### If running with Jupyter (Recomended)
+
+start a notebook. Note the tutorials are written in python3 kernels.
+
+      root --notebook  or jupyter-notebook
+
+And open sPlot.ipynb
+
+Once you have found weights you can perform the weighted fit from FitWithEventsPDF.ipynb
+
+You can also try using simulated data to give your sPlot Signal shape in sPlotWithSimulatedPDF.ipynb. And then try these weights in FitWithEventsPDF
+
+A faster more optimised method using RooComponentsPDF is given in FitWithComponentsPDF.ipynb
+
+
+#### If Running in ROOT interactive
+
+See the README in tutorials/WeightedObservable

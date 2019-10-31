@@ -101,8 +101,8 @@ If you have made some bins/splits in the data e.g.
 
 The you can draw the fit parameters as a function of Eg by :
 
-    	root --hsfit
+    	brufit
     	.L GraphParameters.C
-    	GraphParameters("outObs/","Eg");
+    	GraphParameters("outObsBins/","Eg");
 
 The results graphs will be in the file outObs/ParGraphsEg.root
