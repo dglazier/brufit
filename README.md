@@ -38,11 +38,13 @@ fits theat minuit may struggle to find a global minimum.
 
 ## Installation
 
-# Prerequisites
+### Prerequisites
 
 ROOT with RooFit, Proof, Mathmore (if using Legendre polynomials)
 
-git
+### get and compile code
+
+git clone https://github.com/dglazier/brufit.git
 
 cd brufit
 
@@ -68,4 +70,35 @@ alias brufit root $BRUFIT/macros/LoadBru.C
 
 ## Tutorials
 
-# sPlotSimple
+### sPlotSimple
+get the files
+
+      cp -r $BRUFIT/tutorials/sPlotSimple .
+      cd sPlotSimple
+
+
+#### If running with Jupyter (Recomended)
+
+start a notebook. Note the tutorials are written in python3 kernels.
+
+      root --notebook  or jupyter-notebook
+
+And open sPlotSimple.ipynb
+
+You can also try the sPlotSimpleBins for an example of splitting the data into energy bins before making several fits.
+
+#### If Running in ROOT interactive
+
+First make some data
+
+      root 'Model1.C( "Data.root" )'
+
+Run
+
+	brufit FitHSSimple.C
+
+and
+
+	brufit FitHSSimpleBins.C
+
+### Performing fits to sinusiodal distributions with weights

@@ -13,6 +13,10 @@
 #pragma link C++ class HS::FIT::BinTree+;
 #pragma link C++ class HS::FIT::Bins+;
 #pragma link C++ class HS::FIT::ComponentsPdfParser+;
+#pragma link C++ class HS::FIT::PROCESS::Loader+;
+#pragma link C++ class HS::FIT::PROCESS::Here+;
+#pragma link C++ class HS::FIT::PROCESS::Proof+;
+#pragma link C++ class HS::FIT::PROCESS::Farm+;
 #pragma link C++ class HS::FIT::FitData+;
 #pragma link C++ class HS::FIT::DataEvents+;
 #pragma link C++ class HS::FIT::FiledTree+;

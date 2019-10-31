@@ -79,15 +79,12 @@ namespace HS{
 
 	canvas->Modified();
 	canvas->Update();
-	canvas->Draw();
-
-	
-      }
+	canvas->Draw("");
+     }
 
       //Turn off plotting in RooHSEventsPDF
       RooHSEventsPDF_IsPlotting=kFALSE;
- 
-    }
+     }
 
     void PlotResults::Write(){
       fCanvases->Write();

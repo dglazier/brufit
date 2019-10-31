@@ -57,6 +57,7 @@ namespace HS{
 	static void Go(FitManager* fm,Int_t N){
 	  if(!fm) return;
 	  fm->WriteThis();
+
 	  cout<<" Proof :: Go "<<gProof<<endl;
 	  if(!gProof){
 	    TProof*  proof = TProof::Open("://lite");
