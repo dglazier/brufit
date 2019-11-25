@@ -51,11 +51,25 @@ cd brufit
 setenv BRUFIT /path/to/here (or setenv BRUFIT $PWD)
 
 mkdir build
+
 cd build
+
 cmake ../
+
+make install
+
+Note to install the pcm file you may have to run the last two steps again.
+You can check if $BRUFIT/lib/libbrufit_rdict.pcm exists.
+
+cmake ../
+
 make install
 
 alias brufit root $BRUFIT/macros/LoadBru.C
+
+##Data
+
+Data should be in the form of a ROOT TTree with branches that are usually double but can be int for categories, e.g. a polarisation state. If you are using weights and need an event ID branch this should also be made double so it can be read into RooFit dataset.
 
 ## Basic usage
 
@@ -118,6 +132,8 @@ And open sPlot.ipynb
 Once you have found weights you can perform the weighted fit from FitWithEventsPDF.ipynb
 
 You can also try using simulated data to give your sPlot Signal shape in sPlotWithSimulatedPDF.ipynb. And then try these weights in FitWithEventsPDF
+
+Finally you can try splitting the Fit into Eg bins, running seperately on PROOF then plotting the result parameters as a function of Eg with FitWithComponentsPDFAndSplitBins.ipynb.
 
 A faster more optimised method using RooComponentsPDF is given in FitWithComponentsPDF.ipynb
 
