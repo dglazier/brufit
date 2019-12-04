@@ -89,12 +89,11 @@ namespace HS{
     }
     void FitManager::RunOne(Int_t ifit){
       fFiti=ifit;
-      
       if(fRedirect) RedirectOutput(fSetup.GetOutDir()+Form("logRooFit%d.txt",fFiti));
       Run();
       if(fRedirect) RedirectOutput();
       SaveResults();
-     
+      
       Reset();
     }
     
@@ -210,6 +209,7 @@ namespace HS{
       delete file;
     }
     void FitManager::RedirectOutput(const TString& log){
+      Info("FitManager::RedirectOutput",Form("text ouput will be sent to file %s",log.Data()));
       if(log==TString(""))
 	gSystem->RedirectOutput(nullptr,"w");
       else
