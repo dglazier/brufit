@@ -53,6 +53,7 @@ namespace HS{
 	frame->SetTitle(TString("Fit components for ")+var->GetName());
 
 	frame->Draw();
+	canvas->SetTheta(frame->chiSquare()); //Save Chi2 as theta variable in TCanvas. Retrieve with TCanvas::GetTheta().
 	auto level = RooMsgService::instance().globalKillBelow();
 	RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR) ;
  
