@@ -302,7 +302,7 @@ namespace HS{
     Double_t RooComponentsPDF::analyticalIntegral(Int_t code,const char* rangeName) const
     {
        if(code!=1) return RooHSEventsPDF::analyticalIntegral(code,rangeName);
-
+		if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
       //Check baseline caclulated
       if(fWeightedBaseLine==0&&fBaseLine!=0&&fUseEvWeights)
 	CalcWeightedBaseLine(rangeName);

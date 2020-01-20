@@ -13,7 +13,8 @@
 
   TList* compMacros=dynamic_cast<TList*>( fitFile->Get("HS_COMPILEDMACROS"));
   //Load macros to be compiled, may be needed for FitManager Pdfs
-  Loader::CompileHere(compMacros);
+  if(compMacros!=NULL)
+	Loader::CompileHere(compMacros);
 
   fitManager=dynamic_cast<FitManager*>( fitFile->Get("HSFit")->Clone() );
 
