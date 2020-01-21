@@ -27,6 +27,7 @@
 
 #include "FitSelector.h"
 #include "FitManager.h"
+#include <TClassTable.h>
 #include <TH2.h>
 #include <TStyle.h>
 #include <chrono>
@@ -56,7 +57,15 @@ namespace HS{
 
     void FitSelector::SlaveBegin(TTree * /*tree*/)
     {
-  
+      //PROOF does not load the namespaces properly when loading classes
+      //from shard library
+      TClassTable::AddAlternate("HS::FIT::RooHSEventsPDF","RooHSEventsPDF");
+      TClassTable::AddAlternate("HS::FIT::RooHSEventsHistPDF","RooHSEventsHistPDF");
+      TClassTable::AddAlternate("HS::FIT::RooComponentsPDF","RooComponentsPDF");
+      TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonic","RooHSSphHarmonic");
+      TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicIm","RooHSSphHarmonicIm");
+      TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicRe","RooHSSphHarmonicRe");
+
       TString option = GetOption();
       fInput->Print();
 
