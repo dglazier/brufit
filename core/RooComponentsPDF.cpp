@@ -139,7 +139,6 @@ namespace HS{
     }
     Int_t RooComponentsPDF::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const
     {	
-      cout<<"!!!!!!!!!!!!!!!!!!!!!!!!!!RooComponentsPDF::getGenerator "<<fEvTree<<" "<<fvecReal.size()<<endl;
       Info("RooHSEventsPDF::getGenerator","Looking for generator");
       if(!fEvTree) return 0; //no MC events to generate from
       //case generate all variables

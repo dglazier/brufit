@@ -8,7 +8,6 @@
 
 #include <utility>
 
-#include <utility>
 
 #include "FitManager.h"
 #include "Setup.h"
@@ -34,12 +33,12 @@ namespace HS{
       
       void Run() override;
       void SaveResults() override;
-      /* Int_t GetN() override { */
-      /* 	if(!(Bins().GetSize())) */
-      /* 	  Bins().InitBins(); */
-      /* 	if(Bins().GetSize())return fNToys*Bins().GetSize(); */
-      /* 	return fNToys; */
-      /* } */
+      Int_t GetN() override { 
+      	if(!(Bins().GetSize()))
+       	  Bins().InitBins(); 
+	if(Bins().GetSize())return Bins().GetSize();
+       	return 1;
+      } 
       //  Int_t GetCurrToy(){ return GetFiti()%fNToys;}
       Int_t GetCurrToy(){ return fToyi;}
       TString GetCurrTitle() override {return Form("Toy%d",GetCurrToy());}

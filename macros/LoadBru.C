@@ -4,10 +4,11 @@
 #include <TROOT.h>
 #include <iostream>
 
-namespace HS{namespace FIT{namespace PROCESS{}}};
+namespace HS{namespace FIT{namespace PROCESS{};namespace EXPAND{}}};
 using namespace HS;
 using namespace HS::FIT;
 using namespace HS::FIT::PROCESS;
+using namespace HS::FIT::EXPAND;
 
 void LoadBru(TString Selection=""){
   gSystem->Load("libRooStats");
@@ -26,7 +27,9 @@ void LoadBru(TString Selection=""){
     gROOT->SetMacroPath(Form("%s:%s",gROOT->GetMacroPath(),(utpath).Data()));
     gSystem->Load(BRUCODE+"/lib/libbrufit.so");
   }
-  
+
+  gROOT->ProcessLine(".L $BRUFIT/macros/PDFExpand.C+");
+
 
 
 }

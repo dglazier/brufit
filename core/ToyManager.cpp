@@ -56,7 +56,7 @@ namespace HS{
 	cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
 
-      while(fToyi<fNToys){
+      while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
 	SaveResults();

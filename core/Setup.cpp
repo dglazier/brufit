@@ -130,9 +130,10 @@ namespace HS{
     }
      ////////////////////////////////////////////////////////////
     /// Load a fit RooAbsReal class e.g s.LoadFunctionVar("RooRealSphHarmonic::leg2(CTh[0,-1,1],Phi[0,-3.141,3.141],2,1)"));
-    /// Add a fit parameter X between -1 and 1
-    void Setup::LoadFunctionVar(const TString& opt){
+     void Setup::LoadFunctionVar(const TString& opt){
+       //check if already done this one
       if(std::find(fFuncVarString.begin(),fFuncVarString.end(),opt)!=fFuncVarString.end()) return;
+      
       cout<<" Setup::LoadFunctionVar "<<opt<<endl;
       auto var=dynamic_cast<RooAbsReal*>(fWS.factory(opt));
       if(!var) {
