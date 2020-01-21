@@ -84,6 +84,8 @@ namespace HS{
 
       void AddToTree(TTree* tree);
       void AddToTreeDisc(TTree* tree,const TString& fileName);
+      void ImportanceSampling(TTree* MCTree, TTree* dataTree, TH1* weightHist, TString var);
+      void Draw1DWithWeights(TTree* tree,TH1* his,TString var,TString species="");
 
       filed_uptr DFAddToTree(const TString& wname,const TString& outfname,const TString& tname,const TString& infname);
     private:
