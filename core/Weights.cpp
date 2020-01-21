@@ -571,6 +571,7 @@ namespace HS{
 			//  cout << var << " value is " << val << " weight is " << ratioHist->GetBinContent(ratioHist->GetXaxis()->FindBin(val)) << endl;
 			
 		}
+		MCTree->ResetBranchAddresses();
 		//  cout << "nentries is " << nentries << endl;
 	}
 	
