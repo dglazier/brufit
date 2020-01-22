@@ -1,5 +1,3 @@
-TH1* weightHist = new TH1F("impWeights","impWeights",50,5,10);
-
 void CreateWeights() {
 	//Here we want the Eg distribution in MC to match that from data
 	TFile *fileData=new TFile("data.root");
