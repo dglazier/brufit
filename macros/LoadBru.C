@@ -11,6 +11,7 @@ using namespace HS::FIT::PROCESS;
 using namespace HS::FIT::EXPAND;
 
 void LoadBru(TString Selection=""){
+	
   gSystem->Load("libRooStats");
   gSystem->Load("libProof");
   
@@ -28,6 +29,7 @@ void LoadBru(TString Selection=""){
     gSystem->Load(BRUCODE+"/lib/libbrufit.so");
   }
 
+  TClassTable::AddAlternate("HS::FIT::Weights","HS::Weights");
   gROOT->ProcessLine(".L $BRUFIT/macros/PDFExpand.C+");
 
 

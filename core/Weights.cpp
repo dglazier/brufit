@@ -542,7 +542,7 @@ namespace HS{
 	/// Importance Sampling
 	/// Given a data tree and a simulation tree, output the weights required to adjust the simulated distribution 
 	/// to match the data distribution for the given variable
-	void Weights::ImportanceSampling(TTree* MCTree, TTree* dataTree, TH1* weightHist, TString var) {
+	void Weights::ImportanceSampling(TTree* MCTree, TTree* dataTree, TH1* weightHist, TString var, Weights* MCWeights, TString MCWeightsSpecies, Weights* DataWeights, TString DataWeightsSpecies) {
 
 		// create sim and data hists based on weightHist (empty hist with appropriate axis and binning)
 		TH1* mcHist = (TH1*) weightHist->Clone();
@@ -550,9 +550,21 @@ namespace HS{
 		TH1* dataHist = (TH1*) weightHist->Clone();
 		dataHist->SetName("dataHist");
 		
-		// fill the histograms from the trees with the quantity specified by var parameter
-		MCTree->Draw(var+">>mcHist","","goff");
-		dataTree->Draw(var+">>dataHist","","goff");
+		// fill the histograms from the trees with the quantity specified by var parameter, apply weights if specified
+		if(MCWeights == nullptr){
+			cout << "MCWeights" << endl;
+			MCTree->Draw(var+">>mcHist","","goff");
+		}
+		else{
+			MCWeights->Draw1DWithWeights(MCTree,mcHist,var,MCWeightsSpecies);
+		}
+		if(DataWeights == nullptr){
+			cout << "DataWeights" << endl;
+			dataTree->Draw(var+">>dataHist","","goff");
+		}
+		else{
+			DataWeights->Draw1DWithWeights(dataTree,dataHist,var,DataWeightsSpecies);
+		}
 		
 		// create hist with ratio of data to MC
 		TH1* ratioHist = (TH1*) dataHist->Clone();
@@ -574,7 +586,8 @@ namespace HS{
 		MCTree->ResetBranchAddresses();
 		//  cout << "nentries is " << nentries << endl;
 	}
-	
+	///////////////////////////////////////////////////////////
+	/// Draw a TH1 histogram with weights applied
 	void  Weights::Draw1DWithWeights(TTree* tree, TH1* his, TString var, TString species){
 		TLeaf *leafVar=tree->GetLeaf(var);
 		TLeaf *leafID=tree->GetLeaf(fIDName);
