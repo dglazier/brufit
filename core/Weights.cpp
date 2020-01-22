@@ -586,7 +586,8 @@ namespace HS{
 		MCTree->ResetBranchAddresses();
 		//  cout << "nentries is " << nentries << endl;
 	}
-	
+	///////////////////////////////////////////////////////////
+	/// Draw a TH1 histogram with weights applied
 	void  Weights::Draw1DWithWeights(TTree* tree, TH1* his, TString var, TString species){
 		TLeaf *leafVar=tree->GetLeaf(var);
 		TLeaf *leafID=tree->GetLeaf(fIDName);
