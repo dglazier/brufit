@@ -189,6 +189,41 @@ namespace HS{
 
     }
 
+	////////////////////////////////////////////////////////
+	///Multiply weights from a different weights file onto this weights file \n
+	///This is useful for combining weights from different sources.
+	void Weights::Multiply(Weights* other,TString species){
+		Int_t ispecies = fSpecies[species];
+		Int_t ospecies = other->GetSpeciesID(species);
+		
+		if(ispecies<0 || ospecies<0) //check that species exist in both trees
+			return;
+		
+		TTree *wtree=fWTree->CloneTree(0); //create empty tree with branch adresses set
+		TLeaf *leafid=fIDTree->GetLeaf("WID");
+		
+		Double_t newWeight;
+		wtree->SetBranchAddress(species,&newWeight); // newWeight = this.Weight * other.Weight
+		
+		for(Int_t i=0;i<fN;i++){
+			fIDTree->GetEntry(i);
+			Double_t id = leafid->GetValue();
+			
+			newWeight = 0;
+			if(GetEntryBinarySearch(id) && other->GetEntryBinarySearch(id) ){//find the weight for this event in both files, if it only exists in one -> newWeight=0
+				newWeight = GetWeight(ispecies)*other->GetWeight(ospecies);
+			}
+			wtree->Fill();
+		}
+		
+		//swap sorted trees to datamembers
+		delete fWTree;fWTree=nullptr;
+		fWTree=wtree;
+			
+		fCurrEntry=0;
+		SortWeights();
+	}
+
     void Weights::PrintWeight(){
       cout<<"Weights "<<GetName()<<" contains "<<Size() <<" events associated file is ";
       if(fFile) cout<<fFile->GetName()<< " "<<fFile->GetTitle()<<endl;

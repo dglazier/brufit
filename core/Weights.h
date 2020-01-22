@@ -59,7 +59,7 @@ namespace HS{
       Long64_t GetCurrEntry(){return fCurrEntry;}
       Long64_t Size(){if(!fWTree) return 0;return fWTree->GetEntries();}
       void Add(Weights* wm);
-      // void Multiply(Weights* other,TString species);
+      void Multiply(Weights* other,TString species);
       void SetSpecies(TString name);
       Int_t GetNSpecies(){return fSpecies.size();}
       StrIntMap_t GetSpecies(){return fSpecies;}
