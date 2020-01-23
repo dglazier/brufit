@@ -189,6 +189,41 @@ namespace HS{
 
     }
 
+	////////////////////////////////////////////////////////
+	///Multiply weights from a different weights file onto this weights file \n
+	///This is useful for combining weights from different sources.
+	void Weights::Multiply(Weights* other,TString species){
+		Int_t ispecies = fSpecies[species];
+		Int_t ospecies = other->GetSpeciesID(species);
+		
+		if(ispecies<0 || ospecies<0) //check that species exist in both trees
+			return;
+		
+		TTree *wtree=fWTree->CloneTree(0); //create empty tree with branch adresses set
+		TLeaf *leafid=fIDTree->GetLeaf("WID");
+		
+		Double_t newWeight;
+		wtree->SetBranchAddress(species,&newWeight); // newWeight = this.Weight * other.Weight
+		
+		for(Int_t i=0;i<fN;i++){
+			fIDTree->GetEntry(i);
+			Double_t id = leafid->GetValue();
+			
+			newWeight = 0;
+			if(GetEntryBinarySearch(id) && other->GetEntryBinarySearch(id) ){//find the weight for this event in both files, if it only exists in one -> newWeight=0
+				newWeight = GetWeight(ispecies)*other->GetWeight(ospecies);
+			}
+			wtree->Fill();
+		}
+		
+		//swap sorted trees to datamembers
+		delete fWTree;fWTree=nullptr;
+		fWTree=wtree;
+			
+		fCurrEntry=0;
+		SortWeights();
+	}
+
     void Weights::PrintWeight(){
       cout<<"Weights "<<GetName()<<" contains "<<Size() <<" events associated file is ";
       if(fFile) cout<<fFile->GetName()<< " "<<fFile->GetTitle()<<endl;
@@ -538,7 +573,8 @@ namespace HS{
     }
 
 	////////////////////////////////////////////////////////////
-	/// LC Jul 2018, added Jan 2020 by PP
+	/// LC Jul 2018
+	/// PP Jan 2020
 	/// Importance Sampling
 	/// Given a data tree and a simulation tree, output the weights required to adjust the simulated distribution 
 	/// to match the data distribution for the given variable
@@ -552,14 +588,12 @@ namespace HS{
 		
 		// fill the histograms from the trees with the quantity specified by var parameter, apply weights if specified
 		if(MCWeights == nullptr){
-			cout << "MCWeights" << endl;
 			MCTree->Draw(var+">>mcHist","","goff");
 		}
 		else{
 			MCWeights->Draw1DWithWeights(MCTree,mcHist,var,MCWeightsSpecies);
 		}
 		if(DataWeights == nullptr){
-			cout << "DataWeights" << endl;
 			dataTree->Draw(var+">>dataHist","","goff");
 		}
 		else{
@@ -571,15 +605,21 @@ namespace HS{
 		ratioHist->Divide(mcHist);
 		
 		// loop around the MC tree filling weights
-		Double_t  wID=0;
+		Double_t wID=0;
 		Double_t val=0;
 		MCTree->SetBranchAddress(fIDName,&wID);
 		MCTree->SetBranchAddress(var,&val);
 		Int_t nentries = MCTree->GetEntries();
 		for (int i=0; i<nentries; i++) {
+			Double_t mcweight = 1;
 			MCTree->GetEntry(i);
+			if(!(MCWeights == nullptr)){
+				MCWeights->GetEntryBinarySearch(wID);
+				Int_t MCspeciesID = MCWeights->GetSpeciesID(MCWeightsSpecies);
+				mcweight=MCWeights->GetWeight(MCspeciesID);
+			}
 			FillWeight(wID, 
-				ratioHist->GetBinContent( ratioHist->GetXaxis()->FindBin(val)));	
+				mcweight*ratioHist->GetBinContent( ratioHist->GetXaxis()->FindBin(val)));	
 			//  cout << var << " value is " << val << " weight is " << ratioHist->GetBinContent(ratioHist->GetXaxis()->FindBin(val)) << endl;
 			
 		}
@@ -595,7 +635,7 @@ namespace HS{
 		if(!(species==TString("")))
 			ispecies=fSpecies[species];
 		
-		cout << "HS::Weights::Draw1DWithWeights ispecies = " << ispecies << endl;
+		cout << "HS::Weights::Draw1DWithWeights species:ispecies = " << species << ":" << ispecies << endl;
 		for(Int_t i=0;i<tree->GetEntries();i++){
 			tree->GetEntry(i);
 			
