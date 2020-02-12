@@ -135,7 +135,7 @@ namespace HS{
 
       void SetNInt(Long64_t n){fNInt=n;}
       // virtual Bool_t SetEvTree(TChain* tree,TString cut,Long64_t ngen=0);
-      virtual Bool_t SetEvTree(TTree* tree,TString cut,Long64_t ngen=0);
+      virtual Bool_t SetEvTree(TTree* tree,TString cut,TTree* MCGenTree=nullptr);
       /* void SetInWeights(TString species, TString weightfile,TString wobj){ */
       /* 	fWgtsConf.reset(new HS::FIT::WeightsConfig(species,weightfile,wobj)); */
       /* } */

@@ -398,7 +398,7 @@ namespace HS{
     //   if(!tree->GetEntries()) return kFALSE;
     //   return SetEvTree(tree,cut,ngen);
     // }
-    Bool_t RooHSEventsPDF::SetEvTree(TTree* tree,TString cut,Long64_t ngen){
+    Bool_t RooHSEventsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
       if(!tree->GetEntries())return kFALSE;
       Info("RooHSEventsPDF::SetEvTree"," with name %s and cut %s",tree->GetName(),cut.Data());
       cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<endl;
@@ -413,11 +413,14 @@ namespace HS{
 
       ProcInfo_t info;
       fEvTree=tree;
-
+      if(!(MCGenTree==nullptr)){
+		  fMCGenTree=MCGenTree;
+		  fHasMCGenTree=kTRUE;
+	  }
  
       // fEvTree->SetMakeClass(1); //in case branches are part of a class e.g. HS::TreeData
   
-      fNMCGen=ngen;
+	  
       fConstInt=fEvTree->GetEntries();
       fEvTree->ResetBranchAddresses();
       //fEvTree->SetBranchStatus("*",0);

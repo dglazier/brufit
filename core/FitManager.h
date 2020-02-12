@@ -116,6 +116,16 @@ namespace HS{
       void ReloadSimulated(const TString& tname,const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name);
       }
+      
+      void LoadGenerated(const TString& tname,TString fname,const TString& name){
+	fBinner.SplitData(tname,std::move(fname),name);
+      }
+      void ReloadGenerated(const TString& fname,const TString& name){
+	fBinner.ReloadData(fname,name);
+      }
+      void ReloadGenerated(const TString& tname,const TString& fname,const TString& name){
+	fBinner.ReloadData(fname,name);
+      }
 
       // dataevs_ptr& Data() {return fData;}
       DataEvents& Data() {return fData;}
