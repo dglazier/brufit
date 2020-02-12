@@ -38,6 +38,7 @@ namespace HS{
     protected:
       RooHSEventsPDF* fParent=nullptr;//!
       TTree* fEvTree=nullptr;//!
+      TTree* fMCGenTree=nullptr;//!
       TEntryList* fEntryList=nullptr;//!
       Weights* fWeights=nullptr;//!  //weights for event generator
       Weights* fInWeights=nullptr; //weights for shaping the events tree
@@ -71,6 +72,7 @@ namespace HS{
       Bool_t fUseWeightsGen=kFALSE;
       Bool_t fUseEvWeights=kFALSE;
       Bool_t fIsValid=kTRUE;
+	  Bool_t fHasMCGenTree=kFALSE;
 
       WeightsConfig fWgtsConf;
       //      TString fWgtSpecies;
@@ -179,6 +181,7 @@ namespace HS{
       void SetNextRange(Int_t ir);
       RooHSEventsPDF* GetParent(){return fParent;}
       Bool_t IsValid(){return fIsValid;}
+      void HasMCGenTree(Bool_t HasTree = kTRUE){fHasMCGenTree=HasTree;}
       void Plotting(Bool_t plotting=kTRUE){fIsPlotting=plotting;}
       void SetHistIntegrals(vector<TH1F> &hists){fHistIntegrals=hists;}
 
