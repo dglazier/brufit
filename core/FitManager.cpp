@@ -115,6 +115,10 @@ namespace HS{
 	    Read(fBinner.TreeName(pdf->GetName()),
 		 fBinner.FileNames(pdf->GetName())[idata]);
 	  auto tree=filetree->Tree();
+	  auto mcgenfiletree=FiledTree::
+	    Read(fBinner.TreeName(pdf->GetName()+TString("__MCGen")),
+		 fBinner.FileNames(pdf->GetName()+TString("__MCGen"))[idata]);
+	  auto mcgentree=mcgenfiletree->Tree();
 	  savedir->cd();
  	  if(!tree.get()){
 	    cout<<"WARNING FitManager::FillEventsPDFs :"<<
@@ -129,7 +133,7 @@ namespace HS{
 	  }
 	  else{ //use it and give it the simulated tree
 	    pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
-	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut());
+	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
 
 	    //See if data to load for proto data
 	    if(!fCurrDataSet.get())
@@ -146,6 +150,7 @@ namespace HS{
 	  }
 	  //keep the simulated tree alive until Reset()
 	  fFiledTrees.push_back(std::move(filetree));	  
+	  fFiledTrees.push_back(std::move(mcgenfiletree));	  
 	}
       }
       savedir->cd();

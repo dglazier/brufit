@@ -118,13 +118,13 @@ namespace HS{
       }
       
       void LoadGenerated(const TString& tname,TString fname,const TString& name){
-	fBinner.SplitData(tname,std::move(fname),name);
+	fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
       }
       void ReloadGenerated(const TString& fname,const TString& name){
-	fBinner.ReloadData(fname,name);
+	fBinner.ReloadData(fname,name+"__MCGen");
       }
       void ReloadGenerated(const TString& tname,const TString& fname,const TString& name){
-	fBinner.ReloadData(fname,name);
+	fBinner.ReloadData(fname,name+"__MCGen");
       }
 
       // dataevs_ptr& Data() {return fData;}

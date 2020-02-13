@@ -416,6 +416,7 @@ namespace HS{
       if(!(MCGenTree==nullptr)){
 		  fMCGenTree=MCGenTree;
 		  fHasMCGenTree=kTRUE;
+		  cout<<"RooHSEventsPDF::SetEvTree set MC generated tree with " << fMCGenTree->GetEntries() << " entries." <<endl;
 	  }
  
       // fEvTree->SetMakeClass(1); //in case branches are part of a class e.g. HS::TreeData
