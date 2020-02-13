@@ -174,7 +174,8 @@ namespace HS{
       std::vector<filed_uptr> fFiledTrees;//!
       std::vector<plotresult_uptr> fPlots;//!
       RooFitResult* fResult=nullptr;//!
-
+      TTree* fAcceptanceTree=nullptr;
+      
       strings_t fCompiledMacros;
   
       Bool_t fRedirect=kFALSE;
