@@ -320,6 +320,30 @@ namespace HS{
 
       return fLast[0];
     }
+
+    Double_t RooHSEventsPDF::unnormalisedIntegral(Int_t code,const char* rangeName) const{
+		Double_t integral=0;
+	
+		if(code==1){
+			for(Long64_t ie=0;ie<fNTreeEntries;ie++){
+				fTreeEntry=ie;
+				// fEvTree->GetEntry(ie);
+				if(!CheckRange(TString(rangeName).Data())) continue;
+				integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
+			}
+		}
+		else if(code==2 && fHasMCGenTree){
+			for(Long64_t ie=0;ie<fNMCGenTreeEntries;ie++){
+				fTreeEntry=ie;
+				integral+=evaluateMC(&fvecRealMCGen,&fvecCatMCGen);
+			}
+		}
+		else
+			return 0;
+
+		return integral;
+    }
+    
     void RooHSEventsPDF::HistIntegrals(const char* rangeName) const{
       //create histograms for each observable and fill integrating
       //over other observables, filling with evaluateMC
@@ -413,7 +437,7 @@ namespace HS{
 
       ProcInfo_t info;
       fEvTree=tree;
-      if(!(MCGenTree==nullptr)){
+      if(MCGenTree){ // generated events used for acceptance correction, do only if tree is available
 		  fMCGenTree=MCGenTree;
 		  fHasMCGenTree=kTRUE;
 		  cout<<"RooHSEventsPDF::SetEvTree set MC generated tree with " << fMCGenTree->GetEntries() << " entries." <<endl;
@@ -425,12 +449,16 @@ namespace HS{
       fConstInt=fEvTree->GetEntries();
       fEvTree->ResetBranchAddresses();
       //fEvTree->SetBranchStatus("*",0);
+	  if(MCGenTree) // generated events used for acceptance correction, do only if tree is available
+		fMCGenTree->ResetBranchAddresses();
       fBranchStatus=kTRUE;
 
       TVectorD MCVar(fProxSet.size());
       TVectorD GenVar(fProxSet.size());
+      TVectorD MCGenVar(fProxSet.size()); // generated events used for acceptance correction
       vector<Int_t> MCCat(fCatSet.size());
       vector<Int_t> GenCat(fCatSet.size());
+      vector<Int_t> MCGenCat(fCatSet.size()); // generated events used for acceptance correction
       fGotGenVar.resize(fProxSet.size());
       fGotGenCat.resize(fProxSet.size());
   
@@ -462,7 +490,17 @@ namespace HS{
 	  }
 	  fBranchStatus=kFALSE;
 	}
-      }
+    
+    if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
+		if(fMCGenTree->GetBranch(fProxSet[i]->GetName())){
+			fMCGenTree->SetBranchStatus(fProxSet[i]->GetName(),true);
+			fMCGenTree->SetBranchAddress(fProxSet[i]->GetName(),&MCGenVar[i]);
+		}
+		else{
+			Warning("RooHSEventsPDF::SetEvTree","Branch %s not found in MCGen tree. Acceptance correction will be wrong!!!",fProxSet[i]->GetName()); 
+		}
+    }
+	}
       for(UInt_t i=0;i<fCatSet.size();i++){
 	fGotGenCat[i]=0;
 	if(fEvTree->GetBranch(fCatSet[i]->GetName())){
@@ -503,6 +541,15 @@ namespace HS{
 	  }
 	  fBranchStatus=kFALSE;
 	}
+	if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
+		if(fMCGenTree->GetBranch(fCatSet[i]->GetName())){
+			fMCGenTree->SetBranchStatus(fCatSet[i]->GetName(),true);
+			fMCGenTree->SetBranchAddress(fCatSet[i]->GetName(),&MCGenCat[i]);
+		}
+		else{
+			Warning("RooHSEventsPDF::SetEvTree","Branch %s not found in MCGen tree. Acceptance correction will be wrong!!!",fCatSet[i]->GetName());
+		}
+	}
       }
       fEvTree->GetEntry(0);
  
@@ -514,6 +561,12 @@ namespace HS{
       fvecRealGen.resize(fNTreeEntries*ProxSize);
       fvecCat.resize(fNTreeEntries*CatSize);
       fvecCatGen.resize(fNTreeEntries*CatSize);
+	  if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
+		fNMCGenTreeEntries=fMCGenTree->GetEntries();
+		fvecRealMCGen.resize(fNMCGenTreeEntries*ProxSize);
+		fvecCatMCGen.resize(fNMCGenTreeEntries*CatSize);
+	  }
+	  
       //Get entries that pass cut
       //A little subtle but this must be done before SetMakeClass or it
       //doesn't find any entries
@@ -523,9 +576,18 @@ namespace HS{
       Long64_t entryNumber=0;
       Long64_t localEntry=0;
       fNTreeEntries=elist->GetN();
+	  
+	  TEntryList* elistMCGen;
+	  if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
+		MCGenTree->Draw(">>elistMCGen", "", "entrylistMCGen"); // TODO include fCut???
+		elistMCGen = dynamic_cast<TEntryList*>(gDirectory->Get("elistMCGen"));
+		fMCGenTree->SetEntryList(elistMCGen);
+		fNMCGenTreeEntries=elistMCGen->GetN();
+	  }
 
       cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<" "<<fNTreeEntries<<endl;
-
+	  if(MCGenTree) cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<"__MCGEN "<<fNMCGenTreeEntries<<endl;
+	  
       for(Long64_t iEvent=0;iEvent<fNTreeEntries;iEvent++){
 	entryNumber = fEvTree->GetEntryNumber(iEvent);
 	if (entryNumber < 0) break;
@@ -549,7 +611,31 @@ namespace HS{
       }
       fEvTree->SetEntryList(nullptr);
       delete elist;elist=nullptr;
-  
+	  
+	entryNumber=0;
+	localEntry=0;
+	if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
+		for(Long64_t iEvent=0;iEvent<fNMCGenTreeEntries;iEvent++){
+			entryNumber = fMCGenTree->GetEntryNumber(iEvent);
+			if (entryNumber < 0)
+				break;
+			localEntry = fMCGenTree->LoadTree(entryNumber);
+			if (localEntry < 0)
+				break;
+			fMCGenTree->GetEntry(localEntry);
+			for(UInt_t ip=0;ip<ProxSize;ip++){
+				//  cout<<iEvent<<" "<<MCVar[ip]<<endl;
+				fvecRealMCGen[iEvent*ProxSize+ip]=MCGenVar[ip];
+			}
+			for(UInt_t ip=0;ip<CatSize;ip++){
+				fvecCatMCGen[iEvent*CatSize+ip]=MCGenCat[ip];
+			}
+		}
+		fMCGenTree->SetEntryList(nullptr);
+		delete elistMCGen;elistMCGen=nullptr;
+	}
+	  
+	  
       //Read weights into fEvWeights
       if(fWgtsConf.IsValid()){
     
@@ -578,8 +664,11 @@ namespace HS{
 	fEvTree=coptree;
       }
       fEvTree->Reset();  //empty tree to save memory
+	  if(MCGenTree)
+		fMCGenTree->Reset();
       return fBranchStatus;
     }
+    
     void  RooHSEventsPDF::LoadInWeights(){
       //GetWeights object 
       cout<<"void RooHSEventsPDF::LoadWeights and use species "<< fWgtsConf.Species()<<" "<<fWgtsConf.File()<<" "<<fWgtsConf.ObjName()<<endl;

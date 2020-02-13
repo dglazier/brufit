@@ -118,7 +118,10 @@ namespace HS{
       }
       
       void LoadGenerated(const TString& tname,TString fname,const TString& name){
+	TString buffer = fBinner.GetCut();
+	fBinner.RemoveAllCuts();
 	fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
+	fBinner.AddCut(buffer);
       }
       void ReloadGenerated(const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name+"__MCGen");
@@ -142,6 +145,7 @@ namespace HS{
       void PlotDataModel(){
 	fPlots.push_back((std::make_unique<PlotResults>(fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle())));
       }
+      void CalcAcceptanceCorrection();
       void RedirectOutput(const TString& log="");
       void SetRedirectOutput(){fRedirect=kTRUE;}
 

@@ -85,6 +85,7 @@ namespace HS{
       ///////////////////////////
       //Plot best fit and return
       PlotDataModel();
+	  CalcAcceptanceCorrection();
 
     }
     void FitManager::RunOne(Int_t ifit){
@@ -115,10 +116,10 @@ namespace HS{
 	    Read(fBinner.TreeName(pdf->GetName()),
 		 fBinner.FileNames(pdf->GetName())[idata]);
 	  auto tree=filetree->Tree();
-	  auto mcgenfiletree=FiledTree::
-	    Read(fBinner.TreeName(pdf->GetName()+TString("__MCGen")),
-		 fBinner.FileNames(pdf->GetName()+TString("__MCGen"))[idata]);
-	  auto mcgentree=mcgenfiletree->Tree();
+	
+	  auto mcgenfiletree= (fBinner.FileNames(pdf->GetName()+TString("__MCGen")).empty() ? nullptr : FiledTree::Read(fBinner.TreeName(pdf->GetName()+TString("__MCGen")),fBinner.FileNames(pdf->GetName()+TString("__MCGen"))[idata]));
+	  auto mcgentree=(mcgenfiletree ? mcgenfiletree->Tree() : nullptr);
+	  
 	  savedir->cd();
  	  if(!tree.get()){
 	    cout<<"WARNING FitManager::FillEventsPDFs :"<<
@@ -133,7 +134,7 @@ namespace HS{
 	  }
 	  else{ //use it and give it the simulated tree
 	    pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
-	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
+		pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
 
 	    //See if data to load for proto data
 	    if(!fCurrDataSet.get())
@@ -149,8 +150,9 @@ namespace HS{
 	    }
 	  }
 	  //keep the simulated tree alive until Reset()
-	  fFiledTrees.push_back(std::move(filetree));	  
-	  fFiledTrees.push_back(std::move(mcgenfiletree));	  
+	  fFiledTrees.push_back(std::move(filetree));	
+	  if(mcgenfiletree)
+		fFiledTrees.push_back(std::move(mcgenfiletree));	  
 	}
       }
       savedir->cd();
@@ -221,6 +223,32 @@ namespace HS{
 	gSystem->RedirectOutput(log.Data(),"w");
       
     }
+    
+	void FitManager::CalcAcceptanceCorrection(){
+		UInt_t idata=GetDataBin(fFiti);
+		auto pdfs=fCurrSetup->PDFs();
+		
+		auto savedir=gDirectory;
+		
+		cout<< "FitManager::CalcAcceptanceCorrection() Found " << pdfs.getSize() << "pdfs." << endl;
+		for(Int_t ip=0;ip<pdfs.getSize();ip++){
+			auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
+			if(pdf){
+				if(fBinner.FileNames(pdf->GetName()).size()==0)
+					continue;
+// 				
+				Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
+				Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
+				if(integralGenerated)
+					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
+				else
+					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " Can't calculate acceptance!!!" << endl;
+				savedir->cd();
+				pdf->Print();
+				cout<<endl;
+			}
+		}
+	}
 
     void FitManager::SaveResults(){
      
