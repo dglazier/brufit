@@ -323,24 +323,28 @@ namespace HS{
 
     Double_t RooHSEventsPDF::unnormalisedIntegral(Int_t code,const char* rangeName) const{
 		Double_t integral=0;
-	
+		Double_t nev=0;
+		Double_t nMC=0;
 		if(code==1){
 			for(Long64_t ie=0;ie<fNTreeEntries;ie++){
 				fTreeEntry=ie;
 				// fEvTree->GetEntry(ie);
 				if(!CheckRange(TString(rangeName).Data())) continue;
 				integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
+				nev++;
 			}
+			cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << endl;
 		}
 		else if(code==2 && fHasMCGenTree){
 			for(Long64_t ie=0;ie<fNMCGenTreeEntries;ie++){
 				fTreeEntry=ie;
 				integral+=evaluateMC(&fvecRealMCGen,&fvecCatMCGen);
+				nMC++;
 			}
+		cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << endl;
 		}
 		else
 			return 0;
-
 		return integral;
     }
     
