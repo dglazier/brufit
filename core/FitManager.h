@@ -145,7 +145,6 @@ namespace HS{
       void PlotDataModel(){
 	fPlots.push_back((std::make_unique<PlotResults>(fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle())));
       }
-      void CalcAcceptanceCorrection();
       void RedirectOutput(const TString& log="");
       void SetRedirectOutput(){fRedirect=kTRUE;}
 
@@ -174,7 +173,6 @@ namespace HS{
       std::vector<filed_uptr> fFiledTrees;//!
       std::vector<plotresult_uptr> fPlots;//!
       RooFitResult* fResult=nullptr;//!
-      TTree* fAcceptanceTree=nullptr;
       
       strings_t fCompiledMacros;
   

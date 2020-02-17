@@ -85,7 +85,6 @@ namespace HS{
       ///////////////////////////
       //Plot best fit and return
       PlotDataModel();
-	  CalcAcceptanceCorrection();
 
     }
     void FitManager::RunOne(Int_t ifit){
@@ -223,49 +222,11 @@ namespace HS{
 	gSystem->RedirectOutput(log.Data(),"w");
       
     }
-    
-	void FitManager::CalcAcceptanceCorrection(){
-		UInt_t idata=GetDataBin(fFiti);
-		auto pdfs=fCurrSetup->PDFs();
-		
-		fAcceptanceTree = new TTree("acceptanceCorrection","acceptanceCorrection");
-		
-		cout<< "FitManager::CalcAcceptanceCorrection() Found " << pdfs.getSize() << "pdfs." << endl;
-		for(Int_t ip=0;ip<pdfs.getSize();ip++){
-			auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
-			if(pdf){
-				if(fBinner.FileNames(pdf->GetName()).size()==0)
-					continue;
-// 				
-				Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
-				Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
-				Double_t sumofweightsData=fData.Get(idata)->sumEntries();
-				Double_t acceptanceCorrectedYield=0;
-				if(integralGenerated)
-					acceptanceCorrectedYield=sumofweightsData/(integralAccepted/integralGenerated);
-				
-				if(integralGenerated)
-					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
-				else
-					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " Can't calculate acceptance!!!" << endl;
-				cout << "FitManager::CalcAcceptanceCorrection() data yield=" << sumofweightsData << endl;
-				cout << "FitManager::CalcAcceptanceCorrection() acceptance corrected data yield=" << acceptanceCorrectedYield << endl;
-				
-				fAcceptanceTree = new TTree("acceptanceCorrection","acceptanceCorrection");
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_acc"),&integralAccepted);
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_gen"),&integralGenerated);
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_yld"),&sumofweightsData);
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_yldcorr"),&acceptanceCorrectedYield);
-				fAcceptanceTree->Fill();
-			}
-		}
-	}
 
     void FitManager::SaveResults(){
      
       auto outFile=fMinimiser->SaveInfo();
       if(fPlots.size())fPlots.back()->Write(); //just save the last one
-      if(fAcceptanceTree) fAcceptanceTree->Write(); //save acceptance TTree, if generated MC not passed to FitManager this is just a nullptr
       //outfile is unique_ptr so will be deleted and saved here
     }
 
