@@ -24,7 +24,7 @@ namespace FIT{
 	public:
 		CrossSection()=default;
 		CrossSection(const CrossSection&)=default;
-		CrossSection(const FitManager& fm,TString outDir="",TString resultFile=""):FitManager(fm),fResultOutDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
+		CrossSection(const FitManager& fm,TString outDir="",TString resultFile=""):FitManager(fm),fResultDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
 		CrossSection(CrossSection&&)=default;
 		~CrossSection() override =default;
 		CrossSection& operator=(const CrossSection& other) = default;
@@ -37,14 +37,15 @@ namespace FIT{
 		
 		void SetBeamEnergyBinLimits(std::vector<Double_t> limits){fBeamEnergyBinLimits = limits;};
 		void SetBeamEnergyBinLimits(TString bin);
-		void LoadFlux(TString filename, TString histname);
+		void SetFlux(TString filename, TString histname){fFluxfile=filename; fFluxhistname=histname;};
 		void SetTargetThickness(Double_t n){fTargetThickness=n;};
 		void SetBranchingRatio(Double_t n){fBranchingRatio=n;};
 		
 		
-		void SetResultOutdir(TString name){fResultOutDir=std::move(name);};
+		void SetResultDir(TString name){fResultDir=std::move(name);};
 		void SetResultFileName(TString name){fResultFileName=std::move(name);};
 		
+		void CalcFlux();
 		void CalcYield();
 		void CalcAcceptanceCorrection();
 		void CalcCrossSection();
@@ -56,23 +57,29 @@ namespace FIT{
 		Double_t GetAcceptance(){return fAcceptance;};
 		Double_t GetYield(){return fYield;};
 		Double_t GetCrossSection(){return fCrossSection;};
-		
+		Double_t GetBinValue(){return fBinValue;};
+		Double_t GetBeamEnergyValue(){return fBeamEnergyValue;};
+		Double_t GetBeamEnergyNBins(){return fBeamEnergyBinLimits.size()-1;};
 		
 	protected:
 	
 	private:
 
-		TString fResultOutDir;
+		TString fResultDir;
 		TString fResultFileName;
 		
 		std::vector<Double_t> fBeamEnergyBinLimits = {0};
 		TString fBeamEnergyBinName = "";
+		TString fFluxfile = "";
+		TString fFluxhistname = "";
 		Double_t fFlux = 0.;
 		Double_t fTargetThickness = 1.; //inverse barn
 		Double_t fBranchingRatio = 1;
 		Double_t fAcceptance = 0.;
 		Double_t fYield = 0.;
 		Double_t fCrossSection = 0.;
+		Double_t fBinValue = 0.;
+		Double_t fBeamEnergyValue = 0.;
 
 	ClassDefOverride(HS::FIT::CrossSection,1);
 	}; //class CrossSection

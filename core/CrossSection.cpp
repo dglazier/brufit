@@ -3,6 +3,8 @@
 #include "RooHSEventsHistPDF.h"
 #include "RooComponentsPDF.h"
 #include <TH1.h>
+#include <TCanvas.h>
+#include <TGraphErrors.h>
 #include <TDirectory.h>
 #include <RooRandom.h>
 #include <RooStats/RooStatsUtils.h>
@@ -20,14 +22,19 @@ namespace FIT{
 		
 		CreateCurrSetup();
 		
-		FillEventsPDFs();
-		
-		cout << " CrossSection::Run() " << Bins().GetBins().GetNAxis() << " bin(s) provided for calculation." << endl;
+		cout << " CrossSection::Run() " << Bins().GetBins().GetNAxis() << " binning variable(s) provided for calculation." << endl;
 		if(Bins().GetBins().GetNAxis()>2){
 			cout << " CrossSection::Run() More than two different types of bins. Cross section calculation only supports two bins (beam energy and angle)." << endl;
 			return;
 		}
+		if(Bins().GetBins().GetNAxis()>1 && fBeamEnergyBinName==""){
+			cout << "More than two bin variables and none of them was set as beam energy. Cross section cannot be calculated." << endl;
+			return;
+		}
 		
+		FillEventsPDFs();
+		
+		CalcFlux();
 		CalcYield();
 		CalcAcceptanceCorrection();
 		CalcCrossSection();
@@ -47,7 +54,7 @@ namespace FIT{
 		if(fResultFileName==TString())
 			return;
 		
-		TString resultFile=fResultOutDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
+		TString resultFile=fResultDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
 		std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
 		std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};
 		
@@ -72,18 +79,39 @@ namespace FIT{
 		SetBeamEnergyBinLimits(limits);
 	}
 	
-	void CrossSection::LoadFlux(TString filename, TString histname){
-		auto fluxfile=std::make_unique<TFile> (filename,"read");
-		TH1F* hFlux = (TH1F*) fluxfile->Get(histname)->Clone("flux");
+	void CrossSection::CalcFlux(){
+		auto fluxfile=std::make_unique<TFile> (fFluxfile,"read");
+		TH1F* hFlux = (TH1F*) fluxfile->Get(fFluxhistname)->Clone("flux");
 		Int_t nbins = fBeamEnergyBinLimits.size()-1;
-		cout << "CrossSection::LoadFlux for " << nbins << " bins." << endl;
+		cout << "CrossSection::CalcFlux for " << nbins << " bins." << endl;
 		if(nbins==1){ //only one beam energy bin, we can integrate directly
+			fBeamEnergyValue = fBeamEnergyBinLimits[0]+(fBeamEnergyBinLimits[1]-fBeamEnergyBinLimits[0])/2.;
 			Double_t integral = hFlux->Integral(hFlux->FindBin(fBeamEnergyBinLimits[0]),hFlux->FindBin(fBeamEnergyBinLimits[1])-1);
-			cout << "CrossSection::LoadFlux Integrated flux from " << fBeamEnergyBinLimits[0] << " to " << fBeamEnergyBinLimits[1] << " = " << integral << endl;
+			cout << "CrossSection::CalcFlux Integrated flux from " << fBeamEnergyBinLimits[0] << " to " << fBeamEnergyBinLimits[1] << " = " << integral << endl;
 			fFlux = integral;
 		}
 		if(nbins>1){ //need to find correct bin first
+			TAxis a = (TAxis)Bins().GetBins().GetAxis(Bins().GetBins().GetAxisi(fBeamEnergyBinName));
+			//find correct bin limits, feels clumsy, is there a better way to do this?
+			Double_t binvalue = -1.;
+			TString currname = GetCurrName();
+			TObjArray* token = currname.Tokenize("_");
+			for(auto i:*token){
+				TString namebuffer = ((TObjString*)i)->String();
+				if(namebuffer.Contains(fBeamEnergyBinName)){ // pick out part of name that contains fBeamEnergyBinName
+					namebuffer.ReplaceAll(fBeamEnergyBinName,""); //remove fBeamEnergyBinName from bin, only central value is left
+					binvalue = namebuffer.Atof();
+					break;
+				}
+			}
+			Int_t binnumber = a.FindBin(binvalue);
+			Double_t lowedge = a.GetBinLowEdge(binnumber);
+			Double_t upedge = a.GetBinUpEdge(binnumber);
 			
+			Double_t integral = hFlux->Integral(hFlux->FindBin(lowedge),hFlux->FindBin(upedge)-1);
+			cout << "CrossSection::CalcFlux Integrated flux from " << lowedge << " to " << upedge << " = " << integral << endl;
+			fFlux = integral;
+			fBeamEnergyValue = binvalue;
 		}
 	}
 	
@@ -145,7 +173,9 @@ namespace FIT{
 		for(Int_t i=0;i<naxis;i++){
 			TAxis a = (TAxis)Bins().GetBins().GetAxis(i);
 			TString axisname = a.GetName();
-			if(axisname==fBeamEnergyBinName) //need to make sure to get the correct binning variable, allow only two bins in Run(), if it is not fBeamEnergyBinName it must be correct
+			//need to make sure to get the correct binning variable, allow only two bins in Run(),
+			//if it is not fBeamEnergyBinName it must be correct
+			if(axisname==fBeamEnergyBinName)
 				continue;
 			//find correct bin limits, feels clumsy, is there a better way to do this?
 			Double_t binvalue = -1.;
@@ -163,15 +193,63 @@ namespace FIT{
 			Double_t lowedge = a.GetBinLowEdge(binnumber);
 			Double_t upedge = a.GetBinUpEdge(binnumber);
 			binwidth = upedge-lowedge;
+			fBinValue = binvalue;
 		}
 		if(binwidth==0)
 			cout << "CrossSection::CalcCrossSection() Bin width is 0!! Cannot normalise cross section!!" << endl;
 		else
 			fCrossSection/=binwidth;
+		
 	}
 	
 	void CrossSection::DrawResults(){
-		cout << "CrossSection::DrawResults() not yet implemented" << endl;
+		cout << "CrossSection::DrawResults()" << endl;
+		CrossSection* a;
+		Int_t nbins = Bins().GetSize();
+		Double_t csbuffer[nbins];
+		Double_t binningbuffer[nbins];
+		Double_t ebinning[nbins];
+		std::set<Double_t> ebinningset;
+		for(Int_t i=0;i<nbins;i++){ //loop over all bins and fill buffer
+			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
+			auto file=std::make_unique<TFile> (fileName,"read");
+			a = (CrossSection*)file->Get("cs");
+			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << endl;
+			
+			csbuffer[i] = a->GetCrossSection();
+			binningbuffer[i] = a->GetBinValue();
+			ebinning[i] = a->GetBeamEnergyValue();
+			ebinningset.insert(a->GetBeamEnergyValue());
+		}
+		
+		// now sort all results into correct Ebin arrays for easy plotting
+		Int_t ebins = ebinningset.size();
+		Double_t cs[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
+		Double_t binning[ebins][nbins/ebins];
+		Int_t ecounter=0;
+		for(auto i:ebinningset){
+			Int_t counter=0;
+			for(Int_t j=0;j<nbins;j++){
+				if(i==ebinning[j]){
+					cs[ecounter][counter] = csbuffer[j];
+					binning[ecounter][counter] = binningbuffer[j];
+					counter++;
+				}
+			}
+			ecounter++;
+		}
+			
+		TGraphErrors* gResults[ebins];
+		TCanvas* cResults = new TCanvas("results","results");
+		cResults->DivideSquare(ebins);
+		for(Int_t e=0; e<ebins;e++){
+			cResults->cd(e+1);
+			gResults[e] = new TGraphErrors(nbins/ebins,binning[e],cs[e]);
+			gResults[e]->SetNameTitle(TString::Format("Results%d",e),TString::Format("Results%d",e));
+			gResults[e]->Draw("AP");
+			gResults[e]->SetMarkerStyle(20);
+		}
+		
 	}
 	
 }
