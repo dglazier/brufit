@@ -35,8 +35,8 @@ namespace FIT{
 		
 		void LoadResult();
 		
-		void SetEnergyBinLimits(std::vector<Double_t> limits){fEnergyBinLimits = limits;};
-		void SetEnergyBinLimits(TString bin);
+		void SetBeamEnergyBinLimits(std::vector<Double_t> limits){fBeamEnergyBinLimits = limits;};
+		void SetBeamEnergyBinLimits(TString bin);
 		void LoadFlux(TString filename, TString histname);
 		void SetTargetThickness(Double_t n){fTargetThickness=n;};
 		
@@ -57,7 +57,7 @@ namespace FIT{
 		
 		TTree* fAcceptanceTree=nullptr;
 		
-		std::vector<Double_t> fEnergyBinLimits = {0};
+		std::vector<Double_t> fBeamEnergyBinLimits = {0};
 		std::vector<Double_t> fFlux = {0};
 		Double_t fTargetThickness = 1.; //inverse barn
 

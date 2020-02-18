@@ -54,24 +54,24 @@ namespace FIT{
 		}
 	}
 	
-	void CrossSection::SetEnergyBinLimits(TString bin){
+	void CrossSection::SetBeamEnergyBinLimits(TString bin){
 		vector<Double_t> limits;
 		TAxis a = (TAxis)Bins().GetBins().GetAxis(Bins().GetBins().GetAxisi(bin));
 		Int_t nbins = a.GetNbins();
 		for(Int_t i=1;i<=(nbins+1);i++)
 			limits.push_back(a.GetBinLowEdge(i));
-		SetEnergyBinLimits(limits);
+		SetBeamEnergyBinLimits(limits);
 	}
 	
 	void CrossSection::LoadFlux(TString filename, TString histname){
 		fFlux.clear(); // clear current flux before setting new
 		auto fluxfile=std::make_unique<TFile> (filename,"read");
 		TH1F* hFlux = (TH1F*) fluxfile->Get(histname)->Clone("flux");
-		Int_t nbins = fEnergyBinLimits.size()-1;
+		Int_t nbins = fBeamEnergyBinLimits.size()-1;
 		cout << "CrossSection::LoadFlux for " << nbins << " bins." << endl;
 		for(Int_t i=0; i<nbins;i++){
-			Double_t integral = hFlux->Integral(hFlux->FindBin(fEnergyBinLimits[i]),hFlux->FindBin(fEnergyBinLimits[i+1])-1);
-			cout << "CrossSection::LoadFlux Integrated flux from " << fEnergyBinLimits[i] << " to " << fEnergyBinLimits[i+1] << " = " << integral << endl;
+			Double_t integral = hFlux->Integral(hFlux->FindBin(fBeamEnergyBinLimits[i]),hFlux->FindBin(fBeamEnergyBinLimits[i+1])-1);
+			cout << "CrossSection::LoadFlux Integrated flux from " << fBeamEnergyBinLimits[i] << " to " << fBeamEnergyBinLimits[i+1] << " = " << integral << endl;
 			fFlux.push_back(integral);
 		}
 	}
@@ -113,12 +113,12 @@ namespace FIT{
 		}
 	}
 	
-	void CrossSection::DrawResults(){
-		 cout << "CrossSection::DrawResults() not yet implemented" << endl;
-	}
-	
 	void CrossSection::CalcCrossSection(){
 		 cout << "CrossSection::CalcCrossSection() not yet implemented" << endl;
+	}
+	
+	void CrossSection::DrawResults(){
+		 cout << "CrossSection::DrawResults() not yet implemented" << endl;
 	}
 	
 }
