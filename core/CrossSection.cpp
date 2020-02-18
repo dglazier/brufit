@@ -36,7 +36,7 @@ namespace FIT{
 	
 	void CrossSection::SaveResults(){
 		
-		TString fileName=Form("%s%s/CrossSection.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data());
+		TString fileName=Form("%s%s/ResultsCrossSection.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data());
 		cout << "Save to " << fileName << endl;
 		auto outfile=std::make_unique<TFile> (fileName,"recreate");
 		SetName("cs");
@@ -63,6 +63,7 @@ namespace FIT{
 	}
 	
 	void CrossSection::SetBeamEnergyBinLimits(TString bin){
+		fBeamEnergyBinName = bin;
 		vector<Double_t> limits;
 		TAxis a = (TAxis)Bins().GetBins().GetAxis(Bins().GetBins().GetAxisi(bin));
 		Int_t nbins = a.GetNbins();
@@ -72,15 +73,17 @@ namespace FIT{
 	}
 	
 	void CrossSection::LoadFlux(TString filename, TString histname){
-		fFlux.clear(); // clear current flux before setting new
 		auto fluxfile=std::make_unique<TFile> (filename,"read");
 		TH1F* hFlux = (TH1F*) fluxfile->Get(histname)->Clone("flux");
 		Int_t nbins = fBeamEnergyBinLimits.size()-1;
 		cout << "CrossSection::LoadFlux for " << nbins << " bins." << endl;
-		for(Int_t i=0; i<nbins;i++){
-			Double_t integral = hFlux->Integral(hFlux->FindBin(fBeamEnergyBinLimits[i]),hFlux->FindBin(fBeamEnergyBinLimits[i+1])-1);
-			cout << "CrossSection::LoadFlux Integrated flux from " << fBeamEnergyBinLimits[i] << " to " << fBeamEnergyBinLimits[i+1] << " = " << integral << endl;
-			fFlux.push_back(integral);
+		if(nbins==1){ //only one beam energy bin, we can integrate directly
+			Double_t integral = hFlux->Integral(hFlux->FindBin(fBeamEnergyBinLimits[0]),hFlux->FindBin(fBeamEnergyBinLimits[1])-1);
+			cout << "CrossSection::LoadFlux Integrated flux from " << fBeamEnergyBinLimits[0] << " to " << fBeamEnergyBinLimits[1] << " = " << integral << endl;
+			fFlux = integral;
+		}
+		if(nbins>1){ //need to find correct bin first
+			
 		}
 	}
 	
@@ -91,7 +94,6 @@ namespace FIT{
 	}
 	
 	void CrossSection::CalcAcceptanceCorrection(){
-		UInt_t idata=GetDataBin(GetFiti());
 		auto pdfs=fCurrSetup->PDFs();
 		if(pdfs.getSize()>1)
 			cout<< "FitManager::CalcAcceptanceCorrection() Found more than one pdf!!! Last is used as acceptance!!!" << endl;
@@ -117,23 +119,55 @@ namespace FIT{
 		}
 	}
 	
-	void CrossSection::CalcCrossSection(){
-		cout << "CrossSection::CalcCrossSection() not yet implemented" << endl;
-		
+	void CrossSection::CalcCrossSection(){ //TODO include errors
 		if(fAcceptance==0)
-			cout << "CrossSection::CalcCrossSection() Acceptance is 0!! Cannot calculate cross section!!" << endl;
+			cout << "CrossSection::CalcCrossSection() Acceptance is 0!! Cannot normalise cross section!!" << endl;
 		else
 			fCrossSection = fYield/fAcceptance;
 		
-// 		if(fFlux==0)
-// 			cout << "CrossSection::CalcCrossSection() Flux is 0!! Cannot normalise cross section!!" << endl;
-// 		else
-// 			fCrossSection/=fFlux;
+		if(fFlux==0)
+			cout << "CrossSection::CalcCrossSection() Flux is 0!! Cannot normalise cross section!!" << endl;
+		else
+			fCrossSection/=fFlux;
 		
 		if(fTargetThickness==0)
 			cout << "CrossSection::CalcCrossSection() Target thickness is 0!! Cannot normalise cross section!!" << endl;
 		else
 			fCrossSection/=fTargetThickness;
+		
+		if(fBranchingRatio==0)
+			cout << "CrossSection::CalcCrossSection() Branching ratio is 0!! Cannot normalise cross section!!" << endl;
+		else
+			fCrossSection/=fBranchingRatio;
+		
+		Double_t binwidth = 0.;
+		Int_t naxis = Bins().GetBins().GetNAxis();
+		for(Int_t i=0;i<naxis;i++){
+			TAxis a = (TAxis)Bins().GetBins().GetAxis(i);
+			TString axisname = a.GetName();
+			if(axisname==fBeamEnergyBinName) //need to make sure to get the correct binning variable, allow only two bins in Run(), if it is not fBeamEnergyBinName it must be correct
+				continue;
+			//find correct bin limits, feels clumsy, is there a better way to do this?
+			Double_t binvalue = -1.;
+			TString currname = GetCurrName();
+			TObjArray* token = currname.Tokenize("_");
+			for(auto i:*token){
+				TString namebuffer = ((TObjString*)i)->String();
+				if(namebuffer.Contains(axisname)){ // pick out part of name that contains axisname
+					namebuffer.ReplaceAll(axisname,""); //remove axisname from bin, only central value is left
+					binvalue = namebuffer.Atof();
+					break;
+				}
+			}
+			Int_t binnumber = a.FindBin(binvalue);
+			Double_t lowedge = a.GetBinLowEdge(binnumber);
+			Double_t upedge = a.GetBinUpEdge(binnumber);
+			binwidth = upedge-lowedge;
+		}
+		if(binwidth==0)
+			cout << "CrossSection::CalcCrossSection() Bin width is 0!! Cannot normalise cross section!!" << endl;
+		else
+			fCrossSection/=binwidth;
 	}
 	
 	void CrossSection::DrawResults(){

@@ -39,18 +39,24 @@ namespace FIT{
 		void SetBeamEnergyBinLimits(TString bin);
 		void LoadFlux(TString filename, TString histname);
 		void SetTargetThickness(Double_t n){fTargetThickness=n;};
+		void SetBranchingRatio(Double_t n){fBranchingRatio=n;};
 		
-		void SetResultOutdir(TString name){fResultOutDir=std::move(name);}
-		void SetResultFileName(TString name){fResultFileName=std::move(name);}
+		
+		void SetResultOutdir(TString name){fResultOutDir=std::move(name);};
+		void SetResultFileName(TString name){fResultFileName=std::move(name);};
 		
 		void CalcYield();
 		void CalcAcceptanceCorrection();
 		void CalcCrossSection();
 		void DrawResults();
 		
-		Double_t GetYield(){return fYield;};
+		Double_t GetFlux(){return fFlux;};
+		Double_t GetTargetThickness(){return fTargetThickness;};
+		Double_t GetBranchingRatio(){return fBranchingRatio;};
 		Double_t GetAcceptance(){return fAcceptance;};
+		Double_t GetYield(){return fYield;};
 		Double_t GetCrossSection(){return fCrossSection;};
+		
 		
 	protected:
 	
@@ -60,8 +66,10 @@ namespace FIT{
 		TString fResultFileName;
 		
 		std::vector<Double_t> fBeamEnergyBinLimits = {0};
-		std::vector<Double_t> fFlux = {0};
+		TString fBeamEnergyBinName = "";
+		Double_t fFlux = 0.;
 		Double_t fTargetThickness = 1.; //inverse barn
+		Double_t fBranchingRatio = 1;
 		Double_t fAcceptance = 0.;
 		Double_t fYield = 0.;
 		Double_t fCrossSection = 0.;
