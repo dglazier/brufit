@@ -24,13 +24,13 @@ namespace FIT{
 		
 		CalcAcceptanceCorrection();
 		
-		SaveResults();
 		
 	}
 	
 	void CrossSection::SaveResults(){
 		
-		TString fileName="test.root";//Form("%s%s/%s.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data(),GetCurrTitle().Data());
+		TString fileName=Form("%s%s/CrossSection.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data());
+		cout << "Save to " << fileName << endl;
 		auto outfile=std::make_unique<TFile> (fileName,"recreate");
 		fAcceptanceTree->Write();
 	}
@@ -51,6 +51,28 @@ namespace FIT{
 			newPars.assignFast(*resPars); //set values to results
 			cout<<"ToyManager::LoadResult setting values from fit results "<<resultFile<<" : "<<endl;
 			newPars.Print("v");
+		}
+	}
+	
+	void CrossSection::SetEnergyBinLimits(TString bin){
+		vector<Double_t> limits;
+		TAxis a = (TAxis)Bins().GetBins().GetAxis(Bins().GetBins().GetAxisi(bin));
+		Int_t nbins = a.GetNbins();
+		for(Int_t i=1;i<=(nbins+1);i++)
+			limits.push_back(a.GetBinLowEdge(i));
+		SetEnergyBinLimits(limits);
+	}
+	
+	void CrossSection::LoadFlux(TString filename, TString histname){
+		fFlux.clear(); // clear current flux before setting new
+		auto fluxfile=std::make_unique<TFile> (filename,"read");
+		TH1F* hFlux = (TH1F*) fluxfile->Get(histname)->Clone("flux");
+		Int_t nbins = fEnergyBinLimits.size()-1;
+		cout << "CrossSection::LoadFlux for " << nbins << " bins." << endl;
+		for(Int_t i=0; i<nbins;i++){
+			Double_t integral = hFlux->Integral(hFlux->FindBin(fEnergyBinLimits[i]),hFlux->FindBin(fEnergyBinLimits[i+1])-1);
+			cout << "CrossSection::LoadFlux Integrated flux from " << fEnergyBinLimits[i] << " to " << fEnergyBinLimits[i+1] << " = " << integral << endl;
+			fFlux.push_back(integral);
 		}
 	}
 	
@@ -89,6 +111,14 @@ namespace FIT{
 				fAcceptanceTree->Fill();
 			}
 		}
+	}
+	
+	void CrossSection::DrawResults(){
+		 cout << "CrossSection::DrawResults() not yet implemented" << endl;
+	}
+	
+	void CrossSection::CalcCrossSection(){
+		 cout << "CrossSection::CalcCrossSection() not yet implemented" << endl;
 	}
 	
 }

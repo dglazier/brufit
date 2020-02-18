@@ -34,12 +34,19 @@ namespace FIT{
 		void SaveResults() override;
 		
 		void LoadResult();
-		void LoadFlux(TH1F* hist);
-
+		
+		void SetEnergyBinLimits(std::vector<Double_t> limits){fEnergyBinLimits = limits;};
+		void SetEnergyBinLimits(TString bin);
+		void LoadFlux(TString filename, TString histname);
+		void SetTargetThickness(Double_t n){fTargetThickness=n;};
+		
 		void SetResultOutdir(TString name){fResultOutDir=std::move(name);}
 		void SetResultFileName(TString name){fResultFileName=std::move(name);}
 		
 		void CalcAcceptanceCorrection();
+		
+		void CalcCrossSection();
+		void DrawResults();
 		
 	protected:
 	
@@ -50,6 +57,9 @@ namespace FIT{
 		
 		TTree* fAcceptanceTree=nullptr;
 		
+		std::vector<Double_t> fEnergyBinLimits = {0};
+		std::vector<Double_t> fFlux = {0};
+		Double_t fTargetThickness = 1.; //inverse barn
 
 	ClassDefOverride(HS::FIT::CrossSection,1);
 	}; //class CrossSection
