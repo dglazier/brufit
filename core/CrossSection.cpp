@@ -16,14 +16,21 @@ namespace FIT{
 	
 	void CrossSection::Run(){
 		
-		LoadResult();
+		LoadFitResult();
 		
 		CreateCurrSetup();
 		
 		FillEventsPDFs();
 		
-		CalcAcceptanceCorrection();
+		cout << " CrossSection::Run() " << Bins().GetBins().GetNAxis() << " bin(s) provided for calculation." << endl;
+		if(Bins().GetBins().GetNAxis()>2){
+			cout << " CrossSection::Run() More than two different types of bins. Cross section calculation only supports two bins (beam energy and angle)." << endl;
+			return;
+		}
 		
+		CalcYield();
+		CalcAcceptanceCorrection();
+		CalcCrossSection();
 		
 	}
 	
@@ -32,10 +39,11 @@ namespace FIT{
 		TString fileName=Form("%s%s/CrossSection.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data());
 		cout << "Save to " << fileName << endl;
 		auto outfile=std::make_unique<TFile> (fileName,"recreate");
-		fAcceptanceTree->Write();
+		SetName("cs");
+		Write();
 	}
 	
-	void CrossSection::LoadResult(){
+	void CrossSection::LoadFitResult(){
 		if(fResultFileName==TString())
 			return;
 		
@@ -49,7 +57,7 @@ namespace FIT{
 			auto* resAll = result->get(); //get all result info
 			auto* resPars=resAll->selectCommon(newPars); //just select pars and yieds
 			newPars.assignFast(*resPars); //set values to results
-			cout<<"ToyManager::LoadResult setting values from fit results "<<resultFile<<" : "<<endl;
+			cout<<"ToyManager::LoadFitResult setting values from fit results "<<resultFile<<" : "<<endl;
 			newPars.Print("v");
 		}
 	}
@@ -76,13 +84,17 @@ namespace FIT{
 		}
 	}
 	
+	void CrossSection::CalcYield(){
+		UInt_t idata=GetDataBin(GetFiti());
+		Double_t sumofweightsData=Data().Get(idata)->sumEntries();
+		fYield = sumofweightsData;
+	}
+	
 	void CrossSection::CalcAcceptanceCorrection(){
 		UInt_t idata=GetDataBin(GetFiti());
 		auto pdfs=fCurrSetup->PDFs();
-		
-		fAcceptanceTree = new TTree("acceptanceCorrection","acceptanceCorrection");
-		
-		cout<< "FitManager::CalcAcceptanceCorrection() Found " << pdfs.getSize() << "pdfs." << endl;
+		if(pdfs.getSize()>1)
+			cout<< "FitManager::CalcAcceptanceCorrection() Found more than one pdf!!! Last is used as acceptance!!!" << endl;
 		for(Int_t ip=0;ip<pdfs.getSize();ip++){
 			auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
 			pdf->Print();
@@ -92,33 +104,40 @@ namespace FIT{
 // 				
 				Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
 				Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
-				Double_t sumofweightsData=Data().Get(idata)->sumEntries();
-				Double_t acceptanceCorrectedYield=0;
-				if(integralGenerated)
-					acceptanceCorrectedYield=sumofweightsData/(integralAccepted/integralGenerated);
 				
 				if(integralGenerated)
 					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
 				else
 					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " Can't calculate acceptance!!!" << endl;
-				cout << "FitManager::CalcAcceptanceCorrection() data yield=" << sumofweightsData << endl;
-				cout << "FitManager::CalcAcceptanceCorrection() acceptance corrected data yield=" << acceptanceCorrectedYield << endl;
 				
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_acc"),&integralAccepted);
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_gen"),&integralGenerated);
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_yld"),&sumofweightsData);
-				fAcceptanceTree->Branch(pdf->GetName()+TString("_yldcorr"),&acceptanceCorrectedYield);
-				fAcceptanceTree->Fill();
+				if(integralGenerated)
+					fAcceptance = (integralAccepted/integralGenerated);
+				
 			}
 		}
 	}
 	
 	void CrossSection::CalcCrossSection(){
-		 cout << "CrossSection::CalcCrossSection() not yet implemented" << endl;
+		cout << "CrossSection::CalcCrossSection() not yet implemented" << endl;
+		
+		if(fAcceptance==0)
+			cout << "CrossSection::CalcCrossSection() Acceptance is 0!! Cannot calculate cross section!!" << endl;
+		else
+			fCrossSection = fYield/fAcceptance;
+		
+// 		if(fFlux==0)
+// 			cout << "CrossSection::CalcCrossSection() Flux is 0!! Cannot normalise cross section!!" << endl;
+// 		else
+// 			fCrossSection/=fFlux;
+		
+		if(fTargetThickness==0)
+			cout << "CrossSection::CalcCrossSection() Target thickness is 0!! Cannot normalise cross section!!" << endl;
+		else
+			fCrossSection/=fTargetThickness;
 	}
 	
 	void CrossSection::DrawResults(){
-		 cout << "CrossSection::DrawResults() not yet implemented" << endl;
+		cout << "CrossSection::DrawResults() not yet implemented" << endl;
 	}
 	
 }
