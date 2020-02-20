@@ -6,7 +6,7 @@
 #include <TSystem.h>
 #include <TList.h>
 #include <TVectorD.h>
-#include <ROOT/RDataFrame.hxx>
+//#include <ROOT/RDataFrame.hxx>
 #include <map>
 #include <utility>
 #include <utility>
@@ -24,7 +24,7 @@ namespace HS{
     using std::endl;
     
     using  StrIntMap_t = map<TString, Int_t >;
-    using DF_uptr=std::unique_ptr<ROOT::RDataFrame>;
+    // using DF_uptr=std::unique_ptr<ROOT::RDataFrame>;
 
     
     class Weights : public TNamed{
@@ -87,7 +87,7 @@ namespace HS{
       void ImportanceSampling(TTree* MCTree, TTree* dataTree, TH1* weightHist, TString var, Weights* MCWeights = nullptr, TString MCWeightsSpecies="", Weights* DataWeights = nullptr, TString DataWeightsSpecies="");
       void Draw1DWithWeights(TTree* tree,TH1* his,TString var,TString species="");
 
-      filed_uptr DFAddToTree(const TString& wname,const TString& outfname,const TString& tname,const TString& infname);
+      // filed_uptr DFAddToTree(const TString& wname,const TString& outfname,const TString& tname,const TString& infname);
     private:
       TTree *fWTree=nullptr;  //! not saved tree of weights, branchname = species
       TTree *fIDTree=nullptr;  //! not saved tree of ids, branchname = species

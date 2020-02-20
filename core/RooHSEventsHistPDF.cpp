@@ -98,8 +98,8 @@ namespace HS{
       //Additional stuff
       if(other.fx_off)fx_off=dynamic_cast<RooRealVar*>(other.fx_off->Clone());
       if(other.falpha)falpha=dynamic_cast<RooRealVar*>(other.falpha->Clone());
-      if(other.fHist)fHist=dynamic_cast<RooDataHist*>(other.fHist->Clone());
-      if(other.fRHist)fRHist=dynamic_cast<TH2D*>(other.fRHist->Clone());
+      if(other.fHist)fHist=dynamic_cast<RooDataHist*>(other.fHist->Clone(other.fHist->GetName()));
+      if(other.fRHist)fRHist=dynamic_cast<TH2D*>(other.fRHist->Clone(other.fRHist->GetName()));
       if(other.fAlphaConstr)fAlphaConstr=dynamic_cast<RooGaussian*>(other.fAlphaConstr->Clone());
       if(other.fOffConstr)fOffConstr=dynamic_cast<RooGaussian*>(other.fOffConstr->Clone());
       if(other.fScaleConstr)fScaleConstr=dynamic_cast<RooGaussian*>(other.fScaleConstr->Clone());

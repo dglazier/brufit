@@ -28,17 +28,19 @@ namespace HS{
 	for(Int_t iL=1;iL<=Lmax;iL++)
 	  for(Int_t iM=0;iM<=iL;iM++){
 	    if(iM>Mmax) continue;
-	    components+=HS::FIT::EXPAND::LoadRealSphHarmonic(setup,cth,phi,iL,iM);
+	    components+=HS::FIT::EXPAND::LoadPolSphHarmonic(setup,cth,phi,iL,iM,0,"Re");
 	  }
 	components.Remove(components.Sizeof()-2);
 	return components;
       }
-      TString LoadRealSphHarmonic(Setup &setup,TString cth,TString phi,Int_t L,Int_t M){
-	setup.LoadFunctionVar(Form("RooHSSphHarmonic::Y_%d_%d(%s,%s,%d,%d)",L,M,cth.Data(),phi.Data(),L,M));
-	setup.LoadFunctionVar(Form("RooHSSphHarmonicRe::Y_%d_%d_Re(%s,%s,Y_%d_%d)",L,M,cth.Data(),phi.Data(),L,M));
-	setup.LoadParameter(Form("H0_%d_%d[-1,1]",L,M));
-	return Form("H0_%d_%d;Y_%d_%d:",L,M,L,M);
-      }
+      
+    
+      //  TString LoadRealSphHarmonic(Setup &setup,TString cth,TString phi,Int_t L,Int_t M){
+      // 	setup.LoadFunctionVar(Form("RooHSSphHarmonic::Y_%d_%d(%s,%s,%d,%d)",L,M,cth.Data(),phi.Data(),L,M));
+      // 	setup.LoadFunctionVar(Form("RooHSSphHarmonicRe::Y_%d_%d_Re(%s,%s,Y_%d_%d)",L,M,cth.Data(),phi.Data(),L,M));
+      // 	setup.LoadParameter(Form("H0_%d_%d[-1,1]",L,M));
+      // 	return Form("H0_%d_%d;Y_%d_%d:",L,M,L,M);
+      // }
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////
       TString  ComponentsPolSphHarmonic(Setup &setup,TString name,TString cth,TString phi,TString phiPol,TString Pol,Int_t Lmax,Int_t Mmax,Bool_t isEven=kFALSE){
 	//From eqn a15a,b  https://arxiv.org/pdf/1906.04841.pdf 
