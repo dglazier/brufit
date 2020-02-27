@@ -85,7 +85,7 @@ namespace HS{
       
       void BootStrap(Int_t N){
 	fNBoots=N;
-	fBootStrap = std::make_unique<BootStrapper>(N);
+	fBootStrap = std::unique_ptr<BootStrapper>(new BootStrapper{N});
       }
       void Toys(Int_t N){fNToys=N;}
       

@@ -15,7 +15,7 @@ namespace HS{
       //Note sPlot is much (10X) faster with tree store
       //Normal fit is 2X faster with vector...
       RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-       auto* dataset =dynamic_cast<RooDataSet*>( fCurrDataSet->emptyClone());
+      auto* dataset =dynamic_cast<RooDataSet*>( fCurrDataSet->emptyClone());
       dataset->append(*fCurrDataSet.get());
       RooAbsData::setDefaultStorageType(RooAbsData::Vector);
       
@@ -26,8 +26,8 @@ namespace HS{
        cout<<"HS::FIT::sPlot::Run create sWeights "<<endl;
        fCurrSetup->Parameters().setAttribAll("Constant");
        
-       fSPlot = std::make_unique<RooStats::SPlot>("splot_fit", "sPlot Fit",
-		     *dataset,model,fCurrSetup->Yields());
+       fSPlot.reset(new RooStats::SPlot{"splot_fit", "sPlot Fit",
+	     *dataset,model,fCurrSetup->Yields()});
        
        fCurrSetup->Parameters().setAttribAll("Constant",kFALSE);
 
@@ -98,7 +98,7 @@ namespace HS{
       //wts->Save();
 
       //reset to save and reopen
-      wts = std::make_unique<Weights>();
+      wts.reset(new Weights{});
       wts->LoadSaved(SetUp().GetOutDir()+TString("Tweights.root"),"HSsWeights");
       
       return std::move(wts);

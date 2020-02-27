@@ -54,7 +54,7 @@ namespace HS{
       FitTo();
     }
     void FitManager::CreateCurrSetup(){
-      fCurrSetup = std::make_unique<Setup>(fSetup); //Copy setup from template
+      fCurrSetup = std::unique_ptr<Setup>(new Setup{fSetup}); //Copy setup from template
       fCurrSetup->SetName(GetCurrName());
       fCurrSetup->SetTitle(GetCurrTitle());
       //make sure we take current setup values
