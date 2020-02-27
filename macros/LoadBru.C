@@ -14,6 +14,7 @@ void LoadBru(TString Selection=""){
 	
   gSystem->Load("libRooStats");
   gSystem->Load("libProof");
+  gSystem->Load("libMathMore");
   
   TString BRUCODE=gSystem->Getenv("BRUFIT");
   TString fitpath=BRUCODE+"/core";
