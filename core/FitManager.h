@@ -143,7 +143,7 @@ namespace HS{
       
       virtual void FillEventsPDFs();
       void PlotDataModel(){
-	fPlots.push_back((std::make_unique<PlotResults>(fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle())));
+	fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
       }
       void RedirectOutput(const TString& log="");
       void SetRedirectOutput(){fRedirect=kTRUE;}

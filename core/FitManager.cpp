@@ -54,7 +54,7 @@ namespace HS{
       FitTo();
     }
     void FitManager::CreateCurrSetup(){
-      fCurrSetup = std::make_unique<Setup>(fSetup); //Copy setup from template
+      fCurrSetup = std::unique_ptr<Setup>(new Setup{fSetup}); //Copy setup from template
       fCurrSetup->SetName(GetCurrName());
       fCurrSetup->SetTitle(GetCurrTitle());
       //make sure we take current setup values
@@ -215,7 +215,8 @@ namespace HS{
       delete file;
     }
     void FitManager::RedirectOutput(const TString& log){
-      Info("FitManager::RedirectOutput",Form("text ouput will be sent to file %s",log.Data()));
+      const char* mess=Form("text ouput will be sent to file %s",log.Data());
+      cout<<"FitManager::RedirectOutput "<<mess<<endl;
       if(log==TString(""))
 	gSystem->RedirectOutput(nullptr,"w");
       else

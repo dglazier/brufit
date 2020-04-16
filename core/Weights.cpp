@@ -17,6 +17,8 @@
 #include <TFile.h>
 #include <TMath.h>
 #include <TCut.h>
+#include <TH1.h>
+#include <TLeaf.h>
 #include <TEntryList.h>
 
 
@@ -482,20 +484,20 @@ namespace HS{
 
     ////////////////////////////////////////////
     ///This creates a new file with a copy of the original tree + wname
-    filed_uptr  Weights::DFAddToTree(const TString& wname,const TString& outfname,const TString& tname,const TString& infname){
-      //  ROOT::RDataFrame df(tname.Data(),fname.Data(),{GetIDName().Data()});
-      Int_t isp=GetSpeciesID(wname);
-      auto applyWeights = [this,&isp](double id ) {
-	GetEntryBinarySearch((Long64_t)id);
-	return (double)(GetWeight(isp));
-      };
-      ROOT::RDataFrame df(tname.Data(),infname.Data(),{GetIDName().Data()});
-      // df.Define(wname,applyWeights);
-      //  return DFdef_uptr(new DFdef_t(df.Define(wname.Data(),applyWeights)));
-      df.Define(wname.Data(),applyWeights).Snapshot(tname.Data(),outfname.Data());
+    // filed_uptr  Weights::DFAddToTree(const TString& wname,const TString& outfname,const TString& tname,const TString& infname){
+    //   //  ROOT::RDataFrame df(tname.Data(),fname.Data(),{GetIDName().Data()});
+    //   Int_t isp=GetSpeciesID(wname);
+    //   auto applyWeights = [this,&isp](double id ) {
+    // 	GetEntryBinarySearch((Long64_t)id);
+    // 	return (double)(GetWeight(isp));
+    //   };
+    //   ROOT::RDataFrame df(tname.Data(),infname.Data(),{GetIDName().Data()});
+    //   // df.Define(wname,applyWeights);
+    //   //  return DFdef_uptr(new DFdef_t(df.Define(wname.Data(),applyWeights)));
+    //   df.Define(wname.Data(),applyWeights).Snapshot(tname.Data(),outfname.Data());
 
-      return std::move(FiledTree::Read(tname.Data(),outfname.Data()));
-    }
+    //   return std::move(FiledTree::Read(tname.Data(),outfname.Data()));
+    // }
     /////////////////////////////////////////////
     // void Weights::AddToTree(TString outfname,TString tname,TString infname){
 

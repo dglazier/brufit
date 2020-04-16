@@ -72,7 +72,7 @@ namespace HS{
       
       fToyFileNames.push_back(fileName);
       
-      auto outfile=std::make_unique<TFile> (fileName,"recreate");
+      auto outfile=std::unique_ptr<TFile>(new TFile{fileName,"recreate"});
       //convert dataset to a tree for saving
       TTree* tree=RooStats::GetAsTTree("ToyData","ToyData",*fGenData);
 

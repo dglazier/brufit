@@ -165,7 +165,7 @@ namespace HS{
       if(CheckClean()) return _lastVal;
       
       Double_t angle=_M*_lastPhi;
-      //cout<<" RooHSSphHarmonicRe::evaluate() "<<angle<<" "<<_lastPhi<<endl;
+      // std::cout<<" RooHSSphHarmonicRe::evaluate() "<<angle<<" "<<_lastPhi<<" "<<_M<<std::endl;
       // return _mag;
       return _lastVal=_mag*TMath::Cos(angle);
     }

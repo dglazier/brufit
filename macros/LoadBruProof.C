@@ -17,7 +17,9 @@ void LoadBruProof(Int_t Nworkers=1,TString Selection=""){
   TString PWD=gSystem->Getenv("PWD");
 
   gSystem->Load("libRooStats");
-  
+  gSystem->Load("libProof");
+  gSystem->Load("libMathMore");
+ 
   TString BRUCODE=gSystem->Getenv("BRUFIT");
   TString fitpath=BRUCODE+"/core";
   TString libpath=BRUCODE+"/lib";

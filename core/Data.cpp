@@ -69,7 +69,7 @@ namespace HS{
       LoadWeights();
     }
     void  DataEvents::LoadWeights(){
-      fInWeights = std::make_unique<Weights>();
+      fInWeights = std::unique_ptr<Weights>(new Weights{});
       //fInWeights->LoadSaved(fWgtsConf.File(),fWgtsConf.ObjName());
       fInWeights->LoadSavedDisc(fWgtsConf.File(),fWgtsConf.ObjName());
       fInWeights->PrintWeight();
@@ -106,7 +106,7 @@ namespace HS{
        //Add weights to tree
        fInWeights->AddToTree(rawtree);	
       //fInWeights->AddToTreeDisc(rawtree,fSetup->GetOutDir()+"DataInWeights.root");	
-       fWeightVar = std::make_unique<RooRealVar>(fInWeightName,fInWeightName,0);
+       fWeightVar = std::unique_ptr<RooRealVar>(new RooRealVar{fInWeightName,fInWeightName,0});
        vars.add(*fWeightVar.get());
      }
      //only let datset clone active branches
@@ -115,9 +115,7 @@ namespace HS{
      while(auto* arg=dynamic_cast<RooAbsArg*>(iter()))	
        rawtree->SetBranchStatus(arg->GetName(),true);	
 
-     auto ds=std::make_unique<RooDataSet>("DataEvents","DataEvents",
-				       rawtree,vars,
-				       fSetup->DataCut(),fInWeightName);
+     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(),fInWeightName});
 
      fFiledTrees[iset].reset(); //delete rawtree 
      if(fInWeights.get()){
