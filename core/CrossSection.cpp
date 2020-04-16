@@ -45,7 +45,7 @@ namespace FIT{
 		
 		TString fileName=Form("%s%s/ResultsCrossSection.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data());
 		cout << "Save to " << fileName << endl;
-		auto outfile=std::make_unique<TFile> (fileName,"recreate");
+		auto outfile=std::unique_ptr<TFile> (new TFile{fileName,"recreate"});
 		SetName("cs");
 		Write();
 	}
@@ -80,7 +80,7 @@ namespace FIT{
 	}
 	
 	void CrossSection::CalcFlux(){
-		auto fluxfile=std::make_unique<TFile> (fFluxfile,"read");
+		std::unique_ptr<TFile> fluxfile{TFile::Open(fFluxfile)};
 		TH1F* hFlux = (TH1F*) fluxfile->Get(fFluxhistname)->Clone("flux");
 		Int_t nbins = fBeamEnergyBinLimits.size()-1;
 		cout << "CrossSection::CalcFlux for " << nbins << " bins." << endl;
@@ -213,7 +213,7 @@ namespace FIT{
 		std::set<Double_t> ebinningset;
 		for(Int_t i=0;i<nbins;i++){ //loop over all bins and fill buffer
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
-			auto file=std::make_unique<TFile> (fileName,"read");
+			std::unique_ptr<TFile> file{TFile::Open(fileName)};
 			a = (CrossSection*)file->Get("cs");
 			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << " " << a->GetAcceptance() << endl;
 			
