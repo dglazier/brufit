@@ -119,6 +119,7 @@ namespace FIT{
 		UInt_t idata=GetDataBin(GetFiti());
 		Double_t sumofweightsData=Data().Get(idata)->sumEntries();
 		fYield = sumofweightsData;
+		cout<< "FitManager::CalcYield() Sum of weights = " << fYield << endl;
 	}
 	
 	void CrossSection::CalcAcceptanceCorrection(){
@@ -181,8 +182,8 @@ namespace FIT{
 			Double_t binvalue = -1.;
 			TString currname = GetCurrName();
 			TObjArray* token = currname.Tokenize("_");
-			for(auto i:*token){
-				TString namebuffer = ((TObjString*)i)->String();
+			for(auto j:*token){
+				TString namebuffer = ((TObjString*)j)->String();
 				if(namebuffer.Contains(axisname)){ // pick out part of name that contains axisname
 					namebuffer.ReplaceAll(axisname,""); //remove axisname from bin, only central value is left
 					binvalue = namebuffer.Atof();
@@ -214,7 +215,7 @@ namespace FIT{
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
 			auto file=std::make_unique<TFile> (fileName,"read");
 			a = (CrossSection*)file->Get("cs");
-			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << endl;
+			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << " " << a->GetAcceptance() << endl;
 			
 			csbuffer[i] = a->GetCrossSection();
 			binningbuffer[i] = a->GetBinValue();
@@ -226,6 +227,7 @@ namespace FIT{
 		Int_t ebins = ebinningset.size();
 		Double_t cs[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
 		Double_t binning[ebins][nbins/ebins];
+		Double_t energybins[ebins];
 		Int_t ecounter=0;
 		for(auto i:ebinningset){
 			Int_t counter=0;
@@ -233,10 +235,22 @@ namespace FIT{
 				if(i==ebinning[j]){
 					cs[ecounter][counter] = csbuffer[j];
 					binning[ecounter][counter] = binningbuffer[j];
+					energybins[ecounter]=i;
 					counter++;
 				}
 			}
 			ecounter++;
+		}
+		
+		TString axisname;
+		Int_t naxis = Bins().GetBins().GetNAxis();
+		for(Int_t i=0;i<naxis;i++){
+			TAxis axis = (TAxis)Bins().GetBins().GetAxis(i);
+			//need to make sure to get the correct binning variable, allow only two bins in Run(),
+			//if it is not fBeamEnergyBinName it must be correct
+			if(axis.GetName()==fBeamEnergyBinName)
+				continue;
+			axisname = axis.GetName();
 		}
 			
 		TGraphErrors* gResults[ebins];
@@ -245,9 +259,10 @@ namespace FIT{
 		for(Int_t e=0; e<ebins;e++){
 			cResults->cd(e+1);
 			gResults[e] = new TGraphErrors(nbins/ebins,binning[e],cs[e]);
-			gResults[e]->SetNameTitle(TString::Format("Results%d",e),TString::Format("Results%d",e));
+			gResults[e]->SetNameTitle(TString::Format("Results%d",e),fBeamEnergyBinName+TString::Format("=%f",energybins[e]));
 			gResults[e]->Draw("AP");
 			gResults[e]->SetMarkerStyle(20);
+			gResults[e]->GetXaxis()->SetTitle(axisname);
 		}
 		
 	}
