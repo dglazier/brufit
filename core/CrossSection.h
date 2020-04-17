@@ -55,8 +55,11 @@ namespace FIT{
 		Double_t GetTargetThickness(){return fTargetThickness;};
 		Double_t GetBranchingRatio(){return fBranchingRatio;};
 		Double_t GetAcceptance(){return fAcceptance;};
+		Double_t GetAcceptance_err(){return fAcceptance_err;};
 		Double_t GetYield(){return fYield;};
+		Double_t GetYield_err(){return fYield_err;};
 		Double_t GetCrossSection(){return fCrossSection;};
+		Double_t GetCrossSection_err(){return fCrossSection_err;};
 		Double_t GetBinValue(){return fBinValue;};
 		Double_t GetBeamEnergyValue(){return fBeamEnergyValue;};
 		Double_t GetBeamEnergyNBins(){return fBeamEnergyBinLimits.size()-1;};
@@ -76,8 +79,11 @@ namespace FIT{
 		Double_t fTargetThickness = 1.; //inverse barn
 		Double_t fBranchingRatio = 1;
 		Double_t fAcceptance = 0.;
+		Double_t fAcceptance_err = 0.;
 		Double_t fYield = 0.;
+		Double_t fYield_err = 0.;
 		Double_t fCrossSection = 0.;
+		Double_t fCrossSection_err = 0.;
 		Double_t fBinValue = 0.;
 		Double_t fBeamEnergyValue = 0.;
 

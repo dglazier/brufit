@@ -64,7 +64,7 @@ namespace FIT{
 			auto* resAll = result->get(); //get all result info
 			auto* resPars=resAll->selectCommon(newPars); //just select pars and yieds
 			newPars.assignFast(*resPars); //set values to results
-			cout<<"ToyManager::LoadFitResult setting values from fit results "<<resultFile<<" : "<<endl;
+			cout<<"CrossSection::LoadFitResult setting values from fit results "<<resultFile<<" : "<<endl;
 			newPars.Print("v");
 		}
 	}
@@ -117,9 +117,21 @@ namespace FIT{
 	
 	void CrossSection::CalcYield(){
 		UInt_t idata=GetDataBin(GetFiti());
-		Double_t sumofweightsData=Data().Get(idata)->sumEntries();
+		dset_uptr ds = Data().Get(idata);
+		Double_t sumofweightsData=ds->sumEntries();
+		//need to calculate sum of weights squared by hand. Use same code fragment as RooFit for sumEntries()
+		Double_t sumofweights2Data(0), carry(0);
+		Int_t numentries = ds->numEntries();
+		for (Int_t i=0 ; i<numentries ; i++) {
+			ds->get(i) ;
+			Double_t y = ds->weight()*ds->weight() - carry;
+			Double_t t = sumofweights2Data + y;
+			carry = (t - sumofweights2Data) - y;
+			sumofweights2Data = t;
+		}
 		fYield = sumofweightsData;
-		cout<< "FitManager::CalcYield() Sum of weights = " << fYield << endl;
+		fYield_err = TMath::Sqrt(sumofweights2Data);
+		cout<< "FitManager::CalcYield() Sum of weights = " << fYield << "+/-" << fYield_err << endl;
 	}
 	
 	void CrossSection::CalcAcceptanceCorrection(){
@@ -151,23 +163,32 @@ namespace FIT{
 	void CrossSection::CalcCrossSection(){ //TODO include errors
 		if(fAcceptance==0)
 			cout << "CrossSection::CalcCrossSection() Acceptance is 0!! Cannot normalise cross section!!" << endl;
-		else
+		else{
 			fCrossSection = fYield/fAcceptance;
+			fCrossSection_err = fYield_err/fAcceptance;
+			
+		}
 		
 		if(fFlux==0)
 			cout << "CrossSection::CalcCrossSection() Flux is 0!! Cannot normalise cross section!!" << endl;
-		else
+		else{
 			fCrossSection/=fFlux;
+			fCrossSection_err/=fFlux;
+		}
 		
 		if(fTargetThickness==0)
 			cout << "CrossSection::CalcCrossSection() Target thickness is 0!! Cannot normalise cross section!!" << endl;
-		else
+		else{
 			fCrossSection/=fTargetThickness;
+			fCrossSection_err/=fTargetThickness;
+		}
 		
 		if(fBranchingRatio==0)
 			cout << "CrossSection::CalcCrossSection() Branching ratio is 0!! Cannot normalise cross section!!" << endl;
-		else
+		else{
 			fCrossSection/=fBranchingRatio;
+			fCrossSection_err/=fBranchingRatio;
+		}
 		
 		Double_t binwidth = 0.;
 		Int_t naxis = Bins().GetBins().GetNAxis();
@@ -198,8 +219,10 @@ namespace FIT{
 		}
 		if(binwidth==0)
 			cout << "CrossSection::CalcCrossSection() Bin width is 0!! Cannot normalise cross section!!" << endl;
-		else
+		else{
 			fCrossSection/=binwidth;
+			fCrossSection_err/=binwidth;
+		}
 		
 	}
 	
@@ -208,6 +231,7 @@ namespace FIT{
 		CrossSection* a;
 		Int_t nbins = Bins().GetSize();
 		Double_t csbuffer[nbins];
+		Double_t cserrbuffer[nbins];
 		Double_t binningbuffer[nbins];
 		Double_t ebinning[nbins];
 		std::set<Double_t> ebinningset;
@@ -215,9 +239,10 @@ namespace FIT{
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
 			std::unique_ptr<TFile> file{TFile::Open(fileName)};
 			a = (CrossSection*)file->Get("cs");
-			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << " " << a->GetAcceptance() << endl;
+			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << "+/-" << a->GetCrossSection_err() << " " << a->GetAcceptance() << endl;
 			
 			csbuffer[i] = a->GetCrossSection();
+			cserrbuffer[i] = a->GetCrossSection_err();
 			binningbuffer[i] = a->GetBinValue();
 			ebinning[i] = a->GetBeamEnergyValue();
 			ebinningset.insert(a->GetBeamEnergyValue());
@@ -226,6 +251,7 @@ namespace FIT{
 		// now sort all results into correct Ebin arrays for easy plotting
 		Int_t ebins = ebinningset.size();
 		Double_t cs[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
+		Double_t cs_err[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
 		Double_t binning[ebins][nbins/ebins];
 		Double_t energybins[ebins];
 		Int_t ecounter=0;
@@ -234,6 +260,7 @@ namespace FIT{
 			for(Int_t j=0;j<nbins;j++){
 				if(i==ebinning[j]){
 					cs[ecounter][counter] = csbuffer[j];
+					cs_err[ecounter][counter] = cserrbuffer[j];
 					binning[ecounter][counter] = binningbuffer[j];
 					energybins[ecounter]=i;
 					counter++;
@@ -258,7 +285,7 @@ namespace FIT{
 		cResults->DivideSquare(ebins);
 		for(Int_t e=0; e<ebins;e++){
 			cResults->cd(e+1);
-			gResults[e] = new TGraphErrors(nbins/ebins,binning[e],cs[e]);
+			gResults[e] = new TGraphErrors(nbins/ebins,binning[e],cs[e],0,cs_err[e]);
 			gResults[e]->SetNameTitle(TString::Format("Results%d",e),fBeamEnergyBinName+TString::Format("=%f",energybins[e]));
 			gResults[e]->Draw("AP");
 			gResults[e]->SetMarkerStyle(20);
