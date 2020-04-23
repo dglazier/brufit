@@ -47,6 +47,7 @@ namespace FIT{
 		cout << "Save to " << fileName << endl;
 		auto outfile=std::unique_ptr<TFile> (new TFile{fileName,"recreate"});
 		SetName("cs");
+		if(fSampleAcceptance) fAcceptanceTree.Write();
 		Write();
 	}
 	
@@ -131,31 +132,71 @@ namespace FIT{
 		}
 		fYield = sumofweightsData;
 		fYield_err = TMath::Sqrt(sumofweights2Data);
-		cout<< "FitManager::CalcYield() Sum of weights = " << fYield << "+/-" << fYield_err << endl;
+		cout<< "CrossSection::CalcYield() Sum of weights = " << fYield << "+/-" << fYield_err << endl;
 	}
 	
 	void CrossSection::CalcAcceptanceCorrection(){
+		Double_t acceptance = 0;
+		Double_t acceptance_err = 0;
+		
 		auto pdfs=fCurrSetup->PDFs();
 		if(pdfs.getSize()>1)
-			cout<< "FitManager::CalcAcceptanceCorrection() Found more than one pdf!!! Last is used as acceptance!!!" << endl;
+			cout<< "CrossSection::CalcAcceptanceCorrection() Found more than one pdf!!! Last is used as acceptance!!!" << endl;
 		for(Int_t ip=0;ip<pdfs.getSize();ip++){
 			auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
 			pdf->Print();
 			if(pdf){
 				if(Bins().FileNames(pdf->GetName()).size()==0)
 					continue;
-// 				
-				Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
-				Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
-				
-				if(integralGenerated)
-					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
-				else
-					cout << "FitManager::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " Can't calculate acceptance!!!" << endl;
-				
-				if(integralGenerated)
-					fAcceptance = (integralAccepted/integralGenerated);
-				
+				if(fSampleAcceptance){
+					cout << "CrossSection::CalcAcceptanceCorrection() Sample acceptance from MCMC tree" << endl;
+					TString resultFile=fResultDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
+					std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
+					
+					//Get MCMC result tree and put in data set
+					std::unique_ptr<TTree> resultTree{dynamic_cast<TTree*>( fitFile->Get("MCMCTree"))};//Set the values of the paramteres to those in the given result
+					if(!resultTree.get()){
+						cout<<"CrossSection::CalcAcceptanceCorrection Couldn't load fit result!" << endl;
+						return;
+					}
+					auto newPars = fCurrSetup->ParsAndYields();
+// 					newPars.Print("v");
+					RooDataSet mcmcDS("mcmcDS","mcmcDS",resultTree.get(),newPars);
+					mcmcDS.Print("v");
+					
+					Int_t numentries = mcmcDS.numEntries();
+					fAcceptanceTree.SetNameTitle("acc","acceptance"); //output tree
+					fAcceptanceTree.Branch("acc",&acceptance);
+					
+					for(Int_t i=0; i<numentries; i++){
+						auto* resAll = mcmcDS.get(i); //get all result info
+						newPars.assignFast(*resAll); //set values to results
+// 						newPars.Print("v");
+						
+						Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
+						Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
+						cout << "CrossSection::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
+						acceptance = (integralAccepted/integralGenerated);
+						fAcceptanceTree.Fill();
+					}
+					TH1F hacc("h","h",1,0,1); //dummy for easy mean and stddev calculation
+					fAcceptanceTree.Draw("acc>>h","","goff");
+					acceptance = hacc.GetMean();
+					acceptance_err = hacc.GetStdDev();
+				}
+				else{
+					Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
+					Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
+					
+					if(integralGenerated){
+						cout << "CrossSection::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
+						acceptance = (integralAccepted/integralGenerated);
+					}
+					else
+						cout << "CrossSection::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " Can't calculate acceptance!!!" << endl;
+				}
+				fAcceptance = acceptance;
+				fAcceptance_err = acceptance_err;
 			}
 		}
 	}
@@ -239,7 +280,7 @@ namespace FIT{
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
 			std::unique_ptr<TFile> file{TFile::Open(fileName)};
 			a = (CrossSection*)file->Get("cs");
-			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << "+/-" << a->GetCrossSection_err() << " " << a->GetAcceptance() << endl;
+			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << "+/-" << a->GetCrossSection_err() << " " << a->GetAcceptance() << "+/-" << a->GetAcceptance_err() << endl;
 			
 			csbuffer[i] = a->GetCrossSection();
 			cserrbuffer[i] = a->GetCrossSection_err();

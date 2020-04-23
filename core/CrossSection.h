@@ -40,6 +40,7 @@ namespace FIT{
 		void SetFlux(TString filename, TString histname){fFluxfile=filename; fFluxhistname=histname;};
 		void SetTargetThickness(Double_t n){fTargetThickness=n;};
 		void SetBranchingRatio(Double_t n){fBranchingRatio=n;};
+		void SampleAcceptance(Bool_t b = kTRUE){fSampleAcceptance=b;};
 		
 		
 		void SetResultDir(TString name){fResultDir=std::move(name);};
@@ -86,6 +87,9 @@ namespace FIT{
 		Double_t fCrossSection_err = 0.;
 		Double_t fBinValue = 0.;
 		Double_t fBeamEnergyValue = 0.;
+		
+		Bool_t fSampleAcceptance = kFALSE;
+		TTree fAcceptanceTree;
 
 	ClassDefOverride(HS::FIT::CrossSection,1);
 	}; //class CrossSection
