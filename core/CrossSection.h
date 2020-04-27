@@ -2,7 +2,7 @@
 ///
 ///Class:               CrossSection
 ///Description:
-///           
+///
 
 #pragma once
 
@@ -20,7 +20,7 @@ namespace FIT{
 	using strings_t = std::vector<TString>;
 
 	class CrossSection  : public FitManager{
-	
+
 	public:
 		CrossSection()=default;
 		CrossSection(const CrossSection&)=default;
@@ -29,29 +29,29 @@ namespace FIT{
 		~CrossSection() override =default;
 		CrossSection& operator=(const CrossSection& other) = default;
 		CrossSection& operator=(CrossSection&& other) = default;
-		
+
 		void Run() override;
 		void SaveResults() override;
-		
+
 		void LoadFitResult();
-		
+
 		void SetBeamEnergyBinLimits(std::vector<Double_t> limits){fBeamEnergyBinLimits = limits;};
 		void SetBeamEnergyBinLimits(TString bin);
 		void SetFlux(TString filename, TString histname){fFluxfile=filename; fFluxhistname=histname;};
 		void SetTargetThickness(Double_t n){fTargetThickness=n;};
 		void SetBranchingRatio(Double_t n){fBranchingRatio=n;};
 		void SampleAcceptance(Bool_t b = kTRUE){fSampleAcceptance=b;};
-		
-		
+
+
 		void SetResultDir(TString name){fResultDir=std::move(name);};
 		void SetResultFileName(TString name){fResultFileName=std::move(name);};
-		
+
 		void CalcFlux();
 		void CalcYield();
 		void CalcAcceptanceCorrection();
 		void CalcCrossSection();
-		void DrawResults();
-		
+		void DrawResults(TString outputfile = "");
+
 		Double_t GetFlux(){return fFlux;};
 		Double_t GetTargetThickness(){return fTargetThickness;};
 		Double_t GetBranchingRatio(){return fBranchingRatio;};
@@ -64,14 +64,14 @@ namespace FIT{
 		Double_t GetBinValue(){return fBinValue;};
 		Double_t GetBeamEnergyValue(){return fBeamEnergyValue;};
 		Double_t GetBeamEnergyNBins(){return fBeamEnergyBinLimits.size()-1;};
-		
+
 	protected:
-	
+
 	private:
 
 		TString fResultDir;
 		TString fResultFileName;
-		
+
 		std::vector<Double_t> fBeamEnergyBinLimits = {0};
 		TString fBeamEnergyBinName = "";
 		TString fFluxfile = "";
@@ -87,13 +87,12 @@ namespace FIT{
 		Double_t fCrossSection_err = 0.;
 		Double_t fBinValue = 0.;
 		Double_t fBeamEnergyValue = 0.;
-		
+
 		Bool_t fSampleAcceptance = kFALSE;
 		TTree fAcceptanceTree;
 
 	ClassDefOverride(HS::FIT::CrossSection,1);
 	}; //class CrossSection
-	
+
 }//namespace FIT
 }//namespace HS
-

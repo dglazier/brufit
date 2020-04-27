@@ -15,13 +15,13 @@
 
 namespace HS{
 namespace FIT{
-	
+
 	void CrossSection::Run(){
-		
+
 		LoadFitResult();
-		
+
 		CreateCurrSetup();
-		
+
 		cout << " CrossSection::Run() " << Bins().GetBins().GetNAxis() << " binning variable(s) provided for calculation." << endl;
 		if(Bins().GetBins().GetNAxis()>2){
 			cout << " CrossSection::Run() More than two different types of bins. Cross section calculation only supports two bins (beam energy and angle)." << endl;
@@ -31,18 +31,18 @@ namespace FIT{
 			cout << "More than two bin variables and none of them was set as beam energy. Cross section cannot be calculated." << endl;
 			return;
 		}
-		
+
 		FillEventsPDFs();
-		
+
 		CalcFlux();
 		CalcYield();
 		CalcAcceptanceCorrection();
 		CalcCrossSection();
-		
+
 	}
-	
+
 	void CrossSection::SaveResults(){
-		
+
 		TString fileName=Form("%s%s/ResultsCrossSection.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data());
 		cout << "Save to " << fileName << endl;
 		auto outfile=std::unique_ptr<TFile> (new TFile{fileName,"recreate"});
@@ -50,15 +50,15 @@ namespace FIT{
 		if(fSampleAcceptance) fAcceptanceTree.Write();
 		Write();
 	}
-	
+
 	void CrossSection::LoadFitResult(){
 		if(fResultFileName==TString())
 			return;
-		
+
 		TString resultFile=fResultDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
 		std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
 		std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};
-		
+
 		//Set the values of the paramteres to those in the given result
 		if(result.get()){
 			auto newPars = SetUp().ParsAndYields();
@@ -69,7 +69,7 @@ namespace FIT{
 			newPars.Print("v");
 		}
 	}
-	
+
 	void CrossSection::SetBeamEnergyBinLimits(TString bin){
 		fBeamEnergyBinName = bin;
 		vector<Double_t> limits;
@@ -79,7 +79,7 @@ namespace FIT{
 			limits.push_back(a.GetBinLowEdge(i));
 		SetBeamEnergyBinLimits(limits);
 	}
-	
+
 	void CrossSection::CalcFlux(){
 		std::unique_ptr<TFile> fluxfile{TFile::Open(fFluxfile)};
 		TH1F* hFlux = (TH1F*) fluxfile->Get(fFluxhistname)->Clone("flux");
@@ -108,14 +108,14 @@ namespace FIT{
 			Int_t binnumber = a.FindBin(binvalue);
 			Double_t lowedge = a.GetBinLowEdge(binnumber);
 			Double_t upedge = a.GetBinUpEdge(binnumber);
-			
+
 			Double_t integral = hFlux->Integral(hFlux->FindBin(lowedge),hFlux->FindBin(upedge)-1);
 			cout << "CrossSection::CalcFlux Integrated flux from " << lowedge << " to " << upedge << " = " << integral << endl;
 			fFlux = integral;
 			fBeamEnergyValue = binvalue;
 		}
 	}
-	
+
 	void CrossSection::CalcYield(){
 		UInt_t idata=GetDataBin(GetFiti());
 		dset_uptr ds = Data().Get(idata);
@@ -134,11 +134,11 @@ namespace FIT{
 		fYield_err = TMath::Sqrt(sumofweights2Data);
 		cout<< "CrossSection::CalcYield() Sum of weights = " << fYield << "+/-" << fYield_err << endl;
 	}
-	
+
 	void CrossSection::CalcAcceptanceCorrection(){
 		Double_t acceptance = 0;
 		Double_t acceptance_err = 0;
-		
+
 		auto pdfs=fCurrSetup->PDFs();
 		if(pdfs.getSize()>1)
 			cout<< "CrossSection::CalcAcceptanceCorrection() Found more than one pdf!!! Last is used as acceptance!!!" << endl;
@@ -152,7 +152,7 @@ namespace FIT{
 					cout << "CrossSection::CalcAcceptanceCorrection() Sample acceptance from MCMC tree" << endl;
 					TString resultFile=fResultDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
 					std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
-					
+
 					//Get MCMC result tree and put in data set
 					std::unique_ptr<TTree> resultTree{dynamic_cast<TTree*>( fitFile->Get("MCMCTree"))};//Set the values of the paramteres to those in the given result
 					if(!resultTree.get()){
@@ -163,16 +163,16 @@ namespace FIT{
 // 					newPars.Print("v");
 					RooDataSet mcmcDS("mcmcDS","mcmcDS",resultTree.get(),newPars);
 					mcmcDS.Print("v");
-					
+
 					Int_t numentries = mcmcDS.numEntries();
 					fAcceptanceTree.SetNameTitle("acc","acceptance"); //output tree
 					fAcceptanceTree.Branch("acc",&acceptance);
-					
+
 					for(Int_t i=0; i<numentries; i++){
 						auto* resAll = mcmcDS.get(i); //get all result info
 						newPars.assignFast(*resAll); //set values to results
 // 						newPars.Print("v");
-						
+
 						Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
 						Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
 						cout << "CrossSection::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
@@ -187,7 +187,7 @@ namespace FIT{
 				else{
 					Double_t integralAccepted=pdf->unnormalisedIntegral(1,"");
 					Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
-					
+
 					if(integralGenerated){
 						cout << "CrossSection::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
 						acceptance = (integralAccepted/integralGenerated);
@@ -200,37 +200,37 @@ namespace FIT{
 			}
 		}
 	}
-	
+
 	void CrossSection::CalcCrossSection(){ //TODO include errors
 		if(fAcceptance==0)
 			cout << "CrossSection::CalcCrossSection() Acceptance is 0!! Cannot normalise cross section!!" << endl;
 		else{
 			fCrossSection = fYield/fAcceptance;
 			fCrossSection_err = fYield_err/fAcceptance;
-			
+
 		}
-		
+
 		if(fFlux==0)
 			cout << "CrossSection::CalcCrossSection() Flux is 0!! Cannot normalise cross section!!" << endl;
 		else{
 			fCrossSection/=fFlux;
 			fCrossSection_err/=fFlux;
 		}
-		
+
 		if(fTargetThickness==0)
 			cout << "CrossSection::CalcCrossSection() Target thickness is 0!! Cannot normalise cross section!!" << endl;
 		else{
 			fCrossSection/=fTargetThickness;
 			fCrossSection_err/=fTargetThickness;
 		}
-		
+
 		if(fBranchingRatio==0)
 			cout << "CrossSection::CalcCrossSection() Branching ratio is 0!! Cannot normalise cross section!!" << endl;
 		else{
 			fCrossSection/=fBranchingRatio;
 			fCrossSection_err/=fBranchingRatio;
 		}
-		
+
 		Double_t binwidth = 0.;
 		Int_t naxis = Bins().GetBins().GetNAxis();
 		for(Int_t i=0;i<naxis;i++){
@@ -264,10 +264,10 @@ namespace FIT{
 			fCrossSection/=binwidth;
 			fCrossSection_err/=binwidth;
 		}
-		
+
 	}
-	
-	void CrossSection::DrawResults(){
+
+	void CrossSection::DrawResults(TString outputfile){
 		cout << "CrossSection::DrawResults()" << endl;
 		CrossSection* a;
 		Int_t nbins = Bins().GetSize();
@@ -281,14 +281,14 @@ namespace FIT{
 			std::unique_ptr<TFile> file{TFile::Open(fileName)};
 			a = (CrossSection*)file->Get("cs");
 			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << "+/-" << a->GetCrossSection_err() << " " << a->GetAcceptance() << "+/-" << a->GetAcceptance_err() << endl;
-			
+
 			csbuffer[i] = a->GetCrossSection();
 			cserrbuffer[i] = a->GetCrossSection_err();
 			binningbuffer[i] = a->GetBinValue();
 			ebinning[i] = a->GetBeamEnergyValue();
 			ebinningset.insert(a->GetBeamEnergyValue());
 		}
-		
+
 		// now sort all results into correct Ebin arrays for easy plotting
 		Int_t ebins = ebinningset.size();
 		Double_t cs[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
@@ -309,7 +309,7 @@ namespace FIT{
 			}
 			ecounter++;
 		}
-		
+
 		TString axisname;
 		Int_t naxis = Bins().GetBins().GetNAxis();
 		for(Int_t i=0;i<naxis;i++){
@@ -320,7 +320,7 @@ namespace FIT{
 				continue;
 			axisname = axis.GetName();
 		}
-			
+
 		TGraphErrors* gResults[ebins];
 		TCanvas* cResults = new TCanvas("results","results");
 		cResults->DivideSquare(ebins);
@@ -332,8 +332,19 @@ namespace FIT{
 			gResults[e]->SetMarkerStyle(20);
 			gResults[e]->GetXaxis()->SetTitle(axisname);
 		}
-		
+
+		if(outputfile != ""){
+			cout << "Save to " << outputfile << endl;
+			auto outfile=std::unique_ptr<TFile> (new TFile{outputfile,"recreate"});
+			if(outfile){
+				cResults->Write();
+				for(Int_t e=0; e<ebins;e++){
+					gResults[e]->Write();
+				}
+			}
+		}
+
 	}
-	
+
 }
 }
