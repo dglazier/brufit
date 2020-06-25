@@ -116,6 +116,19 @@ namespace HS{
       void ReloadSimulated(const TString& tname,const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name);
       }
+      
+      void LoadGenerated(const TString& tname,TString fname,const TString& name){
+	TString buffer = fBinner.GetCut();
+	fBinner.RemoveAllCuts();
+	fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
+	fBinner.AddCut(buffer);
+      }
+      void ReloadGenerated(const TString& fname,const TString& name){
+	fBinner.ReloadData(fname,name+"__MCGen");
+      }
+      void ReloadGenerated(const TString& tname,const TString& fname,const TString& name){
+	fBinner.ReloadData(fname,name+"__MCGen");
+      }
 
       // dataevs_ptr& Data() {return fData;}
       DataEvents& Data() {return fData;}
@@ -160,7 +173,7 @@ namespace HS{
       std::vector<filed_uptr> fFiledTrees;//!
       std::vector<plotresult_uptr> fPlots;//!
       RooFitResult* fResult=nullptr;//!
-
+      
       strings_t fCompiledMacros;
   
       Bool_t fRedirect=kFALSE;

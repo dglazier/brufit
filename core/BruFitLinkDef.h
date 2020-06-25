@@ -45,6 +45,7 @@
 #pragma link C++ class HS::FIT::Setup+;
 #pragma link C++ class HS::FIT::sPlot+;
 #pragma link C++ class HS::FIT::ToyManager+;
+#pragma link C++ class HS::FIT::CrossSection+;
 #pragma link C++ class HS::FIT::Weights+;
 #pragma link C++ class HS::FIT::WeightsConfig+;
 //#pragma link C++ class HS::FIT::+;

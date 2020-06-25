@@ -170,8 +170,8 @@ namespace HS{
 
     //   return RooHSEventsHistPDF::SetEvTree(tree->CloneTree(),cut,ngen); //standard intilisation
     // }
-    Bool_t RooHSEventsHistPDF::SetEvTree(TTree* tree,TString cut,Long64_t ngen){
-      Bool_t OK=RooHSEventsPDF::SetEvTree(tree,cut,ngen); //standard intilisation
+    Bool_t RooHSEventsHistPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+      Bool_t OK=RooHSEventsPDF::SetEvTree(tree,cut,MCGenTree); //standard intilisation
       //Now also need to create underlying HistPdf
       if(!fHist)CreateHistPdf();
       if(OK&&fHist) return kTRUE;

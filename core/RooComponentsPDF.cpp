@@ -428,8 +428,8 @@ namespace HS{
        return product; 
     }
 
-    Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,Long64_t ngen){
-      auto val = RooHSEventsPDF::SetEvTree(tree,cut,ngen);
+    Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+      auto val = RooHSEventsPDF::SetEvTree(tree,cut,MCGenTree);
 
       //Caclulate current value of component integrals
       for(UInt_t icomp=0;icomp<fNComps;icomp++)

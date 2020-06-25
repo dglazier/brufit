@@ -38,6 +38,7 @@ namespace HS{
     protected:
       RooHSEventsPDF* fParent=nullptr;//!
       TTree* fEvTree=nullptr;//!
+      TTree* fMCGenTree=nullptr;//!
       TEntryList* fEntryList=nullptr;//!
       Weights* fWeights=nullptr;//!  //weights for event generator
       Weights* fInWeights=nullptr; //weights for shaping the events tree
@@ -48,13 +49,16 @@ namespace HS{
       vector<Float_t> fEvWeights; //read in weights saved in vector
       vector<Float_t> fvecReal;
       vector<Float_t> fvecRealGen;
+      vector<Float_t> fvecRealMCGen;
       vector<Int_t> fvecCat;
       vector<Int_t> fvecCatGen;
+      vector<Int_t> fvecCatMCGen;
       vector<Int_t> fGotGenVar; //for generating events
       vector<Int_t> fGotGenCat; //for generating events
       Long64_t fNInt=-1;
       Long64_t fNMCGen=0; //Number of generated MC events
       Long64_t fNTreeEntries=0;
+      Long64_t fNMCGenTreeEntries=0;
       Long64_t fIntRangeLow=0;
       Long64_t fIntRangeHigh=0;
       mutable Long64_t fTreeEntry=0;
@@ -71,6 +75,7 @@ namespace HS{
       Bool_t fUseWeightsGen=kFALSE;
       Bool_t fUseEvWeights=kFALSE;
       Bool_t fIsValid=kTRUE;
+	  Bool_t fHasMCGenTree=kFALSE;
 
       WeightsConfig fWgtsConf;
       //      TString fWgtSpecies;
@@ -106,6 +111,7 @@ namespace HS{
  
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
+      Double_t unnormalisedIntegral(Int_t code,const char* rangeName) const;
 
       void generateEvent(Int_t code) override;
       Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const override;
@@ -133,7 +139,7 @@ namespace HS{
 
       void SetNInt(Long64_t n){fNInt=n;}
       // virtual Bool_t SetEvTree(TChain* tree,TString cut,Long64_t ngen=0);
-      virtual Bool_t SetEvTree(TTree* tree,TString cut,Long64_t ngen=0);
+      virtual Bool_t SetEvTree(TTree* tree,TString cut,TTree* MCGenTree=nullptr);
       /* void SetInWeights(TString species, TString weightfile,TString wobj){ */
       /* 	fWgtsConf.reset(new HS::FIT::WeightsConfig(species,weightfile,wobj)); */
       /* } */
@@ -151,6 +157,7 @@ namespace HS{
       }
       void SetNMCGen(Long64_t N){fNMCGen=N;}
       TTree* GetEvTree(){return fEvTree;};
+      TTree* GetMCGenTree(){return fMCGenTree;};
       //TVectorD GetMCVar(){return fMCVar;}
       TTree* GetGenTree(){fEvTree->SetEntryList(fEntryList);TTree* tree=fEvTree->CopyTree("");fEvTree->SetEntryList(nullptr);return tree;};//whoever gets should delete
       TEntryList* GetEntryList(){return fEntryList;}
@@ -179,6 +186,7 @@ namespace HS{
       void SetNextRange(Int_t ir);
       RooHSEventsPDF* GetParent(){return fParent;}
       Bool_t IsValid(){return fIsValid;}
+      Bool_t HasMCGenTree(){return fHasMCGenTree;}
       void Plotting(Bool_t plotting=kTRUE){fIsPlotting=plotting;}
       void SetHistIntegrals(vector<TH1F> &hists){fHistIntegrals=hists;}
 

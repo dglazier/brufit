@@ -38,6 +38,8 @@ namespace HS{
       void LoadBinVar(const TString& opt,Int_t nbins,Double_t* xbins);
 
       void AddCut(TString cut){fSelection=std::move(cut);}
+      TString GetCut(){return fSelection;}
+      void RemoveAllCuts(){fSelection=TString();}
       
       void LoadSetup(Setup &setup);
 

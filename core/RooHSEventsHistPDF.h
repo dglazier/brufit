@@ -59,7 +59,7 @@ namespace HS{
   
     public:
 
-      Bool_t SetEvTree(TTree* tree,TString cut,Long64_t ngen=0) override;
+      Bool_t SetEvTree(TTree* tree,TString cut,TTree* MCGenTree=nullptr) override;
       void CreateHistPdf();
       virtual void ResetTree();
   
