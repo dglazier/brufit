@@ -105,21 +105,20 @@ namespace HS{
     ////////////////////////////////////////////////////////
     
     void RooMcmc::Result(){
-
       //Add entry branch to mcmc tree for easy cutting on BurnIn
       //fMCMCtree contains all events
       Long64_t entry=0;
       auto entryBranch=fTreeMCMC->Branch("entry",&entry,"entry/L");
       for(entry=0;entry<fTreeMCMC->GetEntries();entry++)
 	entryBranch->Fill();
-      
+   
       //Add any formulas
       //Need to get a copy of variables first or setting
       //the means as parameter values does not seem to work...
       RooArgList saveFloatFinalList(*fChainData->get()) ;
   
       AddFormulaToMCMCTree();
-
+  
       //set paramters to mean values of post burn in distributions
       //     RooArgList saveFloatFinalList(*fChainData->get()) ;
       for(Int_t i=0;i<fParams->getSize();i++){
@@ -130,8 +129,9 @@ namespace HS{
 	var2->setVal(fChainData->mean(*var));
 	var2->setError(fChainData->sigma(*var));
       }
-      fChainData->covarianceMatrix()->Print();
-
+       
+      //  fChainData->covarianceMatrix()->Print(); //crashin 6.20
+ 
  
       //look for the best likelihood
 

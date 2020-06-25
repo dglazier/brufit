@@ -2,8 +2,6 @@ set(BRUFIT brufit)
 set(DIRNAME core)
 
 
-#ROOT_GENERATE_DICTIONARY(G__${BRUFIT} Weights.h  FiledTree.h  RooHSComplex.h  LINKDEF BruFitLinkDef.h)
-
 ROOT_GENERATE_DICTIONARY(G__${BRUFIT} Weights.h FiledTree.h RooHSComplex.h RooHSEventsPDF.h RooComponentsPDF.h RooHSEventsHistPDF.h RooHSEventsHistPDF.h RooHSSphHarmonic.h RelBreitWigner.h PdfParser.h ComponentsPdfParser.h Setup.h Binner.h Bins.h BootStrapper.h Data.h PlotResults.h  Minimiser.h FitManager.h sPlot.h ToyManager.h RooMcmc.h HSSequentialProposal.h HSMetropolisHastings.h Process.h FitSelector.h LINKDEF BruFitLinkDef.h)
 
 #add_library(${BRUFIT} SHARED  Weights.cpp  FiledTree.cpp RooHSComplex.cpp G__${BRUFIT}.cxx)
@@ -16,8 +14,7 @@ target_link_libraries(${BRUFIT} ${ROOT_LIBRARIES})
 install(TARGETS ${BRUFIT} 
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
-FILE(GLOB ROOT_BRUFIT_PCM ${CMAKE_BINARY_DIR}/${DIRNAME}/*pcm)
-#FILE(GLOB ROOT_BRUFIT_PCM ${CMAKE_BINARY_DIR}/${BRUFIT}/*pcm)
+FILE(GLOB ROOT_BRUFIT_PCM ${CMAKE_CURRENT_BINARY_DIR}/*pcm ${CMAKE_CURRENT_BINARY_DIR}/${DIRNAME}/*pcm)
 
 install (FILES  ${ROOT_BRUFIT_PCM}    
   DESTINATION "${CMAKE_INSTALL_LIBDIR}")
