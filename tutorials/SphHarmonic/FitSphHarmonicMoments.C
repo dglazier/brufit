@@ -1,4 +1,5 @@
 {
+  RooRandom::randomGenerator()->SetSeed(0);
   /////////////////////////////////////////////////////////////////
   ////Fit the data
   FitManager Fitter;
@@ -26,16 +27,16 @@
   gBenchmark->Start("fit ");
   Fitter.SetMinimiser(new RooMcmcSeq(2000,1000,50));
   Fitter.SetUp().AddFitOption(RooFit::Optimize(1));
-  //Here::Go(&Fitter); //try MCMC comment in here
+  Here::Go(&Fitter); //try MCMC comment in here
   gBenchmark->Stop("fit ");
   gBenchmark->Print("fit ");
 
 
   // Or just Minuit
-  gBenchmark->Start("minuit ");
-  Fitter.SetMinimiser(new Minuit2());
-  Fitter.SetUp().AddFitOption(RooFit::Optimize(1));
-  Here::Go(&Fitter);
-  gBenchmark->Stop("minuit ");
-  gBenchmark->Print("minuit ");
+  // gBenchmark->Start("minuit ");
+  // Fitter.SetMinimiser(new Minuit2());
+  // Fitter.SetUp().AddFitOption(RooFit::Optimize(1));
+  // Here::Go(&Fitter);
+  // gBenchmark->Stop("minuit ");
+  // gBenchmark->Print("minuit ");
 }

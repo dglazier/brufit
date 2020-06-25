@@ -35,5 +35,7 @@
   //compare to true signal
   FiledTree::Read("MyModel","Data.root")->Tree()->Draw("M1","Sig==1","same");
  
- 
+  //make sure weighted tree is written properly
+  RF.DeleteWeightedTree();
+
 }
