@@ -157,6 +157,11 @@ namespace HS{
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
 	fConstPars[par]=co;
       }
+      void SetYieldVal(const TString& yld,Double_t val,Bool_t co=kFALSE){
+	(dynamic_cast<RooRealVar*>(fYields.find(yld)))->setVal(val);
+	(dynamic_cast<RooRealVar*>(fYields.find(yld)))->setConstant(co);
+      }
+      
       void SetConstPar(const TString& par,Bool_t co=kTRUE){
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
 	fConstPars[par]=co;
