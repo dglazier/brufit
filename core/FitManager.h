@@ -8,6 +8,8 @@
 
 #include "Setup.h"
 #include "PlotResults.h"
+#include "MCMCPlotResults.h"
+#include "RooMcmc.h"
 #include "Data.h"
 #include "Binner.h"
 #include "Minimiser.h"
@@ -142,9 +144,20 @@ namespace HS{
       //    Minimiser* GetMinimiser() const {return fMinimiser;}
       
       virtual void FillEventsPDFs();
-      void PlotDataModel(){
-	fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
+
+      void PlotDataModel()
+      {
+	if(dynamic_cast<RooMcmc*>(fMinimiser.get()))
+	  {
+	    const TString& mcmcFile=fCurrSetup->GetOutDir()+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+GetMinimiserType()+".root";
+	    const Int_t& NthDraw = 4000;
+	    
+	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),mcmcFile, NthDraw})));
+	  }
+	else
+	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
       }
+      
       void RedirectOutput(const TString& log="");
       void SetRedirectOutput(){fRedirect=kTRUE;}
 
