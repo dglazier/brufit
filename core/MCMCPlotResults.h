@@ -3,6 +3,7 @@
 
 #include "Setup.h"
 #include "PlotResults.h"
+#include "RooMcmc.h"
 #include <RooDataSet.h>
 #include <RooHist.h>
 #include <TList.h>
@@ -15,7 +16,7 @@ namespace HS{
     class MCMCPlotResults : public PlotResults {
 
     public:
-      MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, const TString& mcmcFile, const Int_t& NthDraw);
+      MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc);
       MCMCPlotResults()=default;
       MCMCPlotResults(const MCMCPlotResults&)=default;
       MCMCPlotResults(MCMCPlotResults&&)=default;

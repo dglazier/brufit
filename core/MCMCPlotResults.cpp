@@ -16,7 +16,7 @@ namespace HS{
 
 
 //I think this fileName will need to be constructed in the  void FitManager::PlotDataModel() function and passed to the MCMCPlotResults :
-    MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, const TString& mcmcFile, const Int_t& NthDraw)
+    MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc)
     {
 
     cout<<"MCMCPlotResults  "<<fCanvases.get()<<" "<<setup<<" "<<endl;
@@ -28,10 +28,13 @@ namespace HS{
 
     RooHSEventsPDF_IsPlotting=kTRUE;
 
-    TFile fileMCMC(mcmcFile);
+    //TFile fileMCMC(mcmcFile);
 
     //Get the Ttree from the mcmcFile
-    TTree* tree = (TTree*) fileMCMC.Get("MCMCTree");
+    //TTree* tree = (TTree*) fileMCMC.Get("MCMCTree");
+
+    //Get the tree from the mcmc
+    auto tree = mcmc->GetTree();
 
     for(auto var : vars)
       {
@@ -51,7 +54,7 @@ namespace HS{
 	
 	//loop over mcmc tree samples
 	Int_t Nentries = tree->GetEntries();
-	//	Int_t NthDraw = 4000;
+	Int_t NthDraw = Nentries/25;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
 	std::cout<<"The number of parameters is:  "<<Npars<<std::endl;
@@ -97,16 +100,17 @@ namespace HS{
 			  {
 			    model->plotOn(frame, Components(pdfs[ic]),LineWidth(1), LineColor(ic%8+1));
 			  }
+			frame->Draw();
 		      }
 		    param_index++;	 
 		  }//Close loop over params
-		
+				
+
 	      }//Close if selection of entries    
 	  }//Close loop over entries
 	
 	
 	//End here
-	
 	canvas->Modified();
 	canvas->Update();
 	canvas->Draw("");

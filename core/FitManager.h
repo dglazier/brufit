@@ -148,11 +148,8 @@ namespace HS{
       void PlotDataModel()
       {
 	if(dynamic_cast<RooMcmc*>(fMinimiser.get()))
-	  {
-	    const TString& mcmcFile=fCurrSetup->GetOutDir()+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+GetMinimiserType()+".root";
-	    const Int_t& NthDraw = 4000;
-	    
-	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),mcmcFile, NthDraw})));
+	  { 
+	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get())})));
 	  }
 	else
 	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
