@@ -8,6 +8,8 @@
 
 #include "Setup.h"
 #include "PlotResults.h"
+#include "MCMCPlotResults.h"
+#include "RooMcmc.h"
 #include "Data.h"
 #include "Binner.h"
 #include "Minimiser.h"
@@ -142,9 +144,17 @@ namespace HS{
       //    Minimiser* GetMinimiser() const {return fMinimiser;}
       
       virtual void FillEventsPDFs();
-      void PlotDataModel(){
-	fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
+
+      void PlotDataModel()
+      {
+	if(dynamic_cast<RooMcmc*>(fMinimiser.get()))
+	  { 
+	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get())})));
+	  }
+	else
+	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
       }
+      
       void RedirectOutput(const TString& log="");
       void SetRedirectOutput(){fRedirect=kTRUE;}
 
