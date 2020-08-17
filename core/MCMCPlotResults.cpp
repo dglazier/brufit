@@ -28,13 +28,9 @@ namespace HS{
 
     RooHSEventsPDF_IsPlotting=kTRUE;
 
-    //TFile fileMCMC(mcmcFile);
-
-    //Get the Ttree from the mcmcFile
-    //TTree* tree = (TTree*) fileMCMC.Get("MCMCTree");
-
     //Get the tree from the mcmc
     auto tree = mcmc->GetTree();
+    auto burnIn=mcmc->GetNumBurnInSteps();
 
     for(auto var : vars)
       {
@@ -54,7 +50,7 @@ namespace HS{
 	
 	//loop over mcmc tree samples
 	Int_t Nentries = tree->GetEntries();
-	Int_t NthDraw = Nentries/25;
+	Int_t NthDraw = (Nentries-burnIn)/25;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
 	std::cout<<"The number of parameters is:  "<<Npars<<std::endl;
@@ -62,7 +58,7 @@ namespace HS{
 	Int_t param_index = 0;
  
 
-	for (int ientry = 0; ientry<Nentries; ientry++)
+	for (int ientry = burnIn; ientry<Nentries; ientry++)
 	  {//Loop over entries of the tree
 	    if(ientry%NthDraw==mod)
 	      {//Draw a selection of the entries
@@ -94,11 +90,11 @@ namespace HS{
 			//plot the model
 			setup->TotalPDF();
 			auto model = setup->Model();
-			model->plotOn(frame,LineColor(kBlue), LineWidth(1)) ;
+			model->plotOn(frame,LineColor(kRed), LineWidth(1)) ;
 			const auto& pdfs = setup->PDFs();
 			for (Int_t ic = 0; ic<pdfs.getSize(); ic++)
 			  {
-			    model->plotOn(frame, Components(pdfs[ic]),LineWidth(1), LineColor(ic%8+1));
+			    model->plotOn(frame, Components(pdfs[ic]),LineWidth(1), LineColor(ic%8+3));
 			  }
 			frame->Draw();
 		      }
