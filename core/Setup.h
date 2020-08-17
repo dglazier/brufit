@@ -56,7 +56,7 @@ namespace HS{
       Setup();
       Setup(const Setup& other);
       Setup(Setup&&)=default;
-      //  ~Setup() override{if(fModel) delete fModel;fModel=nullptr;}
+      ~Setup() override{if(fModel) delete fModel;fModel=nullptr;}
       Setup& operator=(const Setup& other);
       Setup& operator=(Setup&& other) = default;
 
