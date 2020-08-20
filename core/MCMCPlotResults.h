@@ -29,9 +29,7 @@ namespace HS{
     protected:
 
     private:
-      std::unique_ptr<TList> fCanvases{new TList()};
-      std::vector<roohist_uptr> fRooHists;
-      TString fFileName;
+
     };
 
   }//Fit

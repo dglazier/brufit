@@ -31,13 +31,12 @@ namespace HS{
       void Write();
       
     protected:
-      
-    private:
-
       std::unique_ptr<TList> fCanvases{new TList()};
       std::vector<roohist_uptr> fRooHists;
-      TString fFileName;
-    };
+
+    private:
+
+     };
     
   }//namespace FIT
 }//namespace HS

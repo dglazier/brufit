@@ -32,6 +32,16 @@ namespace HS{
     auto tree = mcmc->GetTree();
     auto burnIn=mcmc->GetNumBurnInSteps();
 
+
+    //Start here
+    auto& pars = setup->ParsAndYields();
+    std::cout<<"MCMCPlotResults The parameters are: " << pars<<std::endl;
+    vector<Double_t> params(pars.size());
+    int pindex=0;
+    for(RooAbsArg* ipar : pars){ //only need to set branch address once
+      tree->SetBranchAddress(ipar->GetName(), &params[pindex++]);
+    }
+  
     for(auto var : vars)
       {
 	auto canName = tag+"_"+var->GetName();
@@ -44,31 +54,26 @@ namespace HS{
 	//needs a loop over the parameter values from the mcmc
 	//and to draw the model for every nth entry of the mcmc
 
-	//Start here
-	auto& pars = setup->ParsAndYields();
-	std::cout<<"The parameters are: " << pars<<std::endl;      
+  
 	
 	//loop over mcmc tree samples
 	Int_t Nentries = tree->GetEntries();
 	Int_t NthDraw = (Nentries-burnIn)/25;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
-	std::cout<<"The number of parameters is:  "<<Npars<<std::endl;
-	vector<Double_t> params(Npars);
+	std::cout<<"MCMCPlotResults The number of parameters are:  "<<Npars<<std::endl;
 	Int_t param_index = 0;
- 
 
 	for (int ientry = burnIn; ientry<Nentries; ientry++)
 	  {//Loop over entries of the tree
 	    if(ientry%NthDraw==mod)
 	      {//Draw a selection of the entries
-		
+		tree->GetEntry(ientry);
+
 		Int_t param_index = 0;
 		for(RooAbsArg* ipar : pars)
 		  {//Loop over parameters
 		    
-		    tree->SetBranchAddress(ipar->GetName(), &params[param_index]);
-		    tree->GetEntry(ientry);
 		    //  std::cout<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		    string string1 = ipar->GetName();	     
 		    string string2 = "_str";
@@ -82,7 +87,7 @@ namespace HS{
 		    else
 		      {//If par, Set pars
 			setup->SetParVal(ipar->GetName(), params[param_index]);
-			//std::cout<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
+			//	std::cout<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		      }//Close if pars
 		    
 		    if(param_index==(Npars-1))
@@ -92,14 +97,18 @@ namespace HS{
 			auto model = setup->Model();
 			model->plotOn(frame,LineColor(kRed), LineWidth(1)) ;
 			const auto& pdfs = setup->PDFs();
-			for (Int_t ic = 0; ic<pdfs.getSize(); ic++)
-			  {
-			    model->plotOn(frame, Components(pdfs[ic]),LineWidth(1), LineColor(ic%8+3));
-			  }
+			if(pdfs.getSize()>1){
+			  for (Int_t ic = 0; ic<pdfs.getSize(); ic++)
+			    {
+			      model->plotOn(frame, Components(pdfs[ic]),LineWidth(1), LineColor(ic%8+3));
+			    }
+			}//if more than 1
 			frame->Draw();
 		      }
+		    //		    std::cout<<"next param "<<param_index<<std::endl;
 		    param_index++;	 
 		  }//Close loop over params
+		//	std::cout<<"done all  param "<<param_index<<std::endl;
 				
 
 	      }//Close if selection of entries    
@@ -110,6 +119,8 @@ namespace HS{
 	canvas->Modified();
 	canvas->Update();
 	canvas->Draw("");
+
+	//cout<<"Done var "<<var->GetName()<<endl;
       }//loop over vars
     }//MCMCPlotResults
 
