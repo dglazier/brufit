@@ -18,8 +18,9 @@ namespace HS{
 //I think this fileName will need to be constructed in the  void FitManager::PlotDataModel() function and passed to the MCMCPlotResults :
     MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc)
     {
-
-    cout<<"MCMCPlotResults  "<<fCanvases.get()<<" "<<setup<<" "<<endl;
+      // PlotResults(setup,data,tag);
+      //return;
+      cout<<"MCMCPlotResults  "<<fCanvases.get()<<" "<<setup<<" "<<endl;
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
 
     auto vars=setup->FitVars();
@@ -74,7 +75,7 @@ namespace HS{
 		for(RooAbsArg* ipar : pars)
 		  {//Loop over parameters
 		    
-		    //  std::cout<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
+		    std::cout<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		    string string1 = ipar->GetName();	     
 		    string string2 = "_str";
 		    string ipar_str = string1 + string2;
@@ -122,6 +123,8 @@ namespace HS{
 
 	//cout<<"Done var "<<var->GetName()<<endl;
       }//loop over vars
+
+    tree->ResetBranchAddresses();
     }//MCMCPlotResults
 
   }//FIT
