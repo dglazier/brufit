@@ -18,11 +18,6 @@
   sum+="K_0*H_0_0_0[1]*ReY_0_0(CosTh,Phi,Y_0_0)"; //constant /H_0_0_0== 1, Y_0_0_Re = constant (required for scale)
   sum+="+SUM(L[1|4],M[0|4<L+1]){K_L*H_0_L_M[0,-1,1]*ReY_L_M(CosTh,Phi,Y_L_M)}";//H_0_0_0==1 M=0,1,2, for -1,0,1 =>M[-1|1<L+1] or M[-1,0,1<L+1]
 
-  //Fitter.SetUp().LoadFormula("K_0=TMath::Sqrt(1.)/TMath::Sqrt(4*TMath::Pi())");
-  //Fitter.SetUp().LoadFormula("K_1=TMath::Sqrt(2.+1.)/TMath::Sqrt(4*TMath::Pi())");
-  //Fitter.SetUp().LoadFormula("K_2=TMath::Sqrt(2*2.+1.)/TMath::Sqrt(4*TMath::Pi())");
-  //Fitter.SetUp().LoadFormula("K_3=TMath::Sqrt(2*3.+1.)/TMath::Sqrt(4*TMath::Pi())");
-  //Fitter.SetUp().LoadFormula("K_4=TMath::Sqrt(2*4.+1.)/TMath::Sqrt(4*TMath::Pi())");
   Fitter.SetUp().LoadParameter("K_0[0.28209479]");//=TMath::Sqrt(1.)/TMath::Sqrt(4*TMath::Pi())
   Fitter.SetUp().LoadParameter("K_1[0.48860251]");//=TMath::Sqrt(2.+1.)/TMath::Sqrt(4*TMath::Pi())
   Fitter.SetUp().LoadParameter("K_2[0.63078313]");//=TMath::Sqrt(2*2.+1.)/TMath::Sqrt(4*TMath::Pi())")
