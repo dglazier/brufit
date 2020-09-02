@@ -65,6 +65,9 @@ namespace HS{
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonic","RooHSSphHarmonic");
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicIm","RooHSSphHarmonicIm");
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicRe","RooHSSphHarmonicRe");
+      TClassTable::AddAlternate("HS::FIT::RelBreitWigner","RelBreitWigner");
+      TClassTable::AddAlternate("HS::FIT::RooHSComplexSumSqdTerm","RooHSComplexSumSqdTerm");
+      // TClassTable::AddAlternate("HS::FIT::","");
 
       TString option = GetOption();
       fInput->Print();
