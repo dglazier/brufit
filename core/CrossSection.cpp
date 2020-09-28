@@ -279,6 +279,14 @@ namespace FIT{
 		for(Int_t i=0;i<nbins;i++){ //loop over all bins and fill buffer
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
 			std::unique_ptr<TFile> file{TFile::Open(fileName)};
+			if(file==nullptr){ //check file exists
+				cout << fileName << " couldn't be opened. Does it exist?" << endl;
+				csbuffer[i] = 0;
+				cserrbuffer[i] = 0;
+				binningbuffer[i] = 0;
+				ebinning[i] = 0;
+				continue;
+			}
 			a = (CrossSection*)file->Get("cs");
 			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << "+/-" << a->GetCrossSection_err() << " " << a->GetAcceptance() << "+/-" << a->GetAcceptance_err() << endl;
 
