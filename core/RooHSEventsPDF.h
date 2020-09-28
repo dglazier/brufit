@@ -125,11 +125,13 @@ namespace HS{
       //Users may override this evaluate or define evaluateData()
       //This allows for correct acceptance correction for 1D plotting
       Double_t evaluate() const override{
+	//cout<<"RooHSEventsPDF::evaluate"<<endl;
 	if(!HS::FIT::RooHSEventsPDF_IsPlotting)return evaluateData();
 	if(fHistIntegrals.size()!=0){
 	  if(fProxSet.size()==1)
 	    return fHistIntegrals[0].Interpolate(*fProxSet[0]); 
 	}
+	
 	return evaluateData();
       }
        

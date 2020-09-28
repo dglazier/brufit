@@ -61,7 +61,7 @@ namespace HS{
 
       Bins(const Bins& other)=default;
       Bins(Bins&&)=default;
-      Bins& operator=(const Bins& other);
+      Bins& operator=(const Bins& other)= default;
       Bins& operator=(Bins&& other) = default;
 
       TObject* Clone(const char* newname="") const override { return new Bins(*this,newname); }

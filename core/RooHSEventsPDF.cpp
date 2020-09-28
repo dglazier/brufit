@@ -590,23 +590,31 @@ namespace HS{
 	  }
 
       cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<" "<<fNTreeEntries<<endl;
-	  if(MCGenTree) cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<"__MCGEN "<<fNMCGenTreeEntries<<endl;
-	  
+      if(MCGenTree) cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<"__MCGEN "<<fNMCGenTreeEntries<<endl;
+      
       for(Long64_t iEvent=0;iEvent<fNTreeEntries;iEvent++){
 	entryNumber = fEvTree->GetEntryNumber(iEvent);
 	if (entryNumber < 0) break;
 	localEntry = fEvTree->LoadTree(entryNumber);
 	if (localEntry < 0) break;
 	fEvTree->GetEntry(localEntry);
+	Bool_t removeNaNEvent=false;
 	for(UInt_t ip=0;ip<ProxSize;ip++){
-	  //  cout<<iEvent<<" "<<MCVar[ip]<<endl;
-	  fvecReal[iEvent*ProxSize+ip]=MCVar[ip];
-	  //Read the generated values if exist if not
-	  //use mcvar again, this duplicates data so should
-	  //be better optimised15552
-	  if(!fGotGenVar[ip]) fvecRealGen[iEvent*ProxSize+ip]=MCVar[ip];
-	  else fvecRealGen[iEvent*ProxSize+ip]=GenVar[ip];
+	  if( TMath::IsNaN(MCVar[ip]) ){
+	    //this event contains a NaN so will ignore
+	    cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<" event with NaN will  remove it"<<endl;
+	    removeNaNEvent=true;
+	  }
+	  else{
+	    fvecReal[iEvent*ProxSize+ip]=MCVar[ip];
+	    //Read the generated values if exist if not
+	    //use mcvar again, this duplicates data so should
+	    //be better optimised15552
+	    if(!fGotGenVar[ip]) fvecRealGen[iEvent*ProxSize+ip]=MCVar[ip];
+	    else fvecRealGen[iEvent*ProxSize+ip]=GenVar[ip];
+	  }
 	}
+	if(removeNaNEvent) continue;
 	for(UInt_t ip=0;ip<CatSize;ip++){
 	  fvecCat[iEvent*CatSize+ip]=MCCat[ip];
 	  if(!fGotGenCat[ip]) fvecCatGen[iEvent*CatSize+ip]=MCCat[ip];
