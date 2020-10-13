@@ -103,9 +103,32 @@ namespace HS{
       // for(auto& branch: branches){
       // 	delete branch;
       // }
+
+      //Use generated entry list to save full tree variables
+      //Note just those used in generation
+      auto PDFs = SetUp().PDFs();
+      for(auto* pdf:PDFs){
+	if(auto evPdf=dynamic_cast<RooHSEventsPDF*> (pdf) ) {
+	  TFile entryFile(TString("entryFile_")+evPdf->GetName()+".root");
+	  auto entryList=dynamic_cast<TEntryList*>(entryFile.Get("GenEvents"));
+
+	  auto idata=GetDataBin(GetFiti()); //bin for this generation
+	  //get the tree used in RooHEEventsPDF::SetTree
+	  auto filetree=FiledTree::Read(Bins().TreeName(evPdf->GetName()),
+					Bins().FileNames(evPdf->GetName())[idata]);
+	  
+	  auto pdftree=filetree->Tree();
+	  pdftree->SetEntryList(entryList);
+	  outfile->cd();//new tree in outfile
+	  auto generatedTree=pdftree->CopyTree("","");
+	  generatedTree->Write();
+	  delete generatedTree;
+	}
+      }
+      
       delete tree;
       delete fGenData; fGenData=nullptr;
-     }
+    }
     ///////////////////////////////////////////////////////////////
     void ToyManager::InitSummary(){
       std::unique_ptr<TFile> resFile{TFile::Open(SetUp().GetOutDir()+GetCurrName()+"/ToySummary.root","recreate")};

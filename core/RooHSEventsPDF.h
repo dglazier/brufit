@@ -50,6 +50,7 @@ namespace HS{
       vector<Float_t> fvecReal;
       vector<Float_t> fvecRealGen;
       vector<Float_t> fvecRealMCGen;
+      vector<Long64_t> fTreeEntryNumber;
       vector<Int_t> fvecCat;
       vector<Int_t> fvecCatGen;
       vector<Int_t> fvecCatMCGen;
@@ -161,7 +162,12 @@ namespace HS{
       TTree* GetEvTree(){return fEvTree;};
       TTree* GetMCGenTree(){return fMCGenTree;};
       //TVectorD GetMCVar(){return fMCVar;}
-      TTree* GetGenTree(){fEvTree->SetEntryList(fEntryList);TTree* tree=fEvTree->CopyTree("");fEvTree->SetEntryList(nullptr);return tree;};//whoever gets should delete
+      TTree* GetGenTree(){cout<<"GetGenTree "<<fEvTree<<" "<<fEntryList<<endl;
+	fEvTree->SetEntryList(fEntryList);
+	TTree* tree=fEvTree->CopyTree("");
+	fEvTree->SetEntryList(nullptr);
+	return tree;
+      };//whoever gets should delete
       TEntryList* GetEntryList(){return fEntryList;}
       void SetEntryList(TEntryList* elist){fEntryList=dynamic_cast<TEntryList*>(elist->Clone());}
       void SetWeights(Weights *wgts){fWeights=wgts;}

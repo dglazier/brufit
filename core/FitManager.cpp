@@ -133,7 +133,7 @@ namespace HS{
 	  }
 	  else{ //use it and give it the simulated tree
 	    pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
-		pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
+	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
 
 	    //See if data to load for proto data
 	    if(!fCurrDataSet.get())
