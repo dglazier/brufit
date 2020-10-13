@@ -585,12 +585,12 @@ namespace HS{
       Double_t idVal=0;
       Int_t spId=-1;
       if(fWgtsConf.IsValid()){ //add in ID branch for weighted sim data
+	fEvWeights.clear();
+	LoadInWeights();
 	if(fEvTree->GetBranch(fInWeights->GetIDName())){ //the weight ID branch is in fEvTree
 	  fUseEvWeights=kTRUE;
 	  fEvTree->SetBranchStatus(fInWeights->GetIDName(),true);
 	  fEvTree->SetBranchAddress(fInWeights->GetIDName(),&idVal);
-	  fEvWeights.clear();
-	  LoadInWeights();
 	  fEvWeights.resize(fNTreeEntries);
 	  spId=fInWeights->GetSpeciesID(fWgtsConf.Species());
 	}
