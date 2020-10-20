@@ -28,9 +28,7 @@ namespace HS{
     {
       // cout<<"RooHSEventsPDF::RooHSEventsPDF "<<GetName()<<other.fNTreeEntries<< " "<<other.fvecReal.size()<<endl;
       fIsClone=kTRUE;
-      //  fParent=const_cast<RooHSEventsPDF*>(&other);
-      if(other.fParent)fParent=const_cast<RooHSEventsPDF*>(other.fParent);
-      else fParent=const_cast<RooHSEventsPDF*>(&other);
+      fParent=const_cast<RooHSEventsPDF*>(&other);
       fvecReal=other.fvecReal;
       fvecCat=other.fvecCat;
       fvecRealGen=other.fvecRealGen;
