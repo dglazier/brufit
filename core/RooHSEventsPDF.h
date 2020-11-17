@@ -19,12 +19,15 @@
 namespace HS{
   namespace FIT{
     
-    static Bool_t RooHSEventsPDF_IsPlotting=kFALSE;
-
+ 
     
     class RooHSEventsPDF : public RooAbsPdf {
       
     public:
+      static Bool_t RooHSEventsPDF_IsPlotting;
+      static void SetIsPlotting(Bool_t is);
+
+
     RooHSEventsPDF(const char *name, const char *title):
       RooAbsPdf(name,title){};
       
@@ -127,7 +130,7 @@ namespace HS{
       //This allows for correct acceptance correction for 1D plotting
       Double_t evaluate() const override{
 	//cout<<"RooHSEventsPDF::evaluate"<<endl;
-	if(!HS::FIT::RooHSEventsPDF_IsPlotting)return evaluateData();
+	if(!RooHSEventsPDF_IsPlotting)return evaluateData();
 	if(fHistIntegrals.size()!=0){
 	  if(fProxSet.size()==1)
 	    return fHistIntegrals[0].Interpolate(*fProxSet[0]); 

@@ -24,7 +24,8 @@ namespace HS{
     auto vars=setup->FitVars();
     auto model=setup->Model();
  
-    RooHSEventsPDF_IsPlotting=kTRUE;
+   
+    RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     //Get the tree from the mcmc
     auto tree = mcmc->GetTree();
@@ -121,6 +122,8 @@ namespace HS{
       }//loop over vars
 
     tree->ResetBranchAddresses();
+    RooHSEventsPDF::SetIsPlotting(kFALSE);
+
     }//MCMCPlotResults
 
   }//FIT

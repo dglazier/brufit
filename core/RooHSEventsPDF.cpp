@@ -23,6 +23,11 @@
 namespace HS{
   namespace FIT{
 
+    Bool_t RooHSEventsPDF::RooHSEventsPDF_IsPlotting=kFALSE;
+
+    void RooHSEventsPDF::SetIsPlotting(Bool_t is){
+      RooHSEventsPDF_IsPlotting=is;	
+    }
 
     RooHSEventsPDF::RooHSEventsPDF(const RooHSEventsPDF& other, const char* name) :  RooAbsPdf(other,name) 
     {
@@ -237,7 +242,7 @@ namespace HS{
 	  // if(RooHSEventsPDF_IsPlotting) {return 1;}
 	  //else return 1 ;
 	  //if now plotting create histograms
-	  if(HS::FIT::RooHSEventsPDF_IsPlotting&&fHistIntegrals.size()==0)
+	  if(RooHSEventsPDF_IsPlotting&&fHistIntegrals.size()==0)
 	    HistIntegrals(rangeName);
 
 	  return 1;

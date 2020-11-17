@@ -22,7 +22,7 @@ namespace HS{
       cout<<"model "<<model<<endl;
       //For RooHSEventsPDF flag plotting so can calc partial integrals
       //for 1 observable case;
-      RooHSEventsPDF_IsPlotting=kTRUE;
+      RooHSEventsPDF::SetIsPlotting(kTRUE);
 
      
       for( auto *var : vars){
@@ -88,7 +88,8 @@ namespace HS{
      }
 
       //Turn off plotting in RooHSEventsPDF
-      RooHSEventsPDF_IsPlotting=kFALSE;
+      RooHSEventsPDF::SetIsPlotting(kFALSE);
+
      }
 
     void PlotResults::Write(){
