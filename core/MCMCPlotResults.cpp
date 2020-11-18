@@ -72,7 +72,7 @@ namespace HS{
 		for(RooAbsArg* ipar : pars)
 		  {//Loop over parameters
 		    
-		    std::cout<<"MCMCPlotResults "<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
+		    //std::cout<<"MCMCPlotResults "<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		    string string1 = ipar->GetName();	     
 		    string string2 = "_str";
 		    string ipar_str = string1 + string2;
