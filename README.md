@@ -40,7 +40,7 @@ fits theat minuit may struggle to find a global minimum.
 
 ### Prerequisites
 
-ROOT with RooFit, Proof, Mathmore (if using Legendre polynomials)
+ROOT with RooFit, Proof, Mathmore (if using Legendre polynomials). Currently tested on 6.20, ...6.14 know to fail.
 
 ### get and compile code
 

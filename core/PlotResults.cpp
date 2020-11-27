@@ -1,5 +1,6 @@
 #include "PlotResults.h"
 #include "RooHSEventsPDF.h"
+#include "RooMcmc.h"
 #include <RooPlot.h>
 #include <RooMsgService.h>
 #include <TCanvas.h>
@@ -34,7 +35,7 @@ namespace HS{
 	canvas->cd(1);
 
 	RooPlot* frame = var->frame();
-	data->plotOn(frame, DataError(RooAbsData::SumW2) ) ; 
+       	data->plotOn(frame, DataError(RooAbsData::SumW2) ) ; 
 
 	const auto& pdfs = setup->PDFs();
 
@@ -44,11 +45,12 @@ namespace HS{
 	
 	model->plotOn(frame,LineColor(kRed)) ;
 	//	model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
-
+	
 	model->paramOn(frame,
-			Layout(0.1, 0.4, 0.9),
-			Format("NEU",AutoPrecision(2)),
-			ShowConstants()); //show fit parameters
+		       Layout(0.1, 0.4, 0.9),
+		       Format("NEU",AutoPrecision(2)),
+		       ShowConstants()); //show fit parameters
+	
 	
 	frame->SetTitle(TString("Fit components for ")+var->GetName());
 
@@ -81,6 +83,8 @@ namespace HS{
 	canvas->Modified();
 	canvas->Update();
 	canvas->Draw("");
+
+
      }
 
       //Turn off plotting in RooHSEventsPDF

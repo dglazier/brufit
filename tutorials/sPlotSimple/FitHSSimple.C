@@ -4,8 +4,10 @@
   sPlot RF;
   RF.SetUp().SetOutDir("out/");
   ///////////////////////////////Load Variables
-  RF.SetUp().LoadVariable("Mmiss[0,10]");//should be same name as variable in tree  
-   RF.SetUp().SetIDBranchName("fgID");
+  RF.SetUp().LoadVariable("Mmiss[0,10]");//should be same name as variable in tree
+  // RF.SetUp().WS().var("Mmiss")->setBins(10);
+ 
+  RF.SetUp().SetIDBranchName("fgID");
 
   /////////////////////////////Make Model Signal
   RF.SetUp().FactoryPDF("Gaussian::Signal( Mmiss, SIMm[6,4,7], SIMw[0.2,0.0001,3] )");
@@ -23,6 +25,9 @@
   //Do we want to try many fits and use the best?
   //This will randomise the parameters for each fit
   //  RF.SetRefit(2);
+  
+  //Choose Non Minuit mimimiser
+  // RF.SetMinimiser(new RooMcmcSeq(1000,500,100));
 
   //Run the fit here
   Here::Go(&RF);

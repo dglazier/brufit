@@ -97,7 +97,9 @@ namespace HS{
 
       void SetupBasicUsage();
       void SetKeepStart(Bool_t keep=kTRUE){fKeepStart=keep;}
-      
+
+      Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
+ 
     protected :
   
       RooStats::MarkovChain* fChain =nullptr; //!
