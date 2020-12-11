@@ -22,7 +22,8 @@ namespace HS{
       auto& pars = setup->ParsAndYields();
       std::cout<<"The parameters are: " << pars<<std::endl;
       Int_t Npars = pars.size();
-      std::cout<<"The number of parameters is:  "<<Npars<<std::endl;      const   Int_t Nentries =200;// MCMCTree->GetEntries();
+      std::cout<<"The number of parameters is:  "<<Npars<<std::endl;    
+      const   Int_t Nentries =200;// MCMCTree->GetEntries();
 
       auto canName = "Autocorrelation Plot";
       auto canvas = new TCanvas(canName, canName);

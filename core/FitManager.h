@@ -10,6 +10,7 @@
 #include "PlotResults.h"
 #include "MCMCPlotResults.h"
 #include "AutocorrPlot.h"
+#include "CornerPlot.h"
 #include "RooMcmc.h"
 #include "Data.h"
 #include "Binner.h"
@@ -152,6 +153,7 @@ namespace HS{
 	  { 
 	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get())})));
 	    fPlots.push_back((std::unique_ptr<AutocorrPlot>(new AutocorrPlot{fCurrSetup.get(), dynamic_cast<RooMcmc*>(fMinimiser.get())})));
+	    fPlots.push_back((std::unique_ptr<CornerPlot>(new CornerPlot{fCurrSetup.get(), dynamic_cast<RooMcmc*>(fMinimiser.get())})));
 	  }
 	else
 	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
