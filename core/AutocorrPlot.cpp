@@ -45,8 +45,6 @@ namespace HS{
 	  Double_t autocorr[Nentries];	
 	
 	  tree->SetBranchAddress(ipar->GetName(), &param[param_iter]);
-	  //	ResultTree->SetBranchAddress(ipar->GetName(), &chain_mean[param_iter]);        
-	  //std::cout<<ipar->GetName()<<std::endl;
 	  
 	  Double_t chain_total=0;
 	  for (int ientry = 0; ientry<Nentries; ientry++)

@@ -48,15 +48,13 @@ namespace HS{
       gStyle->SetHistFillColor(1); 
       gStyle->SetTitleSize(0.15, "t");
       gStyle->SetTitleY(1.02);*/
-      Int_t counter=0;//Counter for new line on canvas
-
-      
+      Int_t counter=0;//Counter for new line on canvas      
 
       for (RooAbsArg* ipar : pars)
 	{//Loop over parameters twice to draw corner plot
 	 //fix the first parameter 
          //loop over a second parameter to draw the corresponding hists
-	  Int_t int_counter =0;
+	  Int_t int_counter =0; //Counter for across canvas
 
 	  for (RooAbsArg* ipar2 : pars)
 	    {//second loop 
@@ -64,8 +62,6 @@ namespace HS{
 	      if(ipar==ipar2)
 		{
 		  canvas->cd(Npars*counter+1+int_counter);
-		  std::cout<<ipar2->GetName()<<"  "<<Npars*counter +1+int_counter<<std::endl;
-		  std::cout<<"counter: "<<counter<<"  "<<"int_counter: "<<int_counter<<std::endl;
 		  tree->Draw(ipar->GetName());
 		  counter++;
 		  
@@ -79,12 +75,9 @@ namespace HS{
 		  TString DrawPar = ipar->GetName();
 		  TString DrawPar2 = ipar2->GetName();
 		  TString Draw2D = DrawPar + ":" + DrawPar2;
-		  std::cout<<Draw2D<<"  "<<Npars*counter+1+int_counter<<std::endl;
-		  std::cout<<"counter: "<<counter<<"  "<<"int_counter: "<<int_counter<<std::endl;
 		  tree->Draw(Draw2D,"", "col");
 		  int_counter++;
 
-		  
 		}
 	      
 	    }//End Second loop ipar2
