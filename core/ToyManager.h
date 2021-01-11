@@ -31,7 +31,7 @@ namespace HS{
       ToyManager& operator=(const ToyManager& other) = default;
       ToyManager& operator=(ToyManager&& other) = default;
       
-      void Run() override;
+      Bool_t Run() override;
       void SaveResults() override;
       Int_t GetN() override { 
       	if(!(Bins().GetSize()))

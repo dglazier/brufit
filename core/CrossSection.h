@@ -30,7 +30,7 @@ namespace FIT{
 		CrossSection& operator=(const CrossSection& other) = default;
 		CrossSection& operator=(CrossSection&& other) = default;
 
-		void Run() override;
+		Bool_t Run() override;
 		void SaveResults() override;
 
 		void LoadFitResult();

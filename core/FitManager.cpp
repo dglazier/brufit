@@ -26,13 +26,22 @@ namespace HS{
       return *this;
     }
     
-    void FitManager::Run(){
+    Bool_t FitManager::Run(){
       
       CreateCurrSetup();
      
       //get dataset fFiti
       fCurrDataSet=std::move(Data().Get(fFiti));
 
+      if(fCurrDataSet->numEntries()==0){
+	cout<<"WARNING FitManager::Run no entries in dataset for this bin will move to next...."<<endl;
+	return kFALSE;
+      }
+      if(fCurrDataSet->sumEntries()<=0){
+	cout<<"WARNING FitManager::Run weighted entries <=0 actually, "<<fCurrDataSet->sumEntries()<<" in dataset for this bin will move to next...."<<endl;
+	return kFALSE;
+      }
+ 
       //Look for Special case of RooHSEventsPDFs
       FillEventsPDFs();
    
@@ -52,6 +61,8 @@ namespace HS{
       //fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
       FitTo();
+
+      return kTRUE;
     }
     void FitManager::CreateCurrSetup(){
       fCurrSetup = std::unique_ptr<Setup>(new Setup{fSetup}); //Copy setup from template
@@ -90,9 +101,10 @@ namespace HS{
     void FitManager::RunOne(Int_t ifit){
       fFiti=ifit;
       if(fRedirect) RedirectOutput(fSetup.GetOutDir()+Form("logRooFit%d.txt",fFiti));
-      Run();
+      auto success=Run();
       if(fRedirect) RedirectOutput();
-      SaveResults();
+
+      if(success)SaveResults();
       
       Reset();
     }

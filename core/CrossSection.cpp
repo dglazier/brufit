@@ -16,7 +16,7 @@
 namespace HS{
 namespace FIT{
 
-	void CrossSection::Run(){
+	Bool_t CrossSection::Run(){
 
 		LoadFitResult();
 
@@ -25,11 +25,11 @@ namespace FIT{
 		cout << " CrossSection::Run() " << Bins().GetBins().GetNAxis() << " binning variable(s) provided for calculation." << endl;
 		if(Bins().GetBins().GetNAxis()>2){
 			cout << " CrossSection::Run() More than two different types of bins. Cross section calculation only supports two bins (beam energy and angle)." << endl;
-			return;
+			return kTRUE;//note could be false, will leave as true so same behviour as before bool return implemented
 		}
 		if(Bins().GetBins().GetNAxis()>1 && fBeamEnergyBinName==""){
 			cout << "More than two bin variables and none of them was set as beam energy. Cross section cannot be calculated." << endl;
-			return;
+			return kTRUE;
 		}
 
 		FillEventsPDFs();
@@ -38,7 +38,7 @@ namespace FIT{
 		CalcYield();
 		CalcAcceptanceCorrection();
 		CalcCrossSection();
-
+		return kTRUE;
 	}
 
 	void CrossSection::SaveResults(){
