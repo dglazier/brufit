@@ -16,17 +16,16 @@ namespace HS{
 
 
 //I think this fileName will need to be constructed in the  void FitManager::PlotDataModel() function and passed to the MCMCPlotResults :
-    MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc)
+    MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc) : PlotResults(setup,data,tag)
     {
-
-    cout<<"MCMCPlotResults  "<<fCanvases.get()<<" "<<setup<<" "<<endl;
+     
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
 
     auto vars=setup->FitVars();
     auto model=setup->Model();
-    cout<<"model "<<model<<endl;
-
-    RooHSEventsPDF_IsPlotting=kTRUE;
+ 
+   
+    RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     //Get the tree from the mcmc
     auto tree = mcmc->GetTree();
@@ -35,7 +34,7 @@ namespace HS{
 
     //Start here
     auto& pars = setup->ParsAndYields();
-    std::cout<<"MCMCPlotResults The parameters are: " << pars<<std::endl;
+
     vector<Double_t> params(pars.size());
     int pindex=0;
     for(RooAbsArg* ipar : pars){ //only need to set branch address once
@@ -44,7 +43,7 @@ namespace HS{
   
     for(auto var : vars)
       {
-	auto canName = tag+"_"+var->GetName();
+	auto canName = tag+"_"+var->GetName()+"_MCMC";
 	auto canvas = new TCanvas(canName, canName);
 	fCanvases->Add(canvas);
 
@@ -61,7 +60,6 @@ namespace HS{
 	Int_t NthDraw = (Nentries-burnIn)/25;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
-	std::cout<<"MCMCPlotResults The number of parameters are:  "<<Npars<<std::endl;
 	Int_t param_index = 0;
 
 	for (int ientry = burnIn; ientry<Nentries; ientry++)
@@ -74,7 +72,7 @@ namespace HS{
 		for(RooAbsArg* ipar : pars)
 		  {//Loop over parameters
 		    
-		    //  std::cout<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
+		    //std::cout<<"MCMCPlotResults "<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		    string string1 = ipar->GetName();	     
 		    string string2 = "_str";
 		    string ipar_str = string1 + string2;
@@ -122,6 +120,10 @@ namespace HS{
 
 	//cout<<"Done var "<<var->GetName()<<endl;
       }//loop over vars
+
+    tree->ResetBranchAddresses();
+    RooHSEventsPDF::SetIsPlotting(kFALSE);
+
     }//MCMCPlotResults
 
   }//FIT

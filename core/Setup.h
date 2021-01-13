@@ -78,7 +78,8 @@ namespace HS{
       RooArgSet& Cats();
       RooArgSet& FitVarsAndCats();
       RooArgSet& ParsAndYields();
-      
+      const realvars_t& AuxVars()const {return fAuxVars;}
+	
       RooAbsPdf* Model()  const {return fModel;}
       RooAddPdf ExtendModel() const{return RooAddPdf(*dynamic_cast<RooAddPdf*>(fModel));}
 

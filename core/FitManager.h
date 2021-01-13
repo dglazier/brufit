@@ -77,7 +77,7 @@ namespace HS{
       virtual Int_t GetN(){return fData.GetN();}
       virtual Int_t GetFiti(){return fFiti;}
       
-      virtual void Run();
+      virtual Bool_t Run();
       virtual void RunAll();
       virtual void RunOne(Int_t ifit);
       virtual void FitTo();

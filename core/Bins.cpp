@@ -168,6 +168,7 @@ namespace HS{
       tree->SetBranchStatus("*",true);
   
       //create selection cut
+      if(fSelection==TString()) fSelection="1";
       TTreeFormula treeCut("selection",fSelection,tree);
       vector<TString> cut_branches;
       for(Int_t jl=0;jl<treeCut.GetNcodes();jl++){

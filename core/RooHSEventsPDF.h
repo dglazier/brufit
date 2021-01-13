@@ -19,12 +19,15 @@
 namespace HS{
   namespace FIT{
     
-    static Bool_t RooHSEventsPDF_IsPlotting=kFALSE;
-
+ 
     
     class RooHSEventsPDF : public RooAbsPdf {
       
     public:
+      static Bool_t RooHSEventsPDF_IsPlotting;
+      static void SetIsPlotting(Bool_t is);
+
+
     RooHSEventsPDF(const char *name, const char *title):
       RooAbsPdf(name,title){};
       
@@ -50,6 +53,7 @@ namespace HS{
       vector<Float_t> fvecReal;
       vector<Float_t> fvecRealGen;
       vector<Float_t> fvecRealMCGen;
+      vector<Long64_t> fTreeEntryNumber;
       vector<Int_t> fvecCat;
       vector<Int_t> fvecCatGen;
       vector<Int_t> fvecCatMCGen;
@@ -125,11 +129,13 @@ namespace HS{
       //Users may override this evaluate or define evaluateData()
       //This allows for correct acceptance correction for 1D plotting
       Double_t evaluate() const override{
-	if(!HS::FIT::RooHSEventsPDF_IsPlotting)return evaluateData();
+	//cout<<"RooHSEventsPDF::evaluate"<<endl;
+	if(!RooHSEventsPDF_IsPlotting)return evaluateData();
 	if(fHistIntegrals.size()!=0){
 	  if(fProxSet.size()==1)
 	    return fHistIntegrals[0].Interpolate(*fProxSet[0]); 
 	}
+	
 	return evaluateData();
       }
        
@@ -159,7 +165,12 @@ namespace HS{
       TTree* GetEvTree(){return fEvTree;};
       TTree* GetMCGenTree(){return fMCGenTree;};
       //TVectorD GetMCVar(){return fMCVar;}
-      TTree* GetGenTree(){fEvTree->SetEntryList(fEntryList);TTree* tree=fEvTree->CopyTree("");fEvTree->SetEntryList(nullptr);return tree;};//whoever gets should delete
+      TTree* GetGenTree(){cout<<"GetGenTree "<<fEvTree<<" "<<fEntryList<<endl;
+	fEvTree->SetEntryList(fEntryList);
+	TTree* tree=fEvTree->CopyTree("");
+	fEvTree->SetEntryList(nullptr);
+	return tree;
+      };//whoever gets should delete
       TEntryList* GetEntryList(){return fEntryList;}
       void SetEntryList(TEntryList* elist){fEntryList=dynamic_cast<TEntryList*>(elist->Clone());}
       void SetWeights(Weights *wgts){fWeights=wgts;}

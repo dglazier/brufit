@@ -30,7 +30,7 @@ namespace HS{
       sPlot& operator=(const sPlot& other) = default;
       sPlot& operator=(sPlot&& other) = default;
       
-      void Run() override;
+      Bool_t Run() override;
  
       void Reset() override{
 	FitManager::Reset();
