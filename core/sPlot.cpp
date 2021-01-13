@@ -37,7 +37,8 @@ namespace HS{
        // PlotDataModel();
 
        delete dataset;
-     
+
+       return kTRUE;
    }
     
     void sPlot::CreateWeights(){
