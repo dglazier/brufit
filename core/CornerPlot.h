@@ -7,6 +7,7 @@
 #include <RooDataSet.h>
 #include <RooHist.h>
 #include <TList.h>
+#include <TH2.h>
 
 namespace HS{
   namespace FIT{
