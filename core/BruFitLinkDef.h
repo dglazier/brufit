@@ -32,6 +32,7 @@
 #pragma link C++ class HS::FIT::MCMCPlotResults+;
 #pragma link C++ class HS::FIT::AutocorrPlot+;
 #pragma link C++ class HS::FIT::CornerPlot+;
+#pragma link C++ class HS::FIT::CornerFullPlot+;
 //#pragma link C++ class HS::FIT::Process+;
 #pragma link C++ class HS::FIT::RelBreitWigner+;
 #pragma link C++ class HS::FIT::RooComponentsPDF+;

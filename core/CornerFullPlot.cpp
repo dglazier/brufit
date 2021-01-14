@@ -15,9 +15,9 @@ namespace HS{
   namespace FIT{
     using namespace RooFit;
 
-    CornerPlot::CornerPlot(Setup *setup, RooMcmc *mcmc)
+    CornerFullPlot::CornerFullPlot(Setup *setup, RooMcmc *mcmc)
     {
-      fCanvases->SetName(TString("Corner Plot"));
+      fCanvases->SetName(TString("Corner Full Plot"));
       auto vars=setup->FitVars();
 
       auto tree = mcmc->GetTree();
@@ -38,7 +38,7 @@ namespace HS{
       
       for(auto var : vars)
 	{
-      auto canName = "Corner Plot";
+      auto canName = "Corner Full Plot";
       auto canvas = new TCanvas(canName, canName);
       
       fCanvases->Add(canvas);
@@ -73,16 +73,14 @@ namespace HS{
 		  can->SetBottomMargin(0.1);
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
-		  TH1F* hist = new TH1F("hist", "hist", 100,-100000,100000);
+		  
+		  TH1F *hist = new TH1F("hist", "hist", 100, -1000000, 1000000);
 		  TString DrawParInd1 = ipar->GetName();
 		  TString DrawParInd = DrawParInd1 + ">>hist";
 		  tree->Draw(DrawParInd);
+		  tree->Draw(DrawParInd1);
 		  Double_t mean = hist->GetMean();
-		  Double_t sigma = hist->GetRMS();
-		  TH1F *hist2 = new TH1F("hist2", "hist2", 100, mean-3*sigma, mean+3*sigma);
-		  hist2->SetTitle(DrawParInd1);
-		  TString DrawParFin = DrawParInd1 + ">>hist2";
-		  tree->Draw(DrawParFin); 
+		  
 		  
 		  TLine *line = new TLine(mean,0,mean, hist->GetMaximum());
 		  line->SetLineColor(kRed);
@@ -110,23 +108,22 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 		  
-		  TH2F *hist = new TH2F("hist", "hist", 100, -100000, 100000, 100, -100000, 100000);
+		  TH2F* hist = new TH2F("hist", "hist", 100,-1000000,1000000, 100, -1000000, 1000000);
 		  TString DrawPar = ipar->GetName();
 		  TString DrawPar2 = ipar2->GetName();
-		  TString title = DrawPar + ":" + DrawPar2;
-		  TString Draw2D = DrawPar + ":" + DrawPar2 + ">>hist";
+		  TString Draw2D = DrawPar + ":" + DrawPar2;
+		  TString Draw2D1 = DrawPar + ":" + DrawPar2 + ">>hist";
+		  Double_t maxY =  tree->GetMaximum(DrawPar);		 
+		  Double_t minY =  tree->GetMinimum(DrawPar);
+		  Double_t maxX =  tree->GetMaximum(DrawPar2);		 
+		  Double_t minX =  tree->GetMinimum(DrawPar2);
+		  tree->Draw(Draw2D1);
 		  tree->Draw(Draw2D, "", "col");
 		  Double_t meanX = hist->GetMean(1);
 		  Double_t meanY = hist->GetMean(2);
-		  Double_t rmsX = hist->GetRMS(1);
-		  Double_t rmsY = hist->GetRMS(2);
-		  TH2F *hist2 = new TH2F("hist2", "hist2", 100, meanX-3*rmsX, meanX+3*rmsX, 100, meanY-3*rmsY, meanY+3*rmsY);
-		  hist2->SetTitle(title);
-		  TString Draw2DFin = DrawPar + ":" + DrawPar2 + ">>hist2";
-		  tree->Draw(Draw2DFin,"", "col");
-		  
-		  TLine* lineV = new TLine(meanX,meanY-3*rmsY, meanX, meanY+3*rmsY);
-		  TLine* lineH = new TLine(meanX-3*rmsX, meanY, meanX+3*rmsX, meanY);
+	          
+		  TLine* lineV = new TLine(meanX,minY, meanX, maxY);
+		  TLine* lineH = new TLine(minX, meanY, maxX, meanY);
 		  lineV->SetLineColor(kRed);
 		  lineH->SetLineColor(kRed);
 		  lineV->Draw();
@@ -159,12 +156,11 @@ namespace HS{
 		  Int_t binmaxX = hist2X->GetMaximumBin();
 		  Double_t modeX = hist2X->GetBinCenter(binmaxX);
 
-		  TH2F *hist2 = new TH2F("hist2", "hist2", 100, meanX-3*sigmaX, meanX+3*sigmaX, 100, meanY-3*sigmaY, meanY+3*sigmaY);
+		  
 		  TString DrawPar = ipar->GetName();
 		  TString DrawPar2 = ipar2->GetName();
 		  TString title = DrawPar + ":" + DrawPar2;
-		  TString Draw2D = DrawPar + ":" + DrawPar2 + ">>hist2";
-		  hist2->SetTitle(title);
+		  TString Draw2D = DrawPar + ":" + DrawPar2;
 		  tree->Draw(Draw2D, "", "col");
         
 		  TLine *lineV = new TLine(modeX, meanY-3*sigmaY, modeX, meanY+3*sigmaY);
@@ -191,7 +187,7 @@ namespace HS{
       
 	}//Loop over vars
 
-    }//CornerPlot
+    }//CornerFullPlot
   }//FIT
 }//HS
 
