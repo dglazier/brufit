@@ -50,8 +50,6 @@ namespace HS{
       gStyle->SetTitleSize(0.2, "t");
       gStyle->SetLabelSize(0.125, "xy");
       gStyle->SetNdivisions(4, "xy");
-      gStyle->SetPadTopMargin(0);
-      gStyle->SetPadBottomMargin(0);
 
       tree->UseCurrentStyle();
       Int_t counter=0;//Counter for new line on canvas      
@@ -85,6 +83,8 @@ namespace HS{
 		  TLine *line = new TLine(mean,0,mean, hist->GetMaximum());
 		  line->SetLineColor(kRed);
 		  line->Draw(); 
+
+		  delete hist; //Avoid memory leak
 		    
 		  /*
 		  //Start Mode Line
@@ -119,6 +119,7 @@ namespace HS{
 		  Double_t minX =  tree->GetMinimum(DrawPar2);
 		  tree->Draw(Draw2D1);
 		  tree->Draw(Draw2D, "", "col");
+
 		  Double_t meanX = hist->GetMean(1);
 		  Double_t meanY = hist->GetMean(2);
 	          
@@ -129,6 +130,7 @@ namespace HS{
 		  lineV->Draw();
 		  lineH->Draw();
 		  
+		  delete hist;
 		  
 		  /* In case of needing the mode..
 		  //Start Mode Line Two

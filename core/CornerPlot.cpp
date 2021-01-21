@@ -50,10 +50,8 @@ namespace HS{
       gStyle->SetTitleSize(0.2, "t");
       gStyle->SetLabelSize(0.125, "xy");
       gStyle->SetNdivisions(4, "xy");
-      gStyle->SetPadTopMargin(0);
-      gStyle->SetPadBottomMargin(0);
 
-      tree->UseCurrentStyle();
+      // tree->UseCurrentStyle();
       Int_t counter=0;//Counter for new line on canvas      
 
       for (RooAbsArg* ipar : pars)
@@ -83,10 +81,14 @@ namespace HS{
 		  hist2->SetTitle(DrawParInd1);
 		  TString DrawParFin = DrawParInd1 + ">>hist2";
 		  tree->Draw(DrawParFin); 
+		  hist2->DrawCopy();
 		  
 		  TLine *line = new TLine(mean,0,mean, hist->GetMaximum());
 		  line->SetLineColor(kRed);
-		  line->Draw(); 
+		  line->Draw();
+
+		  delete hist;
+		  delete hist2; 
 		    
 		  /*
 		  //Start Mode Line
@@ -124,6 +126,7 @@ namespace HS{
 		  hist2->SetTitle(title);
 		  TString Draw2DFin = DrawPar + ":" + DrawPar2 + ">>hist2";
 		  tree->Draw(Draw2DFin,"", "col");
+		  hist2->DrawCopy("col");
 		  
 		  TLine* lineV = new TLine(meanX,meanY-3*rmsY, meanX, meanY+3*rmsY);
 		  TLine* lineH = new TLine(meanX-3*rmsX, meanY, meanX+3*rmsX, meanY);
@@ -131,6 +134,10 @@ namespace HS{
 		  lineH->SetLineColor(kRed);
 		  lineV->Draw();
 		  lineH->Draw();
+
+
+		  delete hist;
+		  delete hist2; //Avoid memory leak
 		  
 		  
 		  /* In case of needing the mode..
@@ -187,7 +194,7 @@ namespace HS{
       canvas->Update();
       canvas->Draw();
 
-     
+      
       
 	}//Loop over vars
 
