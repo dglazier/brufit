@@ -8,7 +8,6 @@
 #include <RooAbsCategory.h>
 #include <complex>
 
-
 namespace HS{
   namespace FIT{
 
