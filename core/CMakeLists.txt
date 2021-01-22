@@ -10,13 +10,17 @@ ROOT_GENERATE_DICTIONARY(G__${BRUFIT} Weights.h FiledTree.h RooHSComplex.h RooHS
 
 add_library(${BRUFIT} SHARED  Weights.cpp FiledTree.cpp RooHSComplex.cpp RooHSComplexSumSqdTerm.cpp RooHSEventsPDF.cpp RooComponentsPDF.cpp  RooHSEventsHistPDF.cpp RooHSSphHarmonic.cpp RooHSEventsHistPDF.cpp RelBreitWigner.cpp PdfParser.cpp ComponentsPdfParser.cpp Setup.cpp Binner.cpp Bins.cpp  BootStrapper.cpp Data.cpp PlotResults.cpp MCMCPlotResults.cpp  Minimiser.cpp FitManager.cpp  sPlot.cpp ToyManager.cpp CrossSection.cpp RooMcmc.cpp HSSequentialProposal.cpp HSMetropolisHastings.cpp Process.cpp FitSelector.cpp G__${BRUFIT}.cxx)
 
-target_link_libraries(${BRUFIT} ${ROOT_LIBRARIES})
+if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  target_link_libraries(${BRUFIT} ${ROOT_LIBRARIES} "-undefined dynamic_lookup")
+else()
+  target_link_libraries(${BRUFIT} ${ROOT_LIBRARIES} )
+endif()
 
 
-install(TARGETS ${BRUFIT} 
+install(TARGETS ${BRUFIT}
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
 FILE(GLOB ROOT_BRUFIT_PCM ${CMAKE_CURRENT_BINARY_DIR}/*pcm ${CMAKE_CURRENT_BINARY_DIR}/${DIRNAME}/*pcm)
 
-install (FILES  ${ROOT_BRUFIT_PCM}    
+install (FILES  ${ROOT_BRUFIT_PCM}
   DESTINATION "${CMAKE_INSTALL_LIBDIR}")
