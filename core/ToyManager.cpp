@@ -14,7 +14,7 @@
 namespace HS{
   namespace FIT{
 
-    void ToyManager::Run(){
+    Bool_t ToyManager::Run(){
 
 
       LoadResult();
@@ -32,6 +32,8 @@ namespace HS{
       fCurrSetup->TotalPDF();
       
       Generate();
+
+      return kTRUE;
     }
     
     void  ToyManager::Generate(){

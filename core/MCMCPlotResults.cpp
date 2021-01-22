@@ -24,7 +24,8 @@ namespace HS{
     auto vars=setup->FitVars();
     auto model=setup->Model();
  
-    RooHSEventsPDF_IsPlotting=kTRUE;
+   
+    RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     //Get the tree from the mcmc
     auto tree = mcmc->GetTree();
@@ -71,7 +72,7 @@ namespace HS{
 		for(RooAbsArg* ipar : pars)
 		  {//Loop over parameters
 		    
-		    std::cout<<"MCMCPlotResults "<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
+		    //std::cout<<"MCMCPlotResults "<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		    string string1 = ipar->GetName();	     
 		    string string2 = "_str";
 		    string ipar_str = string1 + string2;
@@ -121,6 +122,8 @@ namespace HS{
       }//loop over vars
 
     tree->ResetBranchAddresses();
+    RooHSEventsPDF::SetIsPlotting(kFALSE);
+
     }//MCMCPlotResults
 
   }//FIT

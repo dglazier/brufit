@@ -23,14 +23,17 @@
 namespace HS{
   namespace FIT{
 
+    Bool_t RooHSEventsPDF::RooHSEventsPDF_IsPlotting=kFALSE;
+
+    void RooHSEventsPDF::SetIsPlotting(Bool_t is){
+      RooHSEventsPDF_IsPlotting=is;	
+    }
 
     RooHSEventsPDF::RooHSEventsPDF(const RooHSEventsPDF& other, const char* name) :  RooAbsPdf(other,name) 
     {
       // cout<<"RooHSEventsPDF::RooHSEventsPDF "<<GetName()<<other.fNTreeEntries<< " "<<other.fvecReal.size()<<endl;
       fIsClone=kTRUE;
-      //  fParent=const_cast<RooHSEventsPDF*>(&other);
-      if(other.fParent)fParent=const_cast<RooHSEventsPDF*>(other.fParent);
-      else fParent=const_cast<RooHSEventsPDF*>(&other);
+      fParent=const_cast<RooHSEventsPDF*>(&other);
       fvecReal=other.fvecReal;
       fvecCat=other.fvecCat;
       fvecRealGen=other.fvecRealGen;
@@ -239,7 +242,7 @@ namespace HS{
 	  // if(RooHSEventsPDF_IsPlotting) {return 1;}
 	  //else return 1 ;
 	  //if now plotting create histograms
-	  if(HS::FIT::RooHSEventsPDF_IsPlotting&&fHistIntegrals.size()==0)
+	  if(RooHSEventsPDF_IsPlotting&&fHistIntegrals.size()==0)
 	    HistIntegrals(rangeName);
 
 	  return 1;
@@ -585,12 +588,12 @@ namespace HS{
       Double_t idVal=0;
       Int_t spId=-1;
       if(fWgtsConf.IsValid()){ //add in ID branch for weighted sim data
+	fEvWeights.clear();
+	LoadInWeights();
 	if(fEvTree->GetBranch(fInWeights->GetIDName())){ //the weight ID branch is in fEvTree
 	  fUseEvWeights=kTRUE;
 	  fEvTree->SetBranchStatus(fInWeights->GetIDName(),true);
 	  fEvTree->SetBranchAddress(fInWeights->GetIDName(),&idVal);
-	  fEvWeights.clear();
-	  LoadInWeights();
 	  fEvWeights.resize(fNTreeEntries);
 	  spId=fInWeights->GetSpeciesID(fWgtsConf.Species());
 	}
