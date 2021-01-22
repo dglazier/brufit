@@ -5,9 +5,9 @@
 #include <limits>
 #include <utility>
 //#include <utility>
-#include<bits/stdc++.h>
+// #include<bits/stdc++.h>
 #include <TFormula.h>
-    
+
 namespace HS{
   namespace FIT{
 
@@ -22,11 +22,11 @@ namespace HS{
       //Check if complex
       if(std::count(par.begin(),par.end(),'[')==2){// re,im
 	auto pname=StringToNext(par,"[");
-	  
+
 	auto realRange="["+WithinBrackets(par,'[')+"]";
 	auto imRange="["+WithinBrackets(StringReplaceFirst(par,realRange,""),'[')+"]";
- 
-	//need real and imaginery parameters	
+
+	//need real and imaginery parameters
 	_parList.push_back("Re"+pname+realRange);
 	_parList.push_back("Im"+pname+imRange);
 	//AddFormula("CoIm"+pname+"=-1*@Im"+pname+"[]");
@@ -34,11 +34,11 @@ namespace HS{
       }
       else //just real
       _parList.push_back(par);
-      return; 
+      return;
     }
     /////////////////////////////////////////////////////////////////////////
    void PdfParser::AddFunction(string fun){
-     
+
      if(StringContainsString(fun,"^CONJ")){
        fun=StringReplaceAll(fun,"^CONJ","");
      }
@@ -70,7 +70,7 @@ namespace HS{
       temp=StringReplaceAll(temp,"*","[a-zA-Z0-9-_]+");
       temp=StringReplaceFirst(temp,"(","\\(");
       temp=StringReplaceFirst(temp,")","\\)");
-      
+
       regex regtemp(temp);
       _functionTemplates.push_back(std::make_pair<std::string,std::regex>(std::move(func),std::move(regtemp)));
     }
@@ -92,7 +92,7 @@ namespace HS{
     /////////////////////////////////////////////////////////////////////////
     bool PdfParser::CheckParameterList(const string& par){
       for(auto& lpar:_parList){
-	auto lparName=StringToNext(lpar,"[");	  
+	auto lparName=StringToNext(lpar,"[");
 	auto parName=StringToNext(par,"[");
 	if(parName==lparName)
 	  return true;
@@ -145,22 +145,22 @@ namespace HS{
 	}
 	AddFunction(term);
 	return;
-      }	
+      }
     }
- 
-    
+
+
     /////////////////////////////////////////////////////////////////////////
     ///SUM(L,i){Z_L_i}^2 =   SUM(L,i){F(A_L_i,A_L_i)*F(B_L_i,B_L_i)*F...} + 2*Sum(L1,L2<L1,i1,12<i1){F(A_L1_i1,A_L2_i2)*F(B_L1_i1,B_L2_i2)*F(C_L1_i1,C_L2_i2)*..}
     ///with F(C1,C2) = (ReC1*ReC2 + ImC1*ImC2) = ComplexSumSqdTerm
     string PdfParser::ReplaceComplexSumSqd(string str){
       StringReplaceAll(str," ","");//remove whitespace
 
-      //Connect _CSST_ with RooArg 
+      //Connect _CSST_ with RooArg
       AddFunctionTemplate("RooHSComplexSumSqdTerm","_CSST_*(*,*,*,*)");
       AddFunctionTemplate("RooHSComplexSumSqdTerm","_CSST_*(*,*,*,*,*)");
       AddFunctionTemplate("RooHSComplexSumSqdTerm","_CSST3_*(*,*,*,*,*)");
       AddFunctionTemplate("RooHSComplexSumSqdTerm","_CSST3_*(*,*,*,*,*,*)");
-   
+
       while(StringContainsString(str,"SUM")){//SUM(*){1} + SUM(*){2} +...
 
 
@@ -173,7 +173,7 @@ namespace HS{
 
 	cout<<" SUMMATION "<<sumStr<<endl<<endl<<endl;
 	//	auto endofsumover=it->position()+sumover.size();
-	
+
 	//First make sure all complex functions are created
 	ConstructPDF(StringToNext(sumStr,"}")+"}");
 
@@ -182,7 +182,7 @@ namespace HS{
 	//	auto sum = WithinBrackets(str.substr(endofsumover,str.size()-endofsumover),'{'); //e.g. = {H_L}
 	auto sum = WithinBrackets(sumStr,'{'); //e.g. = {H_L}
 	//cout<<"SUM "<<sum<<endl;
-       
+
 	auto sumover=WithinBrackets(sumStr,'('); //L[],..
 	//	cout<<sumover<<endl;
 	//collect indices
@@ -190,7 +190,7 @@ namespace HS{
 	//cout<<"INDICES "<<indices.size()<<endl;
 
 	//ConsolidateIndex consoInd(indices);
-	
+
 	auto indices1 = indices; //make a copy of indices
 	//loop over indices and create 1 and 2 versions
 	for(auto& ind  : indices1){
@@ -205,14 +205,14 @@ namespace HS{
 	auto terms = Tokenize(sum,'*');
 	if(terms.empty())//Just 1 term
 	  terms.push_back(sum);
-	
+
 	//First part of expansion Sum(L,i){F(A_L_i,A_L_i)*F(B_L_i,B_L_i)*F...}
 	string component1;
 	for(auto &termi  : terms ){//Protect string _CSST_=ComplexSummationSquaredTerm
 	  cout<<" ABOUT TO PARSE TERM "<<termi<<endl;
 	  ParseTerm(termi); //register function
 
-	  
+
 	  string term=termi;
 	  //remove arguments and leave name
 	  if(StringContainsChar(termi,'('))//function
@@ -228,17 +228,17 @@ namespace HS{
 	    newterm = "_CSST_"+term+"_"+term+"_CONJ";
 	    newterm+= "(Re"+term+",CoIm"+term+",Re"+term+",CoIm"+term + ")";
 	  }
-	  else{ //normal comlex term 
+	  else{ //normal comlex term
 	    newterm = "_CSST_"+term+"_"+term;
 	    newterm+= "(Re"+term+",Im"+term+",Re"+term+",Im"+term + ")";
 	  }
 	  component1 += newterm ;
-	  component1 += '*'; 
+	  component1 += '*';
 	}
 	component1.pop_back(); //remove last *
 	//string result = "SUM("+sumover+"){"+component1+"}";
 	string result = "";
-	
+
 	//	Second part of expansion
 	//2*Sum(L1,L2<L1,i1,12<i1){F(A_L1_i1,A_L2_i2)*F(B_L1_i1,B_L2_i2)*...}
 	//Factor 2 will be gathered in definition of _CSST
@@ -248,7 +248,7 @@ namespace HS{
 	  string term1i = term;
 	  for(UInt_t i=0;i<indices.size();i++)
 	    term1i=StringReplaceAll(term1i,indices[i]._label,indices1[i]._label);
-	  
+
 	  string term2i = term;
 	  for(UInt_t i=0;i<indices.size();i++){
 	    auto newLabel= indices2[i]._label;
@@ -257,7 +257,7 @@ namespace HS{
 
 	  }
 	  //string newterm = "_CSST_"+term1+"_"+term2+"("+term1+","+term2+")";//"_CSST("+term1+","+term2+")";
-	  
+
 	  string term1=term1i;
 	  //remove arguments and leave name
 	  if(StringContainsChar(term1i,'('))//function
@@ -290,31 +290,31 @@ namespace HS{
 	      newterm+= "(Re"+term1+",CoIm"+term1+",Re"+term2+",CoIm"+term2 + ",2)";
 	    else
 	      newterm+= "(Re"+term1+",CoIm"+term1+",Re"+term2+",CoIm"+term2 + ")";
- 
+
 	    newterm3 = "_CSST3_"+term1+"_"+term2+"_CONJ";
 	    if(component3.empty())newterm3+= "(CoIm"+term1+",Re"+term1+",Re"+term2+",CoIm"+term2 + ",-1,-1)";
 	    else
 	      newterm3+= "(CoIm"+term1+",Re"+term1+",Re"+term2+",CoIm"+term2 + ",-1,-1)";
 	  }
 	  else{ //normal complex term
-     
+
 	    newterm = "_CSST_"+term1+"_"+term2;
 	    if(component2.empty())newterm+= "(Re"+term1+",Im"+term1+",Re"+term2+",Im"+term2 + ",1)";
 	    else
 	      newterm+= "(Re"+term1+",Im"+term1+",Re"+term2+",Im"+term2 + ",1)";
-	    
+
 	    newterm3 = "_CSST3_"+term1+"_"+term2;
 	    if(component3.empty())newterm3+= "(Im"+term1+",Re"+term1+",Re"+term2+",Im"+term2 + ",-1,-1)";
 	    else
 	      newterm3+= "(Im"+term1+",Re"+term1+",Re"+term2+",Im"+term2 + ",-1,-1)";
-	    
+
 	  }
 
-	  
-	  component2 += newterm ; 
-	  component2 += '*'; 
-	  component3 += newterm3 ; 
-	  component3 += '*'; 
+
+	  component2 += newterm ;
+	  component2 += '*';
+	  component3 += newterm3 ;
+	  component3 += '*';
 	}
 	component2.pop_back(); //remove last *
 	component3.pop_back(); //remove last *
@@ -343,10 +343,10 @@ namespace HS{
 	  auto newLabel= indices2[i]._label;
 	  auto oldLabel= indices[i]._label;
 	  auto newLabel1=oldLabel+"1";
-	  
+
 	  sumover2=StringReplaceAll(sumover2,indices[i]._label,indices2[i]._label);
 	  ///	  cout<<sumover2<<endl;
-	  
+
 	  //get the string specifiying the index criteria e.g. 0-3<L1 = range
 	  size_t pos=0;
 	  StringToNext(sumover2,pos,newLabel);
@@ -357,19 +357,19 @@ namespace HS{
 	    auto replaceString = newLabel+"["+range+"]";
 	    prevInds+=(prevInds+newLabel1);
 	    //range+="<"+prevInds+"-1"; //-1 =>less than not equal to
-	    range+="<"+prevInds; 
-	    //range+="!"+string("M1*(L1==L2)-((M1==0))"); 
+	    range+="<"+prevInds;
+	    //range+="!"+string("M1*(L1==L2)-((M1==0))");
 	    auto withString = newLabel+"["+range+"]";
 	    //add final inequality condition to the last index
 	    // sumover2=StringReplaceFirst(sumover2,replaceString,withString);
 	  }
-	  //accumulate the final inequality 
+	  //accumulate the final inequality
 	  prevInds+=(prevInds+newLabel1+"-"+ newLabel+"+");
 	}
 	result+="SUM("+sumover1+","+sumover2+"){"+component2+"}";
 	//	result+="+SUM("+sumover1+","+sumover2+"){"+component2+"}";
        	result+="+SUM("+sumover1+","+sumover2+"){"+component3+"}";
-	
+
  	cout<<"Currently "<<result<<endl;
 
 	auto replaceSum=ReplaceSummations(result);
@@ -390,7 +390,7 @@ namespace HS{
     //   }
     // }
     // string PdfParser::SumOverConsolidatedIndex(string& subject, ConsolidatedIndex& sumIndex){
-      
+
     //   std::vector<std::pair<string,int>> indEntry;
     //   while(indEntry=sumIndex.next()){ //loop over all index combinations
 
@@ -398,9 +398,9 @@ namespace HS{
     // 	  string label = labelVal->first;//Going to replace this label
     // 	  auto val = sumIndex._vals;   //with these values
 
- 
+
     // 	  regex reglabel(string("[\\W_]")+label+"[\\W_]"); //The label surrounded by punctuation or _  (make sure not a part of a word)
-  
+
     // 	  string result;
     // 	  for(auto& val : vals){
     // 	//check if valid val
@@ -434,26 +434,26 @@ namespace HS{
     // 	}
     //   }
     //   }
-      
- 
+
+
     // }
     string PdfParser::ReplaceSummations(string str){
       StringReplaceAll(str," ","");//remove whitespace
-      
+
       while(StringContainsString(str,"SUM")){//SUM(*){1} + SUM(*){2} +...
 	string regex_sum = R"(SUM\(\w+\[.*?\]+?\))"; //i.e. SUM(*){*}
 	regex regsum(regex_sum);
 	sregex_iterator it(str.begin(), str.end(), regsum);
- 	
+
 	auto sumover=it->str();// = SUM(*)
 	auto endofsumover=it->position()+sumover.size();
 	auto sum = WithinBrackets(str.substr(endofsumover,str.size()-endofsumover),'{'); //e.g. = {H_L}
 	auto sumString=sumover+"{"+sum+"}";
-	
+
 	cout <<" GOING TO EXPAND "<<sumString<<" "<<sumover<<" "<<sum<<endl;
 
 	auto expandString=ExpandSummation(sumString);
-	if(expandString.back()=='+')expandString.pop_back(); 
+	if(expandString.back()=='+')expandString.pop_back();
 	//	str=StringReplaceFirst(str,sumString,"("+expandString+")");
 	str=StringReplaceFirst(str,sumString,expandString);
 
@@ -469,7 +469,7 @@ namespace HS{
     //NESTED sums
     // e.g. string str = "SUM(L[0-4]){SUM(M[0,2]){H0(L,M)*YLM(L,M)}}";
     string PdfParser::ExpandSummation(string str){
-       
+
       string regex_sum = R"(SUM\(\w+\[.*?\]+?\))"; //i.e. SUM(*)
       regex regsum(regex_sum);
 
@@ -482,7 +482,7 @@ namespace HS{
       //Loop over factorised SUMs
       //check number of SUMS at this level
       int NSums=0;
-      
+
       while(it != it_end) {
 	if(endofsum>it->position()) //this SUM was nested
 	  {++it;continue;}
@@ -498,7 +498,7 @@ namespace HS{
 	//recurisvely loop over different indices
 	//Order of indice is important
 	sum=SumOverIndex(sum,indices,0);
-     
+
 	//Recursive nested SUMs
 	if(StringContainsString(sum,"SUM"))
 	  result+=ExpandSummation(sum);
@@ -506,10 +506,10 @@ namespace HS{
 	  result+=sum;
 
 	results.push_back(result);
-	
+
 	++it;
       }
-      //Take product of SUMs 
+      //Take product of SUMs
       string finalResult;
       for(auto& tempResult:results){
  	finalResult+=tempResult;
@@ -522,9 +522,9 @@ namespace HS{
     string PdfParser::SumOverIndex(string subject, SumIndices sumIndices,uint Ni){
       if(Ni>=sumIndices.size()) //terminate recursion
 	return subject;
-  
+
       auto& sumIndex=sumIndices[Ni];
-  
+
       string label = sumIndex._label; //Going to replace this label
 
       auto vals = sumIndex._vals;   //with these values
@@ -559,9 +559,9 @@ namespace HS{
 	gotNotEq=true;
       }
 
-      
+
       regex reglabel(string("[\\W_]")+label+"[\\W_]"); //The label surrounded by punctuation or _  (make sure not a part of a word)
-  
+
       string result;
       for(auto& val : vals){
 	//	cout<<"val "<<label<<" "<<val <<" "<<minVal<<" "<<maxVal<<endl;
@@ -573,7 +573,7 @@ namespace HS{
 	  if(val==notEq) gotNotEq=true;
 	if(gotNotEq)
 	  continue;
-	
+
 	//index OK
 	sumIndex._currval=val;
 	string term = subject; //start with labelled string
@@ -629,7 +629,7 @@ namespace HS{
     // 	  }
     // 	  gotMaxVal=true;
     // 	}
-	
+
     //   }
     //   if(gotMinVal&&val<minVal) return false;
     //   if(gotMaxVal&&val>maxVal) return false;
@@ -645,7 +645,7 @@ namespace HS{
 
       string regex_indice = R"(\w+\[.*?\]+?)";
       regex regindice(regex_indice);
- 
+
       sregex_iterator it(str.begin(), str.end(), regindice);
       sregex_iterator it_end;
       while(it != it_end) {
@@ -660,7 +660,7 @@ namespace HS{
 
 	if(StringContainsChar(ind,'<')||StringContainsChar(ind,'>')||StringContainsChar(ind,'!')){
 	  size_t pos=0; //position along string ind
-	  
+
 	  int gOrl=-1;
 	  gOrl=StringWhichIsNext(ind,pos,">","<","!");
 	  string conditions=ind;
@@ -674,11 +674,11 @@ namespace HS{
 	  cout<<"ind "<<ind<<endl;
 	  gOrl=-1;
 	  pos=0;
-	    
+
 	  while((gOrl=StringWhichIsNext(conditions,pos,">","<","!"))!=-1){
 	    if(gOrl==0){//>
 	      size_t pos0=pos;
-	
+
 	      //check for another limit
 	      if((StringWhichIsNext(conditions,pos,">","<","!"))!=-1){
 		inde._mindep.push_back(conditions.substr(pos0,pos-pos0-1));
@@ -687,11 +687,11 @@ namespace HS{
 	      else{//if not take to the end of string
 		inde._mindep.push_back(conditions.substr(pos0,conditions.size()-pos0));
 	      }
-	      pos=pos0; 
+	      pos=pos0;
 	    }
 	    else if(gOrl==1){//<
 	      size_t pos0=pos;
-	
+
 	      //check for another limit
 	      if((StringWhichIsNext(conditions,pos,">","<","!"))!=-1){
 		inde._maxdep.push_back(conditions.substr(pos0,pos-pos0-1));
@@ -700,11 +700,11 @@ namespace HS{
 	      else{//if not take to the end of string
 		inde._maxdep.push_back(conditions.substr(pos0,conditions.size()-pos0));
 	      }
-	      pos=pos0; 
+	      pos=pos0;
 	    }
 	    else if(gOrl==2){//!
 	      size_t pos0=pos;
-	
+
 	      //check for another limit
 	      if((StringWhichIsNext(conditions,pos,">","<","!"))!=-1){
 		string neqto=conditions.substr(pos0,pos-pos0-1);
@@ -714,14 +714,14 @@ namespace HS{
 	      }
 	      else{//if not take to the end of string
 		string neqto=conditions.substr(pos0,conditions.size()-pos0);
-		StringReplaceAll(neqto,"!","!=");		
+		StringReplaceAll(neqto,"!","!=");
 		inde._notequaldep.push_back(neqto);
 	      }
-	      pos=pos0; 
+	      pos=pos0;
 	    }
 	  }
 	}
-	  
+
 	//case values v0,v1,v2,v3,...
 	if(StringContainsChar(ind,',')){
 	  auto values = Tokenize(ind,',');
@@ -730,7 +730,7 @@ namespace HS{
 
 	  std::sort(inde._vals.begin(),inde._vals.end());
 	}
-    
+
 	//case range min|max:increment<absMax>absMin
 	//Note absMax and absMin can be used to limit an indice that depends
 	//on another
@@ -746,7 +746,7 @@ namespace HS{
 	    auto splitColon=Tokenize(ind,':');
 	    ind=splitColon.front(); //"min-max"
 	    increment =  std::stoi(splitColon.back()); //"increment"
-	
+
 	  }
 	  int first=-INT_MAX;
 	  int last=INT_MAX;
@@ -761,7 +761,7 @@ namespace HS{
 	      else if(count==1) last =  std::stoi(token);
 	      count++;
 	    }
-	    else if(token.size()>1){//-ve 
+	    else if(token.size()>1){//-ve
 	      if(token[0]=='-'&&std::isdigit(token[1])){//-ve numerical values
 		if(count==0) first = std::stoi(token);
 		else if(count==1) last =  std::stoi(token);
@@ -798,7 +798,7 @@ namespace HS{
 	  //     }
 	  //   }
 	  // }
-      
+
 	  if(first==-INT_MAX||last==INT_MAX)
 	    cout<<"ERROR can not find first or last index value "<<ind<<endl;
 	  else
@@ -812,10 +812,10 @@ namespace HS{
 	}//case range
 
 	indices.push_back(inde);
-    
+
 	++it;//next index label
       }
-  
+
       return indices;
     }
     ////////////////////////////////////////////////////////////////////////
@@ -826,7 +826,7 @@ namespace HS{
 	if(inde._label==label) return &inde;
 
       cout<<"Warning SumIndex GetIndex did not find Label, any summation index that depends on another must be listed after the one it depends on in SUM() "<<label<<endl;
-      //didn;t find it 
+      //didn;t find it
       return nullptr;
     }
 
@@ -841,7 +841,7 @@ namespace HS{
       cout<<endl;
 
       _tempVals.resize(_indices.size());
-      
+
       while(getValues(-1)){}; //Fill up entries
       //
       //for(auto& entryVals: _vals){
@@ -849,13 +849,13 @@ namespace HS{
 	  // cout<<val<<" ";
 	  //cout<<endl;
       // }
-      
+
     }
     bool ConsolidateIndex::getValues(int Nl){
       cout<<"ConsolidateIndex::GetValues(uint Nl) "<<Nl<<endl;
       if(Nl+1>=(int)_labels.size() )
 	return false; //terminate
-      
+
       //move on to next label
       Nl++;
       _indices[Nl].next();
@@ -881,7 +881,7 @@ namespace HS{
 	_entry=0; //ready to start again
 	return result;//but return empty to terminate
       }
-	
+
       uint ii=0;
       for(auto& label : _labels)//for each label add a value with its name
 	result.emplace_back(label,_vals[_entry][ii++]);
@@ -897,7 +897,7 @@ namespace HS{
       //tokenize around the - to get first and last values
       while (std::getline(iss, token, symbol)){
 	tokens.push_back(token);
-      }	  
+      }
       return tokens;
     }
     bool StringContainsChar(const string& str,const char symbol){
@@ -925,7 +925,7 @@ namespace HS{
       if (inde == std::string::npos) return str;
       /* Make the replacement. */
       str.replace(inde, s1.size(), s2);
-      
+
       return str;
     }
     string StringToNext(string str,string s1){
@@ -945,7 +945,7 @@ namespace HS{
       inde=str.find(s1, inde);
       if (inde == std::string::npos) return string();
       string result = str.substr(pos,inde-pos);
-      pos=inde+1; 
+      pos=inde+1;
       return result;
     }
     string StringBetweenFirst(const string& str,const string& s1,const string& s2){
@@ -956,7 +956,7 @@ namespace HS{
 
      return str.substr(pos1,pos2-pos1);
     }
- 
+
     ////////////////////////////////////////////////////////////////////////////////
     /// returns string within brackets of type bracket(='{','(','[') in string expr
     string WithinBrackets(const string expr,const char bracket){
@@ -984,7 +984,7 @@ namespace HS{
 	if(expr[i]==closebracket)
 	  n_open--;
 	if(n_open==0){//found the balanced bracket return string inbetween
-	 
+
 	  return expr.substr(open+1,i-open-1);}
       }
 
@@ -1028,7 +1028,7 @@ namespace HS{
       cout<<endl;
     }
 
-  
+
     int EvalIndiceFormula(string formula,SumIndices &indices){
 
       int icount=0;
@@ -1046,7 +1046,7 @@ namespace HS{
       	form.SetParameter(i,vals[i]);
 
       return form.Eval(0);
-      
+
     }
     // int MaxIndiceFormula(string formula,SumIndices &indices){
 
@@ -1064,7 +1064,7 @@ namespace HS{
     //   	form.SetParameter(i,vals[i]);
 
     //   return form.Eval(0);
-      
+
     // }
   }//namespace PARSER
 }//namespace HS
