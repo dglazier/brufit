@@ -4,7 +4,7 @@
 #include <iostream>
 #include <limits>
 //#include <utility>
-#include<bits/stdc++.h>
+// #include<bits/stdc++.h>
 
 namespace HS{
   namespace FIT{
@@ -25,7 +25,7 @@ namespace HS{
       size_t pos=0;
       //term position
       size_t tpos=0;
-     
+
       string term("start");
       while(!term.empty()){
 	term=NextComponentsTerm(str,pos,tpos);
@@ -53,14 +53,14 @@ namespace HS{
 	  AddFunction(term);
 	  continue;
 	}
-	
+
       }
       //Change full function string to just name
       for (auto const& fun : _funNames){
 	cout<<"REPLACE NAME "<< fun.first<<" "<<fun.second<<" "<<StringContainsString(str,fun.first)<<endl;
 	str=StringReplaceAll(str,fun.first,fun.second);
       }
-      
+
       _pdfString="RooComponentsPDF::"+_name+"(0,"+_varsString+",="+str+")";
       cout<<_pdfString<<endl;
       return _pdfString;
@@ -70,14 +70,14 @@ namespace HS{
     string ComponentsPdfParser::NextComponentsTerm(string str, size_t& pos, size_t& tpos){
 
       str+=":";//make sure we go to the end of str
-      
+
       string component("start");
- 
+
       //Look for term to next :
       size_t origpos=pos;
       component =StringToNext(str,pos,":")+";";
 
-      
+
       while(component!=";"){
 	string term("start");
 	while(!term.empty()){
@@ -92,15 +92,15 @@ namespace HS{
 	    pos=origpos; //still got more terms
 	    return term;
 	  }
-	  
+
 	}
 	origpos=pos; //update origpos to new component
 	component =StringToNext(str,pos,":")+";";//make sure we go to the end of str (+;)
 	tpos=0;//move tpos back to start of next component
      }
-      
+
      return string();
     }
- 
+
   }//namespace PARSER
 }//namespace HS
