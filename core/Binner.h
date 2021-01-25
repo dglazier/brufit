@@ -53,7 +53,7 @@ namespace HS{
       const strings_t FileNames(const TString& name="Data") const {
 	if(fNameToFiles.count(name))
 	  return fNameToFiles.at(name);
-	std::cout<<"Binner::FileNames files  named "<<name<<" not found"<<std::endl;
+	std::cout<<"Binner::FileNames files  named "<<name<<" not found"<<fNameToFiles.size()<<std::endl;
 	return strings_t();
       }
 

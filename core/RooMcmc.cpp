@@ -111,12 +111,11 @@ namespace HS{
       auto entryBranch=fTreeMCMC->Branch("entry",&entry,"entry/L");
       for(entry=0;entry<fTreeMCMC->GetEntries();entry++)
 	entryBranch->Fill();
-   
       //Add any formulas
       //Need to get a copy of variables first or setting
       //the means as parameter values does not seem to work...
       RooArgList saveFloatFinalList(*fChainData->get()) ;
-  
+
       AddFormulaToMCMCTree();
   
       //set paramters to mean values of post burn in distributions

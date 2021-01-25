@@ -16,7 +16,7 @@
 namespace HS{
 namespace FIT{
 
-	void CrossSection::Run(){
+	Bool_t CrossSection::Run(){
 
 		LoadFitResult();
 
@@ -25,11 +25,11 @@ namespace FIT{
 		cout << " CrossSection::Run() " << Bins().GetBins().GetNAxis() << " binning variable(s) provided for calculation." << endl;
 		if(Bins().GetBins().GetNAxis()>2){
 			cout << " CrossSection::Run() More than two different types of bins. Cross section calculation only supports two bins (beam energy and angle)." << endl;
-			return;
+			return kTRUE;//note could be false, will leave as true so same behviour as before bool return implemented
 		}
 		if(Bins().GetBins().GetNAxis()>1 && fBeamEnergyBinName==""){
 			cout << "More than two bin variables and none of them was set as beam energy. Cross section cannot be calculated." << endl;
-			return;
+			return kTRUE;
 		}
 
 		FillEventsPDFs();
@@ -38,7 +38,7 @@ namespace FIT{
 		CalcYield();
 		CalcAcceptanceCorrection();
 		CalcCrossSection();
-
+		return kTRUE;
 	}
 
 	void CrossSection::SaveResults(){
@@ -273,17 +273,41 @@ namespace FIT{
 		Int_t nbins = Bins().GetSize();
 		Double_t csbuffer[nbins];
 		Double_t cserrbuffer[nbins];
+		Double_t yieldbuffer[nbins];
+		Double_t yielderrbuffer[nbins];
+		Double_t acccorryieldbuffer[nbins];
+		Double_t acccorryielderrbuffer[nbins];
+		Double_t fluxnormyieldbuffer[nbins];
+		Double_t fluxnormielderrbuffer[nbins];
 		Double_t binningbuffer[nbins];
 		Double_t ebinning[nbins];
 		std::set<Double_t> ebinningset;
 		for(Int_t i=0;i<nbins;i++){ //loop over all bins and fill buffer
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
 			std::unique_ptr<TFile> file{TFile::Open(fileName)};
+			if(file==nullptr){ //check file exists
+				cout << fileName << " couldn't be opened. Does it exist?" << endl;
+				csbuffer[i] = 0;
+				cserrbuffer[i] = 0;
+				binningbuffer[i] = 0;
+				ebinning[i] = 0;
+				continue;
+			}
 			a = (CrossSection*)file->Get("cs");
 			cout << a->GetBeamEnergyValue() << " " << a->GetBinValue() << " " << a->GetCrossSection() << "+/-" << a->GetCrossSection_err() << " " << a->GetAcceptance() << "+/-" << a->GetAcceptance_err() << endl;
 
 			csbuffer[i] = a->GetCrossSection();
 			cserrbuffer[i] = a->GetCrossSection_err();
+
+			Double_t thickness = a->GetTargetThickness();
+			Double_t br = a->GetBranchingRatio();
+			yieldbuffer[i] = a->GetYield();
+			yielderrbuffer[i] = a->GetYield_err();
+			acccorryieldbuffer[i] = yieldbuffer[i]/a->GetAcceptance();
+			acccorryielderrbuffer[i] = yielderrbuffer[i]/a->GetAcceptance();
+			fluxnormyieldbuffer[i] = yieldbuffer[i]/a->GetFlux();
+			fluxnormielderrbuffer[i] = yielderrbuffer[i]/a->GetFlux();
+
 			binningbuffer[i] = a->GetBinValue();
 			ebinning[i] = a->GetBeamEnergyValue();
 			ebinningset.insert(a->GetBeamEnergyValue());
@@ -293,6 +317,12 @@ namespace FIT{
 		Int_t ebins = ebinningset.size();
 		Double_t cs[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
 		Double_t cs_err[ebins][nbins/ebins]; //in total nbins of which ebins energy, therefore nbins/ebins is the angular binning
+		Double_t yield[ebins][nbins/ebins];
+		Double_t yield_err[ebins][nbins/ebins];
+		Double_t acccorryield[ebins][nbins/ebins];
+		Double_t acccorryield_err[ebins][nbins/ebins];
+		Double_t fluxnormyield[ebins][nbins/ebins];
+		Double_t fluxnormield_err[ebins][nbins/ebins];
 		Double_t binning[ebins][nbins/ebins];
 		Double_t energybins[ebins];
 		Int_t ecounter=0;
@@ -302,6 +332,12 @@ namespace FIT{
 				if(i==ebinning[j]){
 					cs[ecounter][counter] = csbuffer[j];
 					cs_err[ecounter][counter] = cserrbuffer[j];
+					yield[ecounter][counter] = yieldbuffer[j];
+					yield_err[ecounter][counter] = yielderrbuffer[j];
+					acccorryield[ecounter][counter] = acccorryieldbuffer[j];
+					acccorryield_err[ecounter][counter] = acccorryielderrbuffer[j];
+					fluxnormyield[ecounter][counter] = fluxnormyieldbuffer[j];
+					fluxnormield_err[ecounter][counter] = fluxnormielderrbuffer[j];
 					binning[ecounter][counter] = binningbuffer[j];
 					energybins[ecounter]=i;
 					counter++;
@@ -333,13 +369,55 @@ namespace FIT{
 			gResults[e]->GetXaxis()->SetTitle(axisname);
 		}
 
+		TGraphErrors* gYields[ebins];
+		TCanvas* cYields = new TCanvas("yields","yields");
+		cYields->DivideSquare(ebins);
+		for(Int_t e=0; e<ebins;e++){
+			cYields->cd(e+1);
+			gYields[e] = new TGraphErrors(nbins/ebins,binning[e],yield[e],0,yield_err[e]);
+			gYields[e]->SetNameTitle(TString::Format("Yields%d",e),fBeamEnergyBinName+TString::Format("=%f",energybins[e]));
+			gYields[e]->Draw("AP");
+			gYields[e]->SetMarkerStyle(20);
+			gYields[e]->GetXaxis()->SetTitle(axisname);
+		}
+
+		TGraphErrors* gAccCorrYields[ebins];
+		TCanvas* cAccCorrYields = new TCanvas("acccorryields","acccorryields");
+		cAccCorrYields->DivideSquare(ebins);
+		for(Int_t e=0; e<ebins;e++){
+			cAccCorrYields->cd(e+1);
+			gAccCorrYields[e] = new TGraphErrors(nbins/ebins,binning[e],acccorryield[e],0,acccorryield_err[e]);
+			gAccCorrYields[e]->SetNameTitle(TString::Format("AccCorrYields%d",e),fBeamEnergyBinName+TString::Format("=%f",energybins[e]));
+			gAccCorrYields[e]->Draw("AP");
+			gAccCorrYields[e]->SetMarkerStyle(20);
+			gAccCorrYields[e]->GetXaxis()->SetTitle(axisname);
+		}
+
+		TGraphErrors* gFluxNormYields[ebins];
+		TCanvas* cFluxNormYields = new TCanvas("fluxnormyields","fluxnormyields");
+		cFluxNormYields->DivideSquare(ebins);
+		for(Int_t e=0; e<ebins;e++){
+			cFluxNormYields->cd(e+1);
+			gFluxNormYields[e] = new TGraphErrors(nbins/ebins,binning[e],fluxnormyield[e],0,fluxnormield_err[e]);
+			gFluxNormYields[e]->SetNameTitle(TString::Format("FluxNormYields%d",e),fBeamEnergyBinName+TString::Format("=%f",energybins[e]));
+			gFluxNormYields[e]->Draw("AP");
+			gFluxNormYields[e]->SetMarkerStyle(20);
+			gFluxNormYields[e]->GetXaxis()->SetTitle(axisname);
+		}
+
 		if(outputfile != ""){
 			cout << "Save to " << outputfile << endl;
 			auto outfile=std::unique_ptr<TFile> (new TFile{outputfile,"recreate"});
 			if(outfile){
 				cResults->Write();
+				cYields->Write();
+				cAccCorrYields->Write();
+				cFluxNormYields->Write();
 				for(Int_t e=0; e<ebins;e++){
 					gResults[e]->Write();
+					gYields[e]->Write();
+					gAccCorrYields[e]->Write();
+					gFluxNormYields[e]->Write();
 				}
 			}
 		}

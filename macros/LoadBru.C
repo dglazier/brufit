@@ -33,6 +33,4 @@ void LoadBru(TString Selection=""){
   TClassTable::AddAlternate("HS::FIT::Weights","HS::Weights");
   gROOT->ProcessLine(".L $BRUFIT/macros/PDFExpand.C+");
 
-
-
 }

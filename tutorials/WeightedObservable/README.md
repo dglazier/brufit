@@ -31,7 +31,7 @@ To make the skeleton code we use the THSSkeleton class :
 
 This creates a PDF that will fit variables in the input tree called Phi and Pol, with a RooCategory PolState (for asymmmetries) and with fit parameters called A and B. The user now has to define the fit function themselves. Open MyNewPDF.cxx; scrolll down to the evaluate() function (Nothing else should need edited) Replace the default return 1.0; with a suitable fit function :
 
-     	     Double_t MyNewPDF::evaluate() const 
+     	     Double_t MyNewPDF::evaluateData() const 
  	     	      { 
   		      return 1.0 + PolState*Pol*(A*TMath::Cos(2*TMath::DegToRad()*Phi)+B*TMath::Sin(2*TMath::DegToRad()*Phi));
  		      }

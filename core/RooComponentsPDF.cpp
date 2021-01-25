@@ -151,6 +151,7 @@ namespace HS{
 
     Double_t RooComponentsPDF::evaluateData() const 
     {
+      //cout<<"RooComponentsPDF::evaluateData() "<<endl;
       Double_t val=fBaseLine;
        for(auto &comp: fComponents){
 	Double_t product=1;
@@ -207,14 +208,16 @@ namespace HS{
     }
     Double_t RooComponentsPDF::evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const
     {
+      // cout<< "RooComponentsPDF::evaluateMC"<<endl;
       //read in observable value for this event
       for(Int_t ii=0;ii<fNvars;ii++){
+	//cout<<vars->at(fTreeEntry*fNvars+ii)<<" ";
 	fIntegrateObs[ii]->setVal(vars->at(fTreeEntry*fNvars+ii));
       }
       for(Int_t ii=0;ii<fNcats;ii++){
 	fIntegrateCats[ii]->setIndex(cats->at(fTreeEntry*fNcats+ii));
       }
-   
+      //cout<<endl;
       return evaluateData();
     }
     Bool_t RooComponentsPDF::isDirectGenSafe(const RooAbsArg& arg) const {

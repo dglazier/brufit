@@ -8,9 +8,10 @@ namespace HS{
 
 
   
-    void sPlot::Run(){
+    Bool_t sPlot::Run(){
       cout<<"HS::FIT::sPlot::Do prelimanry fits "<<gDirectory->GetName()<<endl;
-      FitManager::Run();
+
+      if(FitManager::Run()==kFALSE) return kFALSE;
       
       //Note sPlot is much (10X) faster with tree store
       //Normal fit is 2X faster with vector...
@@ -36,7 +37,8 @@ namespace HS{
        // PlotDataModel();
 
        delete dataset;
-     
+
+       return kTRUE;
    }
     
     void sPlot::CreateWeights(){

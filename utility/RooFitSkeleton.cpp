@@ -1,6 +1,8 @@
 
 #include "RooFitSkeleton.h"
 #include <TObjArray.h>
+#include <TObjString.h>
+#include <TError.h>
 #include <TSystem.h>
 #include <iostream>
 #include <RooClassFactory.h>
@@ -81,7 +83,10 @@ namespace HS{
 
       ContinueLineAfter("   return 1.0;");
       ContinueLineAfter("}");
-   
+
+
+      ReplaceMacroText("evaluate()","evaluateData()");
+      
       //Done .C file
 
       //fix categories
@@ -127,6 +132,10 @@ namespace HS{
 
 
       // AddLineAfter("inline virtual ~","  virtual Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const;");
+
+      ReplaceMacroText("evaluate()","evaluateData()");
+
+      
       ContinueLineAfter("  void MakeSets();");
       fCurMacro.SaveSource(pdfName+".h");
 
