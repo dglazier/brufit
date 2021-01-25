@@ -15,7 +15,7 @@ namespace HS{
     class CornerPlot : public PlotResults {
 
     public:
-      CornerPlot(Setup *setup, RooMcmc* mcmc);
+      CornerPlot(Setup *setup, RooMcmc* mcmc,TList* canvases);
       CornerPlot()=default;
       CornerPlot(const CornerPlot& )=default;
       CornerPlot(CornerPlot&& )=default;

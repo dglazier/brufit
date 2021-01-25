@@ -13,10 +13,9 @@ namespace HS{
   namespace FIT{
     using namespace RooFit;
 
-    AutocorrPlot::AutocorrPlot(Setup *setup, RooMcmc* mcmc)
+    AutocorrPlot::AutocorrPlot(Setup *setup, RooMcmc* mcmc, TList* canvases)
     {
-      fCanvases->SetName(TString("Autocorrelation plot"));
-
+    
       auto tree = mcmc->GetTree();
       Int_t burnIn  = mcmc->GetNumBurnInSteps();
   
@@ -28,7 +27,7 @@ namespace HS{
 
       auto canName = "Autocorrelation Plot";
       auto canvas = new TCanvas(canName, canName);
-      fCanvases->Add(canvas);
+      canvases->Add(canvas);
       
       auto mg = new TMultiGraph();
       auto leg = new TLegend(0.7, 0.5, 0.9, 0.9);

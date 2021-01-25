@@ -14,7 +14,7 @@ namespace HS{
     class AutocorrPlot : public PlotResults {
 
     public:
-      AutocorrPlot(Setup *setup,  RooMcmc* mcmc);
+      AutocorrPlot(Setup *setup,  RooMcmc* mcmc, TList* canvases);
       AutocorrPlot()=default;
       AutocorrPlot(const AutocorrPlot& )=default;
       AutocorrPlot(AutocorrPlot&& )=default;
