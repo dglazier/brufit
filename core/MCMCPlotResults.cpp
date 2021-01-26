@@ -2,6 +2,9 @@
 #include "RooHSEventsPDF.h"
 #include "RooMcmc.h"
 #include "FitManager.h"
+#include "CornerPlot.h"
+#include "CornerFullPlot.h"
+#include "AutocorrPlot.h"
 #include <RooPlot.h>
 #include <RooMsgService.h>
 #include <TCanvas.h> 
@@ -19,13 +22,14 @@ namespace HS{
     MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc) : PlotResults(setup,data,tag)
     {
      
+    RooHSEventsPDF::SetIsPlotting(kTRUE);
+
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
 
     auto vars=setup->FitVars();
     auto model=setup->Model();
  
    
-    RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     //Get the tree from the mcmc
     auto tree = mcmc->GetTree();
@@ -122,9 +126,16 @@ namespace HS{
       }//loop over vars
 
     tree->ResetBranchAddresses();
+
+
+
+    CornerFullPlot(setup, mcmc, fCanvases.get());
+    CornerPlot(setup, mcmc, fCanvases.get());
+    AutocorrPlot(setup, mcmc, fCanvases.get());
+ 
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 
     }//MCMCPlotResults
 
   }//FIT
-}//H
+}//HS
