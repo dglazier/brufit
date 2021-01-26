@@ -129,10 +129,10 @@ namespace HS{
 
 
 
-    CornerPlot(setup, mcmc, fCanvases.get());
     CornerFullPlot(setup, mcmc, fCanvases.get());
+    CornerPlot(setup, mcmc, fCanvases.get());
     AutocorrPlot(setup, mcmc, fCanvases.get());
-    
+ 
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 
     }//MCMCPlotResults
