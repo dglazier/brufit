@@ -295,10 +295,48 @@ namespace HS{
      SetProposalFunction(sp);
      fKeepStart=kTRUE; //start values from previous
      MakeChain();
-     
       
    }
 
+ void RooMcmcSeqCov::Run(Setup &setup,RooAbsData &fitdata){
+     fSetup=&setup;
+     fData=&fitdata;
+   //initialise MCMCCalculator
+     SetData(fitdata);
+     SetModel(setup.GetModelConfig());
+     SetupBasicUsage();
+     //cout<<"Paramters of interest "<<endl;
+     // fPOI.Print("v");
+     
+     
+     TFile *file = TFile::Open("/w/work5/home/robertw/brufit/test/ResultsHSMinuit2.root");
+     auto result=dynamic_cast<RooFitResult*>(file->Get("MinuitResult"));
+     auto covMatrix=result->covarianceMatrix();
+     TMatrixDSym cov(7);
+     for(int i = 0; i<7; i++)
+       {for (int j = 0;j<7;j++)
+	   {if (i==j) cov(i,j) =3.0;
+	     else cov(i,j) =0.0;
+	   }
+       }
+     
+   ProposalHelper ph;
+     ph.SetVariables(fSetup->ParsAndYields());
+     ph.SetCovMatrix(covMatrix);
+     ph.SetWidthRangeDivisor(fNorm);
+      ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+     ph.SetCacheSize(1000);
+     //  ProposalFunction* pf = ph.GetProposalFunction();
+ProposalFunction* pf = ph.GetProposalFunction();
+     //  RooStats::SequentialProposal pf(fNorm);
+     // RooStats::SequentialProposal pf = ph.GetProposalFunction();
+     //fPropFunc =  (ph.GetProposalFunction());
+       SetProposalFunction(*pf);
+     // SetProposalFunction(sp);
+     fKeepStart=kTRUE; //start values from previous
+     MakeChain();
+ }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     void RooMcmcUniform2Seq::Run(Setup &setup,RooAbsData &fitdata){
      fSetup=&setup;

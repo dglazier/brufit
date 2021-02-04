@@ -148,6 +148,25 @@ namespace HS{
 
       ClassDefOverride(HS::FIT::RooMcmcSeq,1);
    };
+
+  class RooMcmcSeqCov  : public RooMcmc {
+      
+    public:
+
+    RooMcmcSeqCov(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
+	SetNameTitle("HSRooMcmcSeqCov","RooMcmcSeqCov minimiser");
+      }
+      RooMcmcSeqCov(const RooMcmcSeqCov&)=default;
+      RooMcmcSeqCov(RooMcmcSeqCov&&)=default;
+      ~RooMcmcSeqCov() override =default;
+      RooMcmcSeqCov& operator=(const RooMcmcSeqCov& other)=default;
+      RooMcmcSeqCov& operator=(RooMcmcSeqCov&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqCov,1);
+   };
+
      class RooMcmcUniform2Seq  : public RooMcmc {
       
     public:
