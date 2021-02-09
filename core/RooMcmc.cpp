@@ -6,6 +6,9 @@
 #include <RooStats/UniformProposal.h>
 #include <RooStats/SequentialProposal.h>
 #include <RooStats/ProposalHelper.h>
+#include <TRobustEstimator.h>
+#include <TMatrixD.h>
+#include <TMatrixDSym.h>
 
 namespace HS{
   namespace FIT{
@@ -298,7 +301,7 @@ namespace HS{
       
    }
 
- void RooMcmcSeqCov::Run(Setup &setup,RooAbsData &fitdata){
+ void RooMcmcMinuitCov::Run(Setup &setup,RooAbsData &fitdata){
      fSetup=&setup;
      fData=&fitdata;
    //initialise MCMCCalculator
@@ -309,33 +312,102 @@ namespace HS{
      // fPOI.Print("v");
      
      
-     TFile *file = TFile::Open("/w/work5/home/robertw/brufit/test/ResultsHSMinuit2.root");
+     TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSMinuit2.root");
      auto result=dynamic_cast<RooFitResult*>(file->Get("MinuitResult"));
+     delete file;
+     result->Print();
      auto covMatrix=result->covarianceMatrix();
-     TMatrixDSym cov(7);
-     for(int i = 0; i<7; i++)
-       {for (int j = 0;j<7;j++)
-	   {if (i==j) cov(i,j) =3.0;
-	     else cov(i,j) =0.0;
-	   }
-       }
-     
-   ProposalHelper ph;
-     ph.SetVariables(fSetup->ParsAndYields());
+     auto resPars = result->floatParsFinal();
+
+     // TMatrixDSym cov=covMatrix;
+     //fNorm = 1./fNorm;
+     //cov*= fNorm;
+    
+     ProposalHelper ph;
+     auto newPars = fSetup->ParsAndYields();
+     auto* resPars2 = resPars.selectCommon(newPars);
+     newPars.assignValueOnly(*resPars2);
+     SetParameters(resPars);
+     ph.SetVariables(resPars);
+     ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+     ph.SetCacheSize(100);
      ph.SetCovMatrix(covMatrix);
-     ph.SetWidthRangeDivisor(fNorm);
-      ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
-     ph.SetCacheSize(1000);
-     //  ProposalFunction* pf = ph.GetProposalFunction();
-ProposalFunction* pf = ph.GetProposalFunction();
-     //  RooStats::SequentialProposal pf(fNorm);
-     // RooStats::SequentialProposal pf = ph.GetProposalFunction();
-     //fPropFunc =  (ph.GetProposalFunction());
-       SetProposalFunction(*pf);
-     // SetProposalFunction(sp);
+     ProposalFunction* pf = ph.GetProposalFunction();
+     SetProposalFunction(*pf);
      fKeepStart=kTRUE; //start values from previous
      MakeChain();
  }
+
+    //////////////////////////////////////////////////
+
+    void RooMcmcSeqCov::Run(Setup &setup, RooAbsData &fitdata){
+      
+      fSetup=&setup;
+      fData=&fitdata;
+      //initialise MCMCCalculator
+      SetData(fitdata);
+      SetModel(setup.GetModelConfig());
+      SetupBasicUsage();
+
+      /*
+      // Want to get the covariance matrix from another run of the mcmc (RooMcmcSeq) and use this to generate a proposal function in RooMcmcSeqCov
+      */
+
+      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root");
+      auto result=dynamic_cast<TTree*>(file->Get("MCMCTree"));
+      // delete file; //including this line (anywhere in class) causes a crash??
+      
+     auto pars = fSetup->ParsAndYields();
+     Int_t Npars = pars.size();
+     Int_t Nentries = result->GetEntries();
+     Int_t param_index=0;     
+     vector<Double_t> params(Npars);
+     int pindex=0;
+     Double_t data[Npars];
+     
+     //Loop over parameters of the model and set values from the tree
+     //Needed for RobustEstimator
+     //Only needed once
+     for(RooAbsArg* ipar : pars)
+       {
+	 result->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
+       }
+     
+     //Create instance of TRobustEstimator
+     TRobustEstimator r(Nentries,Npars);
+
+     //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
+	for (int ientry = 0; ientry<Nentries; ientry++)
+	  {//Loop over entries of the tree
+	    result->GetEntry(ientry);
+	    
+	    for (int param_index = 0; param_index<Npars; param_index++)
+	      { //Loop over parameters of the model
+		//And set 'data' element
+		data[param_index]=params[param_index];
+	      }
+
+	    r.AddRow(data);//Appends data to RE
+	    }
+
+	r.Evaluate(); //Necessary to calculate RE properly
+	const TMatrixDSym* covMatSym;
+	covMatSym = r.GetCovariance();
+	covMatSym->Print();
+	//covMatSym is the symmetric covariance matrix to be used in the proposal function
+    
+      ProposalHelper ph;
+      ph.SetVariables(fSetup->ParsAndYields());
+      ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+      ph.SetCacheSize(100);
+      ph.SetCovMatrix(*covMatSym);
+      ProposalFunction* pf = ph.GetProposalFunction();
+      SetProposalFunction(*pf);
+     	
+      fKeepStart=kTRUE; //start values from previous
+      MakeChain();
+
+    }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     void RooMcmcUniform2Seq::Run(Setup &setup,RooAbsData &fitdata){

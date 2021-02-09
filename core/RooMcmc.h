@@ -149,7 +149,25 @@ namespace HS{
       ClassDefOverride(HS::FIT::RooMcmcSeq,1);
    };
 
-  class RooMcmcSeqCov  : public RooMcmc {
+  class RooMcmcMinuitCov  : public RooMcmc {
+      
+    public:
+
+    RooMcmcMinuitCov(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
+	SetNameTitle("HSRooMcmcMinuitCov","RooMcmcMinuitCov minimiser");
+      }
+      RooMcmcMinuitCov(const RooMcmcMinuitCov&)=default;
+      RooMcmcMinuitCov(RooMcmcMinuitCov&&)=default;
+      ~RooMcmcMinuitCov() override =default;
+      RooMcmcMinuitCov& operator=(const RooMcmcMinuitCov& other)=default;
+      RooMcmcMinuitCov& operator=(RooMcmcMinuitCov&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+      ClassDefOverride(HS::FIT::RooMcmcMinuitCov,1);
+   };
+
+ class RooMcmcSeqCov  : public RooMcmc {
       
     public:
 
