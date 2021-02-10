@@ -68,6 +68,7 @@ namespace HS{
       void LoadAuxVar(const TString& opt);
       void LoadFormula(TString formu);
       void LoadParameter(const TString& opt);
+      void LoadConstant(const TString& opt);
       void LoadFunctionVar(const TString& opt);
       void LoadSpeciesPDF(TString opt,Float_t Scale0=1);
       void TotalPDF();
@@ -125,7 +126,9 @@ namespace HS{
       
       RooArgList& Yields()  {return fYields;}
       RooArgList& Parameters() {return fParameters;}
+      RooArgList& Constants() {return fConstants;}
       RooArgList& Formulas() {return fFormulas;}
+      RooArgList& ParameterFormulas() {return fParameterFormulas;}
       const RooArgList& PDFs() const  {return fPDFs;}
       RooArgList& Constraints(){return fConstraints;}
 
@@ -193,11 +196,13 @@ namespace HS{
       RooArgSet fPars;//!
       RooArgSet fFuncVars;//!
       RooArgList fFormulas;//! CANT WRITE formulas ArgSet!
+      RooArgList fParameterFormulas;//! CANT WRITE formulas ArgSet!
       RooArgSet fVarsAndCats;
       RooArgSet fParsAndYields;
       RooArgList fYields;//species yields
       RooArgList fPDFs;//species pdfs
       RooArgList fParameters;//model parameters
+      RooArgList fConstants;//model constants
       RooArgList fConstraints;//constraints on  parameters
       RooLinkedList fFitOptions;//
 
@@ -213,6 +218,7 @@ namespace HS{
       strings_t fVarString;
       strings_t fCatString;
       strings_t fParString;
+      strings_t fConstString;
       strings_t fFormString;
       strings_t fAuxVarString;
       strings_t fPDFString;

@@ -154,7 +154,7 @@ namespace HS{
     }
     void RooMcmc::AddFormulaToMCMCTree(){
 
-      auto formulas=fSetup->Formulas();
+      auto formulas=fSetup->ParameterFormulas(); //formulas that just depend on parameters, not variables/observables
       if(!formulas.getSize()) return;
       vector<Double_t> formVals(formulas.getSize());
       vector<TBranch*> formBranches(formulas.getSize());
@@ -162,7 +162,6 @@ namespace HS{
       Int_t iform=0;
       while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
 	TString formuName=formu->GetName();
-	
 	formBranches[iform]=fTreeMCMC->Branch(formuName,&formVals[iform],formuName+"/D");
 	iform++;
       }
