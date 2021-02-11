@@ -18,6 +18,11 @@ namespace HS{
       //if(fTreeMCMC)delete fTreeMCMC;
       //  delete fChainData;
       // delete fModelConfig;
+
+      if(!_formBranches.empty()){
+	for(auto br:_formBranches)
+	  delete br;
+      }
     }
     
     void RooMcmc::Run(Setup &setup,RooAbsData &fitdata){
