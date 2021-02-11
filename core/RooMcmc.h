@@ -23,7 +23,7 @@ namespace HS{
       
     public:
 
-    RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm){
+    RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1, Int_t NburnCov=10): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm),fNumBurnInStepsCov(NburnCov){
 	SetNameTitle("HSRooMcmc","RooMcmc minimiser");
       }
       RooMcmc(const RooMcmc&)=default;
@@ -127,6 +127,7 @@ namespace HS{
       Int_t fNumBins{}; // set the number of bins to create for each
       Int_t fWarmup{}; //ignore these events
       Float_t fNorm=1;
+      Int_t fNumBurnInStepsCov; //Number of steps to remove from chain to make covariance matrix for proposal function
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
      };
@@ -171,7 +172,7 @@ namespace HS{
       
     public:
 
-    RooMcmcSeqCov(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
+ RooMcmcSeqCov(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1,Int_t NburnCov=10):RooMcmc(Niter,Nburn,norm,NburnCov){
 	SetNameTitle("HSRooMcmcSeqCov","RooMcmcSeqCov minimiser");
       }
       RooMcmcSeqCov(const RooMcmcSeqCov&)=default;
