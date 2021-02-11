@@ -127,6 +127,11 @@ namespace HS{
       Int_t fNumBins{}; // set the number of bins to create for each
       Int_t fWarmup{}; //ignore these events
       Float_t fNorm=1;
+
+
+      vector<Double_t> _formVals;//(formulas.getSize(),0);
+      vector<TBranch*> _formBranches;//(formulas.getSize(),nullptr);
+
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
      };

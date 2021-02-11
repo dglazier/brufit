@@ -37,9 +37,9 @@ namespace HS{
       auto burnIn=mcmc->GetNumBurnInSteps();
 
       auto& pars = setup->ParsAndYields();
-      std::cout<<"The Parameters are: "<<std::endl;
+      // std::cout<<"The Parameters are: "<<std::endl;
       Int_t Npars = pars.size();
-      std::cout<<"The number of parameters is: "<<Npars<<std::endl;
+      //std::cout<<"The number of parameters is: "<<Npars<<std::endl;
       
       //Don't need canvas for each var
       auto canName = "Corner Plot";
