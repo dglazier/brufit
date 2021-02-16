@@ -106,7 +106,100 @@ namespace HS{
       return;
     }
     ////////////////////////////////////////////////////////
+
+    TMatrixDSym RooMcmc::MakeMinuitCovarianceMatrix()
+    {//Get the covariance matrix from a previous minuit fit
+      
+      //Check if ResultsHSMinuit2.root file exists
+      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSMinuit2.root"))
+	{std::cout<<"\n\n ResultsHSMinuit2.root file not found. \n\n Are you sure you ran the minuit fit? \n"<<std::endl;
+	  exit(-1);}
+      
+      
+      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSMinuit2.root");
+      auto result=dynamic_cast<RooFitResult*>(file->Get("MinuitResult"));
+      delete file;
+      result->Print();
+      auto covMatrix=result->covarianceMatrix();
+      covMatrix.Print();
+      
+      TMatrixDSym cov=covMatrix;
+      fNorm = 1./fNorm;
+      cov*= fNorm;
+      covMatrix=cov;
+
+      return covMatrix;
+    }
+    ////////////////////////////////////////////////////////
+
+    TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix()
+    {//Can use this for RooMcmcSeqCov and RooMcmcSeqThenCov
+      //Get the covariance matrix from the results file 
+      //And set as fMcmcCovMat
+     
+
+  //Check if ResultsHSRooMcmcSeq.root file exists
+      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root"))
+	{std::cout<<"\n\n ResultsHSRooMcmcSeq.root file not found. \n\n Are you sure you ran RooMcmcSeq? \n"<<std::endl;
+	  exit(-1);}
+
+      auto saveDir = gDirectory;
+      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root");
+      saveDir->cd();
+      auto result=dynamic_cast<TTree*>(file->Get("MCMCTree"));
+      
+     auto pars = fSetup->ParsAndYields();
+     Int_t Npars = pars.size();
+     Int_t Nentries = result->GetEntries()-fNumBurnInStepsCov;
+     Int_t param_index=0;     
+     vector<Double_t> params(Npars);
+     int pindex=0;
+     Double_t data[Npars];
+     //Int_t NburnC = fNumBurnInStepsCov;
+  
+     
+     //Loop over parameters of the model and set values from the tree
+     //Needed for RobustEstimator
+     //Only needed once
+     for(RooAbsArg* ipar : pars)
+       {
+	 result->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
+       }
+     
+     //Create instance of TRobustEstimator
+     TRobustEstimator r(Nentries,Npars);
+
+     //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
+	for (int ientry = 0; ientry<Nentries; ientry++)
+	  {//Loop over entries of the tree
+	    result->GetEntry(ientry);
+	    
+	    for (int param_index = 0; param_index<Npars; param_index++)
+	      { //Loop over parameters of the model
+		//And set 'data' element
+		data[param_index]=params[param_index];
+	      }
+
+	    r.AddRow(data);//Appends data to RE
+	    }
+
+	r.Evaluate(); //Necessary to calculate RE properly
+	const TMatrixDSym* covMatSym;
+	covMatSym = r.GetCovariance();
+	covMatSym->Print();
+	//covMatSym is the symmetric covariance matrix to be used in the proposal function
+
+	TMatrixDSym covMatSymNorm=*covMatSym;
+	fNorm = 1./fNorm;
+	covMatSymNorm*= fNorm;
     
+	delete file; //Must be at end of func
+
+	return covMatSymNorm;
+    }
+
+    /////////////////////////////////////////////////////////
+
     void RooMcmc::Result(){
       //Add entry branch to mcmc tree for easy cutting on BurnIn
       //fMCMCtree contains all events
@@ -313,24 +406,18 @@ namespace HS{
 
      //Check if ResultsHSMinuit2.root file exists
      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSMinuit2.root"))
-	{std::cout<<"\n\n ResultsHSMinuit2.root file not found. \n\n Are you sure you ran the minuit fit? \n"<<std::endl;
-	  exit(-1);}
+       {std::cout<<"\n\n ResultsHSMinuit2.root file not found. \n\n Are you sure you ran the minuit fit? \n"<<std::endl;
+	 exit(-1);}
      
-     
-     TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSMinuit2.root");
+      
+     TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSMinuit2.root"); //Still need this here for resPars
      auto result=dynamic_cast<RooFitResult*>(file->Get("MinuitResult"));
      delete file;
      result->Print();
-     auto covMatrix=result->covarianceMatrix();
      auto resPars = result->floatParsFinal();
-     covMatrix.Print();
-     
-     TMatrixDSym cov=covMatrix;
-     fNorm = 1./fNorm;
-     cov*= fNorm;
-     covMatrix=cov;
-     
-    
+
+     TMatrixDSym covMatrix=  MakeMinuitCovarianceMatrix();
+      
      ProposalHelper ph;
      auto newPars = fSetup->ParsAndYields();
      auto* resPars2 = resPars.selectCommon(newPars);
@@ -358,76 +445,64 @@ namespace HS{
       SetupBasicUsage();
 
       /*
-      // Want to get the covariance matrix from another run of the mcmc (RooMcmcSeq) and use this to generate a proposal function in RooMcmcSeqCov
+      // Want to get the covariance matrix from another run of the mcmc (RooMcmcSeq) and use this to generate a proposal function in RooMcmcSeqCov.
+      See below for how to run with covMatrix from the same run (RooMcmcSeqThenCov)
       */
 
-      //Check if ResultsHSRooMcmcSeq.root file exists
-      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root"))
-	{std::cout<<"\n\n ResultsHSRooMcmcSeq.root file not found. \n\n Are you sure you ran RooMcmcSeq? \n"<<std::endl;
-	  exit(-1);}
+     TMatrixDSym covMat =  MakeMcmcCovarianceMatrix();
 
-      auto saveDir = gDirectory;
-      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root");
-      saveDir->cd();
-      auto result=dynamic_cast<TTree*>(file->Get("MCMCTree"));
-      
-     auto pars = fSetup->ParsAndYields();
-     Int_t Npars = pars.size();
-     Int_t Nentries = result->GetEntries()-fNumBurnInStepsCov;
-     Int_t param_index=0;     
-     vector<Double_t> params(Npars);
-     int pindex=0;
-     Double_t data[Npars];
-     //Int_t NburnC = fNumBurnInStepsCov;
-  
-     
-     //Loop over parameters of the model and set values from the tree
-     //Needed for RobustEstimator
-     //Only needed once
-     for(RooAbsArg* ipar : pars)
-       {
-	 result->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
-       }
-     
-     //Create instance of TRobustEstimator
-     TRobustEstimator r(Nentries,Npars);
-
-     //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
-	for (int ientry = 0; ientry<Nentries; ientry++)
-	  {//Loop over entries of the tree
-	    result->GetEntry(ientry);
-	    
-	    for (int param_index = 0; param_index<Npars; param_index++)
-	      { //Loop over parameters of the model
-		//And set 'data' element
-		data[param_index]=params[param_index];
-	      }
-
-	    r.AddRow(data);//Appends data to RE
-	    }
-
-	r.Evaluate(); //Necessary to calculate RE properly
-	const TMatrixDSym* covMatSym;
-	covMatSym = r.GetCovariance();
-	covMatSym->Print();
-	//covMatSym is the symmetric covariance matrix to be used in the proposal function
-
-	TMatrixDSym covMatSymNorm=*covMatSym;
-	fNorm = 1./fNorm;
-	covMatSymNorm*= fNorm;
-    
       ProposalHelper ph;
       ph.SetVariables(fSetup->ParsAndYields());
       ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
       ph.SetCacheSize(100);
-      ph.SetCovMatrix(covMatSymNorm);
+      ph.SetCovMatrix(covMat);
       ProposalFunction* pf = ph.GetProposalFunction();
       SetProposalFunction(*pf);
      	
       fKeepStart=kTRUE; //start values from previous
       MakeChain();
 
-      delete file; //Must be at end of class
+
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ void RooMcmcSeqThenCov::Run(Setup &setup, RooAbsData &fitdata){
+      
+      fSetup=&setup;
+      fData=&fitdata;
+      //initialise MCMCCalculator
+      SetData(fitdata);
+      SetModel(setup.GetModelConfig());
+      SetupBasicUsage();
+
+      /*
+      //A class that 
+1.Runs through a number of burn in events
+2.Runs a sequential proposal mcmc
+3.Finds the covariance matrix from the seq prop run
+4.Uses the cov mat to generate new prop func and run
+      */
+
+      RooStats::SequentialProposal sp(fNormThenCov);
+      SetProposalFunction(sp);
+      fKeepStart=kTRUE; //start values from previous
+      MakeChain();
+
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix();
+
+      fNumIters = fNumItersThenCov;
+      ProposalHelper ph;
+      ph.SetVariables(fSetup->ParsAndYields());
+      ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+      ph.SetCacheSize(100);
+      ph.SetCovMatrix(covMat);
+      ProposalFunction* pf = ph.GetProposalFunction();
+      SetProposalFunction(*pf);
+     	
+      fKeepStart=kTRUE; //start values from previous
+      MakeChain();
+
 
     }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////

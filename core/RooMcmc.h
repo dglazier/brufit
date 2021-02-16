@@ -23,7 +23,7 @@ namespace HS{
       
     public:
 
-    RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1, Int_t NburnCov=10): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm),fNumBurnInStepsCov(NburnCov){
+    RooMcmc(Int_t Niter=100,Int_t NiterThenCov=100,Int_t Nburn=10, Float_t normThenCov=0.1, Float_t norm=0.1, Int_t NburnCov=10): fNumIters(Niter),fNumItersThenCov(NiterThenCov),fNumBurnInSteps(Nburn),fNormThenCov(normThenCov),fNorm(norm),fNumBurnInStepsCov(NburnCov){
 	SetNameTitle("HSRooMcmc","RooMcmc minimiser");
       }
       RooMcmc(const RooMcmc&)=default;
@@ -40,6 +40,8 @@ namespace HS{
       void AddFormulaToMCMCTree();
       
       void MakeChain();
+      TMatrixDSym MakeMinuitCovarianceMatrix();
+      TMatrixDSym MakeMcmcCovarianceMatrix();
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -123,11 +125,15 @@ namespace HS{
       RooAbsPdf * fPriorPdf=nullptr;   //! pointer to prior  PDF (owned by the workspace)
       //RooAbsData * fData=nullptr;     //! pointer to the data (owned by the workspace)
       Int_t fNumIters; // number of iterations to run metropolis algorithm
+      Int_t fNumItersThenCov; //number of iterations to run second metropolis algorithm with covariance proposal
       Int_t fNumBurnInSteps; // number of iterations to discard as burn-in, starting from the first
       Int_t fNumBins{}; // set the number of bins to create for each
       Int_t fWarmup{}; //ignore these events
       Float_t fNorm=1;
+      Float_t fNormThenCov=1;
       Int_t fNumBurnInStepsCov; //Number of steps to remove from chain to make covariance matrix for proposal function
+      // TMatrixDSym fMinuitCovMat;
+      //TMatrixDSym fMcmcCovMat;
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
      };
@@ -185,6 +191,26 @@ namespace HS{
 
       ClassDefOverride(HS::FIT::RooMcmcSeqCov,1);
    };
+
+ class RooMcmcSeqThenCov  : public RooMcmc {
+      
+ public:
+   
+ RooMcmcSeqThenCov(Int_t Niter=100, Int_t NiterThenCov=100,Int_t Nburn=10,Float_t normThenCov=0.1, Float_t norm=0.1):RooMcmc(Niter,NiterThenCov,Nburn,normThenCov,norm ){
+	SetNameTitle("HSRooMcmcSeqThenCov","RooMcmcSeqThenCov minimiser");
+      }
+      RooMcmcSeqThenCov(const RooMcmcSeqThenCov&)=default;
+      RooMcmcSeqThenCov(RooMcmcSeqThenCov&&)=default;
+      ~RooMcmcSeqThenCov() override =default;
+      RooMcmcSeqThenCov& operator=(const RooMcmcSeqThenCov& other)=default;
+      RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqThenCov,1);
+   };
+
+
 
      class RooMcmcUniform2Seq  : public RooMcmc {
       
