@@ -87,12 +87,18 @@ namespace HS{
       mh.SetProposalFunction(*fPropFunc);
       mh.SetNumIters(fNumIters);
 
+      if(fChain){ delete fChain; fChain=nullptr;}
+      
       fChain= mh.ConstructChain(); //mh is still owner and will delete
       
+      if(fChainData){ delete fChainData; fChainData=nullptr;}
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
-       if(fChainData){
+
+      if(fChainData){
+	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
+	
  	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
-	delete fChainData;
+	delete fChainData; fChainData=nullptr;
       }  
       if(fChain->Size()>fNumBurnInSteps)
 	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
@@ -107,50 +113,11 @@ namespace HS{
     }
     ////////////////////////////////////////////////////////
 
-    TMatrixDSym RooMcmc::MakeMinuitCovarianceMatrix()
-    {//Get the covariance matrix from a previous minuit fit
-      
-      //Check if ResultsHSMinuit2.root file exists
-      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSMinuit2.root"))
-	{std::cout<<"\n\n ResultsHSMinuit2.root file not found. \n\n Are you sure you ran the minuit fit? \n"<<std::endl;
-	  exit(-1);}
-      
-      
-      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSMinuit2.root");
-      auto result=dynamic_cast<RooFitResult*>(file->Get("MinuitResult"));
-      delete file;
-      result->Print();
-      auto covMatrix=result->covarianceMatrix();
-      covMatrix.Print();
-      
-      TMatrixDSym cov=covMatrix;
-      fNorm = 1./fNorm;
-      cov*= fNorm;
-      covMatrix=cov;
-
-      return covMatrix;
-    }
-    ////////////////////////////////////////////////////////
-
-    TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix()
-    {//Can use this for RooMcmcSeqCov and RooMcmcSeqThenCov
-      //Get the covariance matrix from the results file 
-      //And set as fMcmcCovMat
-     
-
-  //Check if ResultsHSRooMcmcSeq.root file exists
-      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root"))
-	{std::cout<<"\n\n ResultsHSRooMcmcSeq.root file not found. \n\n Are you sure you ran RooMcmcSeq? \n"<<std::endl;
-	  exit(-1);}
-
-      auto saveDir = gDirectory;
-      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root");
-      saveDir->cd();
-      auto result=dynamic_cast<TTree*>(file->Get("MCMCTree"));
-      
+    TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix(TTree* tree){
+          
      auto pars = fSetup->ParsAndYields();
      Int_t Npars = pars.size();
-     Int_t Nentries = result->GetEntries()-fNumBurnInStepsCov;
+     Int_t Nentries = tree->GetEntries()-fNumBurnInStepsCov;
      Int_t param_index=0;     
      vector<Double_t> params(Npars);
      int pindex=0;
@@ -163,7 +130,7 @@ namespace HS{
      //Only needed once
      for(RooAbsArg* ipar : pars)
        {
-	 result->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
+	 tree->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
        }
      
      //Create instance of TRobustEstimator
@@ -172,7 +139,7 @@ namespace HS{
      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
 	for (int ientry = 0; ientry<Nentries; ientry++)
 	  {//Loop over entries of the tree
-	    result->GetEntry(ientry);
+	    tree->GetEntry(ientry);
 	    
 	    for (int param_index = 0; param_index<Npars; param_index++)
 	      { //Loop over parameters of the model
@@ -193,8 +160,7 @@ namespace HS{
 	fNorm = 1./fNorm;
 	covMatSymNorm*= fNorm;
     
-	delete file; //Must be at end of func
-
+	tree->ResetBranchAddresses();
 	return covMatSymNorm;
     }
 
@@ -394,45 +360,6 @@ namespace HS{
       
    }
 
- void RooMcmcMinuitCov::Run(Setup &setup,RooAbsData &fitdata){
-     fSetup=&setup;
-     fData=&fitdata;
-   //initialise MCMCCalculator
-     SetData(fitdata);
-     SetModel(setup.GetModelConfig());
-     SetupBasicUsage();
-     //cout<<"Paramters of interest "<<endl;
-     // fPOI.Print("v");
-
-     //Check if ResultsHSMinuit2.root file exists
-     if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSMinuit2.root"))
-       {std::cout<<"\n\n ResultsHSMinuit2.root file not found. \n\n Are you sure you ran the minuit fit? \n"<<std::endl;
-	 exit(-1);}
-     
-      
-     TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSMinuit2.root"); //Still need this here for resPars
-     auto result=dynamic_cast<RooFitResult*>(file->Get("MinuitResult"));
-     delete file;
-     result->Print();
-     auto resPars = result->floatParsFinal();
-
-     TMatrixDSym covMatrix=  MakeMinuitCovarianceMatrix();
-      
-     ProposalHelper ph;
-     auto newPars = fSetup->ParsAndYields();
-     auto* resPars2 = resPars.selectCommon(newPars);
-     newPars.assignValueOnly(*resPars2);
-     SetParameters(resPars);
-     ph.SetVariables(resPars);
-     ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
-     ph.SetCacheSize(100);
-     ph.SetCovMatrix(covMatrix);
-     ProposalFunction* pf = ph.GetProposalFunction();
-     SetProposalFunction(*pf);
-     fKeepStart=kTRUE; //start values from previous
-     MakeChain();
- }
-
     //////////////////////////////////////////////////
 
     void RooMcmcSeqCov::Run(Setup &setup, RooAbsData &fitdata){
@@ -449,7 +376,19 @@ namespace HS{
       See below for how to run with covMatrix from the same run (RooMcmcSeqThenCov)
       */
 
-     TMatrixDSym covMat =  MakeMcmcCovarianceMatrix();
+//Check if ResultsHSRooMcmcSeq.root file exists
+      if(gSystem->AccessPathName(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root"))
+	{std::cout<<"\n\n ResultsHSRooMcmcSeq.root file not found. \n\n Are you sure you ran RooMcmcSeq? \n"<<std::endl;
+	  exit(-1);}
+
+      auto saveDir = gDirectory;
+      TFile *file = TFile::Open(fSetup->GetOutDir() + "/ResultsHSRooMcmcSeq.root");
+      saveDir->cd();
+      auto tree=dynamic_cast<TTree*>(file->Get("MCMCTree"));
+ 
+      
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(tree);
+      delete file; //Must be at end of func
 
       ProposalHelper ph;
       ph.SetVariables(fSetup->ParsAndYields());
@@ -489,20 +428,27 @@ namespace HS{
       fKeepStart=kTRUE; //start values from previous
       MakeChain();
 
-      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix();
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC);
 
+      auto saveN = fNumIters;
       fNumIters = fNumItersThenCov;
+      
       ProposalHelper ph;
       ph.SetVariables(fSetup->ParsAndYields());
       ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
-      ph.SetCacheSize(100);
+
+
+      //nite we reset the cache every proposal as was
+      //causing the chain to get stuck
+      ph.SetCacheSize(1);
       ph.SetCovMatrix(covMat);
       ProposalFunction* pf = ph.GetProposalFunction();
       SetProposalFunction(*pf);
      	
       fKeepStart=kTRUE; //start values from previous
       MakeChain();
-
+      
+      fNumIters = saveN; //switch back to seq Niters for next bin
 
     }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////

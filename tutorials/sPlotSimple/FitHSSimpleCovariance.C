@@ -30,33 +30,27 @@
 
   //Run the minuit fit here
   /**/
-  Here::Go(&RF);
+   Here::Go(&RF);
    /**/
   
   //Choose Non Minuit mimimiser and run the fit
   /**/
-   RF.SetMinimiser(new RooMcmcSeq(1000,500,100));
-   Here::Go(&RF);
+  RF.SetMinimiser(new RooMcmcSeq(1000,500,100));
+  Here::Go(&RF);
     /**/
-
-  //Choose a step proposal using minuit covariance matrix
-  /**/
-   RF.SetMinimiser(new RooMcmcMinuitCov(1000,500,100));
-   Here::Go(&RF);
-   /**/
 
   //Choose a proposal using MH covariance matrix
   /**/
-   RF.SetMinimiser(new RooMcmcSeqCov(1000,500,20,500));
-   //Argument #4 is the burn in for covariance matrix calc
+   RF.SetMinimiser(new RooMcmcSeqCov(1000,500,500,20));
+   //Argument #2 is the burn in for covariance matrix calc
    Here::Go(&RF);
    /**/
    
    //Choose a proposal using a MH covariance matrix 
    //BOTH mcmc to generate covMat and final chain called here
    /**/
-   RF.SetMinimiser(new RooMcmcSeqThenCov(1000,2000,500,20,1));
-   //(Nsteps (chain1), Nsteps(chain2), Nburn, Norm(chain1), Norm(chain2))
+   RF.SetMinimiser(new RooMcmcSeqThenCov(1000,2000,500,500,20,1));
+   //(Nsteps (chain1), Nsteps(chain2), Nburn(chain1),Nburn(chain2), Norm(chain1), Norm(chain2))
    Here::Go(&RF);
    /**/ 
    
