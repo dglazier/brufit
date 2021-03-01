@@ -130,7 +130,7 @@ namespace HS{
 	//x.Print("v");
 
 	//PdfProposal uses a cache, but it samples from
-	//the wrong Pdf paremeters so best to reset every proposal
+	//the wrong Pdf parameters so best to reset every proposal
 	if(dynamic_cast<RooStats::PdfProposal*>(fPropFunc)){
 	  //  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->GetPdf()->getVariables()->Print("v");
 	  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->Reset();

@@ -19,7 +19,7 @@
   RF.SetUp().LoadSpeciesPDF("BG",1);
 
   ///////////////////////////Load Data
-  RF.Data().BootStrap(4);//split the data in 4 seperate fits
+  // RF.Data().BootStrap(4);//split the data in 4 seperate fits
   
   // RF.Bins().LoadBinVar("Eg",4,3,4);
   RF.LoadData("MyModel","Data.root");
@@ -27,33 +27,44 @@
   //Do we want to try many fits and use the best?
   //This will randomise the parameters for each fit
   //  RF.SetRefit(2);
-
   //Run the minuit fit here
   /**/
-   Here::Go(&RF);
+  gBenchmark->Start("minuit");
+  // Here::Go(&RF);
+  gBenchmark->Stop("minuit");
    /**/
   
   //Choose Non Minuit mimimiser and run the fit
   /**/
+  gBenchmark->Start("seq");
   RF.SetMinimiser(new RooMcmcSeq(1000,500,100));
   Here::Go(&RF);
+  gBenchmark->Stop("seq");
     /**/
 
   //Choose a proposal using MH covariance matrix
   /**/
-   RF.SetMinimiser(new RooMcmcSeqCov(1000,500,500,20));
-   //Argument #2 is the burn in for covariance matrix calc
-   Here::Go(&RF);
+  gBenchmark->Start("seqcov");
+  RF.SetMinimiser(new RooMcmcSeqCov(1000,500,500,20));
+  //Argument #2 is the burn in for covariance matrix calc
+  //Here::Go(&RF);
+  gBenchmark->Stop("seqcov");
    /**/
    
    //Choose a proposal using a MH covariance matrix 
    //BOTH mcmc to generate covMat and final chain called here
    /**/
-   RF.SetMinimiser(new RooMcmcSeqThenCov(1000,2000,500,500,20,1));
+  gBenchmark->Start("seqThencov");
+   RF.SetMinimiser(new RooMcmcSeqThenCov(500,1000,500,500,20,1));
    //(Nsteps (chain1), Nsteps(chain2), Nburn(chain1),Nburn(chain2), Norm(chain1), Norm(chain2))
-   Here::Go(&RF);
+   // Here::Go(&RF);
+  gBenchmark->Stop("seqThencov");
    /**/ 
-   
+  gBenchmark->Print("minuit");
+  gBenchmark->Print("seq");
+  gBenchmark->Print("seqcov");
+  gBenchmark->Print("seqThencov");
+
   new TCanvas;
   //RF.DrawWeighted("M1","Signal");
   RF.DrawWeighted("M1>>(100,0,10)","Signal");
