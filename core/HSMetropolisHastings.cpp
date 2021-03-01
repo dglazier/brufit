@@ -133,7 +133,7 @@ namespace HS{
 	//the wrong Pdf parameters so best to reset every proposal
 	if(dynamic_cast<RooStats::PdfProposal*>(fPropFunc)){
 	  //  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->GetPdf()->getVariables()->Print("v");
-	  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->Reset();
+	   dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->Reset();
 	}
 	//std::cout<<"***************************PROPOSE "<<fPropFunc->GetProposalDensity(xPrime, fParameters)<<" "<<((RooStats::PdfProposal*)fPropFunc)->GetPdf()->getVal()<<std::endl;
 	//std::cout<<"***************************PROPOSE "<<std::endl;

@@ -115,55 +115,54 @@ namespace HS{
     }
     ////////////////////////////////////////////////////////
 
-    TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix(TTree* tree){
+    TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin){
           
-     auto pars = fSetup->ParsAndYields();
-     Int_t Npars = pars.size();
-     Int_t Nentries = tree->GetEntries()-fNumBurnInStepsCov;
-     Int_t param_index=0;     
-     vector<Double_t> params(Npars);
-     int pindex=0;
-     Double_t data[Npars];
-     //Int_t NburnC = fNumBurnInStepsCov;
+      auto pars = fSetup->ParsAndYields();
+      Int_t Npars = pars.size();
+      Int_t Nentries = tree->GetEntries()-burnin;
+      Int_t param_index=0;     
+      vector<Double_t> params(Npars);
+      int pindex=0;
+      Double_t data[Npars];
+      //Int_t NburnC = fNumBurnInStepsCov;
   
      
-     //Loop over parameters of the model and set values from the tree
-     //Needed for RobustEstimator
-     //Only needed once
-     for(RooAbsArg* ipar : pars)
-       {
-	 tree->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
-       }
+      //Loop over parameters of the model and set values from the tree
+      //Needed for RobustEstimator
+      //Only needed once
+      for(RooAbsArg* ipar : pars)
+	{
+	  tree->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
+	}
      
-     //Create instance of TRobustEstimator
-     TRobustEstimator r(Nentries,Npars);
+      //Create instance of TRobustEstimator
+      TRobustEstimator r(Nentries,Npars);
 
-     //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
-	for (int ientry = 0; ientry<Nentries; ientry++)
-	  {//Loop over entries of the tree
-	    tree->GetEntry(ientry);
-	    
-	    for (int param_index = 0; param_index<Npars; param_index++)
-	      { //Loop over parameters of the model
-		//And set 'data' element
-		data[param_index]=params[param_index];
-	      }
-
-	    r.AddRow(data);//Appends data to RE
+      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
+      // for (int ientry = 0; ientry<Nentries; ientry++)
+      for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
+	{//Loop over entries of the tree
+	  tree->GetEntry(ientry);
+	 
+	  for (int param_index = 0; param_index<Npars; param_index++)
+	    { //Loop over parameters of the model
+	      //And set 'data' element
+	      data[param_index]=params[param_index];
 	    }
-
-	r.Evaluate(); //Necessary to calculate RE properly
-	const TMatrixDSym* covMatSym;
-	covMatSym = r.GetCovariance();
-	covMatSym->Print();
-	//covMatSym is the symmetric covariance matrix to be used in the proposal function
-
-	TMatrixDSym covMatSymNorm=*covMatSym;
-	fNorm = 1./fNorm;
-	covMatSymNorm*= fNorm;
-    
-	tree->ResetBranchAddresses();
-	return covMatSymNorm;
+	 
+	  r.AddRow(data);//Appends data to RE
+	}
+     
+      r.Evaluate(); //Necessary to calculate RE properly
+      const TMatrixDSym* covMatSym;
+      covMatSym = r.GetCovariance();
+      covMatSym->Print();
+      //covMatSym is the symmetric covariance matrix to be used in the proposal function
+     
+      TMatrixDSym covMatSymNorm=*covMatSym;
+     
+      tree->ResetBranchAddresses();
+      return covMatSymNorm;
     }
 
     /////////////////////////////////////////////////////////
@@ -300,7 +299,6 @@ namespace HS{
     //FRom MCMCCalculator
     void RooMcmc::SetModel( ModelConfig*  model) {
       cout<<"RooMcmc::SetModel"<<endl;
-      fModelConfig->GetParametersOfInterest()->Print();
       // set the model
       fModelConfig=model;
       //fPdf = fModelConfig->GetPdf();
@@ -358,16 +356,13 @@ namespace HS{
 
     
    void RooMcmcSeq::Run(Setup &setup,RooAbsData &fitdata){
-    cout<<"RooMcmcSeq::Run"<<endl;
-    fSetup=&setup;
+     fSetup=&setup;
     fData=&fitdata;
     //initialise MCMCCalculator
     SetData(fitdata);
     SetModel(setup.GetModelConfig());
     SetupBasicUsage();
-    cout<<"Paramters of interest "<<endl;
-    fPOI.Print("v");
-    
+     
     RooStats::SequentialProposal sp(fNorm);
     SetProposalFunction(sp);
     fKeepStart=kTRUE; //start values from previous
@@ -402,13 +397,18 @@ namespace HS{
       auto tree=dynamic_cast<TTree*>(file->Get("MCMCTree"));
  
       
-      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(tree);
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(tree,fNumBurnInStepsForCov);
       delete file; //Must be at end of func
 
+      //scale covariance matrix by Norm
+      
+      auto divideNorm = 1./fNorm;
+      covMat*= divideNorm;
+ 
       ProposalHelper ph;
       ph.SetVariables(fSetup->ParsAndYields());
       ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
-      ph.SetCacheSize(100);
+      ph.SetCacheSize(1);
       ph.SetCovMatrix(covMat);
       ProposalFunction* pf = ph.GetProposalFunction();
       SetProposalFunction(*pf);
@@ -438,16 +438,23 @@ namespace HS{
 4.Uses the cov mat to generate new prop func and run
       */
 
-      RooStats::SequentialProposal sp(fNormThenCov);
+      RooStats::SequentialProposal sp(fNorm);
       SetProposalFunction(sp);
       fKeepStart=kTRUE; //start values from previous
       MakeChain();
 
-      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC);
-
       auto saveN = fNumIters;
       fNumIters = fNumItersThenCov;
-      
+      auto saveNorm=fNorm;
+      fNorm=fNormThenCov;
+      auto saveBurn=fNumBurnInSteps;
+      fNumBurnInSteps=fNumBurnInStepsThenCov;
+
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
+      auto divideNorm = 1./fNorm;
+      covMat*= divideNorm;
+ 
+        
       ProposalHelper ph;
       ph.SetVariables(fSetup->ParsAndYields());
       ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
@@ -464,7 +471,8 @@ namespace HS{
       MakeChain();
       
       fNumIters = saveN; //switch back to seq Niters for next bin
-
+      fNorm=saveNorm;
+      fNumBurnInSteps=saveBurn;
     }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -509,7 +517,7 @@ namespace HS{
      ph.SetWidthRangeDivisor(fNorm);
     
      ph.SetUpdateProposalParameters(true);
-     ph.SetCacheSize(1000);
+     ph.SetCacheSize(1);
      fPropFunc = (ph.GetProposalFunction());
      
      

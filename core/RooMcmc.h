@@ -23,7 +23,7 @@ namespace HS{
       
     public:
 
-    RooMcmc(Int_t Niter=100,Int_t NiterThenCov=100, Int_t NburnCov=10,Int_t Nburn=10, Float_t normThenCov=0.1, Float_t norm=0.1): fNumIters(Niter),fNumItersThenCov(NiterThenCov),fNumBurnInStepsCov(NburnCov),fNumBurnInSteps(Nburn),fNormThenCov(normThenCov),fNorm(norm){
+      RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm){
 	SetNameTitle("HSRooMcmc","RooMcmc minimiser");
       }
       RooMcmc(const RooMcmc&)=default;
@@ -41,7 +41,7 @@ namespace HS{
       
       void MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
-      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree);
+      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -125,13 +125,11 @@ namespace HS{
       RooAbsPdf * fPriorPdf=nullptr;   //! pointer to prior  PDF (owned by the workspace)
       //RooAbsData * fData=nullptr;     //! pointer to the data (owned by the workspace)
       Int_t fNumIters; // number of iterations to run metropolis algorithm
-      Int_t fNumItersThenCov; //number of iterations to run second metropolis algorithm with covariance proposal
       Int_t fNumBurnInSteps; // number of iterations to discard as burn-in, starting from the first
-      Int_t fNumBurnInStepsThenCov; //Number of burn in steps to discard from the chain to make covariance matrix
+
       Int_t fNumBins{}; // set the number of bins to create for each
       Int_t fWarmup{}; //ignore these events
       Float_t fNorm=1;
-      Float_t fNormThenCov=1;
       Int_t fNumBurnInStepsCov; //Number of steps to remove from chain to make covariance matrix for proposal function
 
       vector<Double_t> _formVals;//(formulas.getSize(),0);
@@ -163,7 +161,7 @@ namespace HS{
       
     public:
 
- RooMcmcSeqCov(Int_t Niter=100,Int_t NburnCov=10,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,NburnCov,Nburn,norm){
+   RooMcmcSeqCov(Int_t Nburn=10,Int_t Niter=100,Int_t NburnCov=10, Float_t norm=0.1):RooMcmc(Niter,NburnCov,norm),fNumBurnInStepsForCov(Nburn){
 	SetNameTitle("HSRooMcmcSeqCov","RooMcmcSeqCov minimiser");
       }
       RooMcmcSeqCov(const RooMcmcSeqCov&)=default;
@@ -174,14 +172,16 @@ namespace HS{
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
-      ClassDefOverride(HS::FIT::RooMcmcSeqCov,1);
+   Int_t fNumBurnInStepsForCov=50; //Number of burn in steps to discard from the chain to make covariance matrix
+
+   ClassDefOverride(HS::FIT::RooMcmcSeqCov,1);
    };
 
  class RooMcmcSeqThenCov  : public RooMcmc {
       
  public:
    
- RooMcmcSeqThenCov(Int_t Niter=100, Int_t NiterThenCov=100,Int_t NburnCov=10, Int_t Nburn=10,Float_t normThenCov=0.1, Float_t norm=0.1):RooMcmc(Niter,NiterThenCov,NburnCov,Nburn,normThenCov,norm ){
+   RooMcmcSeqThenCov(Int_t Niter=100,Int_t Nburn=10,  Float_t norm=0.1,Int_t NiterThenCov=100,Int_t NburnCov=10,Float_t normThenCov=1):RooMcmc(Niter,Nburn,norm ),fNumItersThenCov(NiterThenCov),fNumBurnInStepsThenCov(NburnCov),fNormThenCov(normThenCov){
 	SetNameTitle("HSRooMcmcSeqThenCov","RooMcmcSeqThenCov minimiser");
       }
       RooMcmcSeqThenCov(const RooMcmcSeqThenCov&)=default;
@@ -191,6 +191,12 @@ namespace HS{
       RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
+
+ private:
+   
+   Int_t fNumItersThenCov=100; //number of iterations to run second metropolis algorithm with covariance proposal
+   Int_t fNumBurnInStepsThenCov=50; //Number of burn in steps to discard from the chain to make covariance matrix
+   Float_t fNormThenCov=1;
 
       ClassDefOverride(HS::FIT::RooMcmcSeqThenCov,1);
    };

@@ -30,7 +30,7 @@
   //Run the minuit fit here
   /**/
   gBenchmark->Start("minuit");
-  // Here::Go(&RF);
+  //Here::Go(&RF);
   gBenchmark->Stop("minuit");
    /**/
   
@@ -38,15 +38,15 @@
   /**/
   gBenchmark->Start("seq");
   RF.SetMinimiser(new RooMcmcSeq(1000,500,100));
-  Here::Go(&RF);
+  //Here::Go(&RF);
   gBenchmark->Stop("seq");
     /**/
 
   //Choose a proposal using MH covariance matrix
   /**/
   gBenchmark->Start("seqcov");
-  RF.SetMinimiser(new RooMcmcSeqCov(1000,500,500,20));
-  //Argument #2 is the burn in for covariance matrix calc
+  RF.SetMinimiser(new RooMcmcSeqCov(500,1000,100,1));
+  //Argument #1 is the burn in for covariance matrix calc
   //Here::Go(&RF);
   gBenchmark->Stop("seqcov");
    /**/
@@ -55,9 +55,9 @@
    //BOTH mcmc to generate covMat and final chain called here
    /**/
   gBenchmark->Start("seqThencov");
-   RF.SetMinimiser(new RooMcmcSeqThenCov(500,1000,500,500,20,1));
-   //(Nsteps (chain1), Nsteps(chain2), Nburn(chain1),Nburn(chain2), Norm(chain1), Norm(chain2))
-   // Here::Go(&RF);
+  RF.SetMinimiser(new RooMcmcSeqThenCov(500,200,100,1000,100,1));
+  //(Nsteps (chain1), Nburn(chain1), Norm(chain1), Nsteps(chain2),Nburn(chain2),  Norm(chain2))
+  Here::Go(&RF);
   gBenchmark->Stop("seqThencov");
    /**/ 
   gBenchmark->Print("minuit");
