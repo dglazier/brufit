@@ -18,6 +18,11 @@ namespace HS{
       //if(fTreeMCMC)delete fTreeMCMC;
       //  delete fChainData;
       // delete fModelConfig;
+
+      if(!_formBranches.empty()){
+	for(auto br:_formBranches)
+	  delete br;
+      }
     }
     
     void RooMcmc::Run(Setup &setup,RooAbsData &fitdata){
@@ -153,46 +158,56 @@ namespace HS{
      
     }
     void RooMcmc::AddFormulaToMCMCTree(){
+      //avoid future memory leaks...
+      fTreeMCMC->ResetBranchAddresses();
 
-      auto formulas=fSetup->Formulas();
+
+      auto formulas=fSetup->ParameterFormulas(); //formulas that just depend on parameters, not variables/observables
       if(!formulas.getSize()) return;
-      vector<Double_t> formVals(formulas.getSize());
-      vector<TBranch*> formBranches(formulas.getSize());
+
+      _formVals.reserve(formulas.getSize());
+      _formBranches.reserve(formulas.getSize());
+
       TIter iter=formulas.createIterator();
       Int_t iform=0;
+
+      //getLeaves before extra branches
+      auto parLeaves=fTreeMCMC->GetListOfLeaves();
+      
       while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
 	TString formuName=formu->GetName();
-	
-	formBranches[iform]=fTreeMCMC->Branch(formuName,&formVals[iform],formuName+"/D");
+	_formVals[iform]=0;
+	_formBranches[iform]=nullptr;
+	_formBranches[iform]=fTreeMCMC->Branch(formuName,&_formVals[iform],formuName+"/D");
 	iform++;
       }
 
       Long64_t Nmcmc=fTreeMCMC->GetEntries();
-      Int_t Nleaf=fTreeMCMC->GetListOfLeaves()->GetEntries();
-      // auto snapshot=fParams->snapshot();
+      Int_t Nleaf=parLeaves->GetEntries();
+ 
       for(Int_t entry=0;entry<Nmcmc;entry++){
 	
 	fTreeMCMC->GetEntry(entry);
-	
+ 
+	//Set value of parameters to value in tree for this event
 	for(Int_t ibr=0;ibr<Nleaf;ibr++){
-	  auto *leaf=dynamic_cast<TLeaf*>(fTreeMCMC->GetListOfLeaves()->At(ibr));
+	  auto *leaf=dynamic_cast<TLeaf*>(parLeaves->At(ibr));	
 	  auto* brVar=dynamic_cast<RooRealVar*>(fParams->find(leaf->GetName()));
-	  if(brVar) brVar->setVal(leaf->GetValue());
+	  if(brVar!=nullptr) brVar->setVal(leaf->GetValue());
 	    
 	}
-	  
-	
+	//now calculate value of formula for these parameters
 	iter.Reset();
 	iform=0;
 	while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
 	  
-	  formVals[iform]=formu->getValV();
-	  formBranches[iform]->Fill();
+	  _formVals[iform]=formu->getValV();
+	  _formBranches[iform]->Fill();
 	  iform++;
 
 	}
       }  
-      // fParams=dynamic_cast<RooArgSet*>(snapshot); //set parameter values back to orignal
+      // fTreeMCMC->ResetBranchAddresses();
     }
     ///////////////////////////////////////////////
     Double_t  RooMcmc::SumWeights(){
@@ -256,17 +271,19 @@ namespace HS{
      }
     ///////////////////////////////////////////////////////////////
     file_uptr RooMcmc::SaveInfo(){
-      
+  
       TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
       file_uptr file(TFile::Open(fileName,"recreate"));
       Result();
-      
+ 
       fTreeMCMC->Write();
+      delete fTreeMCMC;fTreeMCMC=nullptr;
+   
       //save paramters and chi2s in  dataset (for easy merging)
       //RooArgSet saveArgs(*fParams);
       RooArgSet saveArgs(fSetup->Parameters());
       saveArgs.add(fSetup->Yields());
-      
+       
       RooRealVar Nllval("NLL","NLL",NLL());
       saveArgs.add(Nllval);
      
@@ -275,7 +292,7 @@ namespace HS{
       saveDS.Write();
       TTree* treeDS=RooStats::GetAsTTree(ResultTreeName(),ResultTreeName(),saveDS);
       treeDS->Write();
-
+      delete treeDS;treeDS=nullptr;
       return std::move(file);
     }
      //////////////////////////////////////////////////////////////

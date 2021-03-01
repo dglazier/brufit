@@ -117,13 +117,15 @@ namespace HS{
 	
 	//Fix H0(0,0)==1
 	if(set==0&&L==0&&M==0)
-	  setup.LoadParameter(Form("H%d_%d_%d[1]",set,L,M));
+	  setup.LoadConstant(Form("H%d_%d_%d[1]",set,L,M));
+	//	  setup.LoadParameter(Form("H%d_%d_%d[1]",set,L,M));
 	else
 	  setup.LoadParameter(Form("H%d_%d_%d[-1,1]",set,L,M));
 	
 	//Extra sqrt(2L+1)/4pi term for Spherical Harmonic->D-wigner normalisation to be consistent with paper
 	if(setup.Parameters().find(Form("K_%d",L))==nullptr)
-	  setup.LoadParameter(Form("K_%d[%E]",L,TMath::Sqrt(2*L+1.)/TMath::Sqrt(4*TMath::Pi())));	
+	  setup.LoadConstant(Form("K_%d[%E]",L,TMath::Sqrt(2*L+1.)/TMath::Sqrt(4*TMath::Pi())));	
+	//	  setup.LoadParameter(Form("K_%d[%E]",L,TMath::Sqrt(2*L+1.)/TMath::Sqrt(4*TMath::Pi())));	
  
 	if(set==0)
 	  return Form("K_%d;H%d_%d_%d;Y_%d_%d_%s:",L,set,L,M,L,M,part.Data());

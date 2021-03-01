@@ -37,11 +37,9 @@ namespace HS{
       auto tree = mcmc->GetTree();
 
       auto& pars = setup->ParsAndYields();
-      std::cout<<"The Parameters are: "<<std::endl;
+      //  std::cout<<"The Parameters are: "<<std::endl;
       Int_t Npars = pars.size();
-      std::cout<<"The number of parameters is: "<<Npars<<std::endl;
-      
-  
+      //std::cout<<"The number of parameters is: "<<Npars<<std::endl;
       auto canName = "Corner Full Plot";
       auto canvas = new TCanvas(canName, canName);
       
@@ -139,9 +137,7 @@ namespace HS{
       canvas->Update();
       canvas->Draw();
 
-     
-      
-
+ 
       //change style back
       gStyle=defStyle;
 

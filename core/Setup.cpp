@@ -35,6 +35,8 @@ namespace HS{
        fOutDir=other.fOutDir;
        for(auto &parStr: other.fParString)
 	 LoadParameter(parStr);
+       for(auto &conStr: other.fConstString)
+	 LoadConstant(conStr);
        for(auto &varStr: other.fVarString)
 	 LoadVariable(varStr);
        for(auto &catStr: other.fCatString)
@@ -73,8 +75,10 @@ namespace HS{
        for(auto &varStr: other.fVarString){
     	LoadVariable(varStr);
       }
-      for(auto &catStr: other.fCatString)
-    	LoadCategory(catStr);
+       for(auto &conStr: other.fConstString)
+	 LoadConstant(conStr);
+       for(auto &catStr: other.fCatString)
+	 LoadCategory(catStr);
       for(auto &varStr: other.fAuxVarString)
     	LoadAuxVar(varStr);
       for(auto &formStr: other.fFormString)
@@ -120,6 +124,7 @@ namespace HS{
     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
     /// Add a fit parameter X between -1 and 1
     void Setup::LoadParameterOnTheFly(const TString& opt){
+      cout<<"LoadParameterOnTheFly   "<<opt<<endl;
       auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
       if(!var) {
 	cout<<"Setup::LoadParameter "<<opt<<" failed"<<endl;
@@ -128,6 +133,22 @@ namespace HS{
       if(!fParameters.contains(*var))
 	fParameters.add(*var);      
     }
+   ////////////////////////////////////////////////////////////
+    /// Load a constant e.g s.LoadConstant("X[value]");
+    /// Add a constant parameter X with value 1 
+    /// and store it for when copied
+    void Setup::LoadConstant(const TString& opt){
+ 
+      auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
+      if(!var) {
+	cout<<"Setup::LoadConstant "<<opt<<" failed"<<endl;
+	return;
+      }	
+      var->setConstant();
+      if(!fConstants.contains(*var))
+	fConstants.add(*var);
+      fConstString.push_back(opt);
+    }	
      ////////////////////////////////////////////////////////////
     /// Load a fit RooAbsReal class e.g s.LoadFunctionVar("RooRealSphHarmonic::leg2(CTh[0,-1,1],Phi[0,-3.141,3.141],2,1)"));
      void Setup::LoadFunctionVar(const TString& opt){
@@ -182,8 +203,12 @@ namespace HS{
 
       //fovar.Print();
       fWS.import(fovar);
-      if(fWS.function(name))
+      if(fWS.function(name)){
 	fFormulas.add(*fWS.function(name));
+	if(fovar.getObservables(fVars)->getSize()==0
+	   && fovar.getObservables(fParameters)->getSize()>0)
+	  fParameterFormulas.add(*fWS.function(name));
+      }
       else Fatal("Setup::LoadFormula","Formula didn't compile");
     }
     ////////////////////////////////////////////////////////////
@@ -307,7 +332,7 @@ namespace HS{
       //take a copy of the pdf from the workspace, so no ownership issues
       auto* pdf=reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
       fPDFs.add(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
-      fParameters.add(*(fPDFs.find(opt)->getParameters(DataVars())));// get parameters not in fit variables 
+      //fParameters.add(*(fPDFs.find(opt)->getParameters(DataVars())));// get parameters not in fit variables 
       //     fParameters.add(*(fPDFs.find(opt)->getParameters(MakeArgSet(fFitVars,fFitCats))));// get parameters not in fit variables 
       //Add a yield parameter for this species
       fYields.add(*(fWS.factory(fYld+opt+Form("[%f,0,1E12]",Scale0))));//default yields limits
