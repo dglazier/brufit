@@ -1,6 +1,7 @@
 #include "HSMetropolisHastings.h"
 #include "RooStats/RooStatsUtils.h"
 #include <RooStats/MarkovChain.h>
+#include <RooStats/PdfProposal.h>
 
 namespace HS{
   namespace FIT{
@@ -110,7 +111,7 @@ namespace HS{
    
       while (icount <fNumIters) {
 	totcount++;
-	//	cout<<"        METHAST "<<totcount<<std::endl;
+	//std::cout<<"        METHAST "<<totcount<<std::endl;
 	// reset error handling flag
 	hadEvalError = false;
 	// print a dot every 1% of the chain construction
@@ -123,21 +124,33 @@ namespace HS{
 	  havePrinted=1;
 	}
 	if (icount%100 == 1) havePrinted=0;
+	//	std::cout<<"********************************************X' "<<std::endl;
+	//	xPrime.Print("v");
+	//std::cout<<"********************************************X "<<std::endl;
+	//x.Print("v");
+
+	//PdfProposal uses a cache, but it samples from
+	//the wrong Pdf parameters so best to reset every proposal
+	if(dynamic_cast<RooStats::PdfProposal*>(fPropFunc)){
+	  //  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->GetPdf()->getVariables()->Print("v");
+	   dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->Reset();
+	}
+	//std::cout<<"***************************PROPOSE "<<fPropFunc->GetProposalDensity(xPrime, fParameters)<<" "<<((RooStats::PdfProposal*)fPropFunc)->GetPdf()->getVal()<<std::endl;
+	//std::cout<<"***************************PROPOSE "<<std::endl;
 	
 	fPropFunc->Propose(xPrime, x);
 	RooStats::SetParameters(&xPrime, &fParameters);
+	//std::cout<<"********************************************X'2 "<<std::endl;	xPrime.Print("v");
+
+	//std::cout<<"***************************PROPOSED"<<std::endl;
 
 
-	// cout<<"********************************************MSMC "<<endl;
+	//	std::cout<<"********************************************MSMC "<<std::endl;
 
-	// fParameters.Print("v");
-	// cout<<"********************************************X' "<<endl;
-	// xPrime.Print("v");
-	// cout<<"********************************************X "<<endl;
-	// x.Print("v");
+	//fParameters.Print("v");
 
 	xPrimeL = fFunction->getVal();
-	//	cout<<"********************************************L"<<xPrimeL<<endl;
+	//std::cout<<"********************************************L"<<xPrimeL<<std::endl;
 
 
 	// check if log-likelihood for xprime had an error status
@@ -173,7 +186,7 @@ namespace HS{
             a += TMath::Log(xPrimePD) - TMath::Log(xPD);
 	}
 	
-	//	cout<<"a "<<a<<" xPL "<<xPrimeL<<" "<<"xL "<<" "<<xL<<endl;
+	//	std::cout<<"a "<<a<<" xPL "<<xPrimeL<<" "<<"xL "<<" "<<xL<< " "<<(fType == kLog)<<" "<<hadEvalError<<" "<<std::endl;
 	//	x.Print("v");xPrime.Print("v");
 	if (!hadEvalError && ShouldTakeStep(a)) {
 	  // go to the proposed point xPrime

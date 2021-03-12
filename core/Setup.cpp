@@ -332,7 +332,9 @@ namespace HS{
       //take a copy of the pdf from the workspace, so no ownership issues
       auto* pdf=reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
       fPDFs.add(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
-      //fParameters.add(*(fPDFs.find(opt)->getParameters(DataVars())));// get parameters not in fit variables 
+      fParameters.add(*(fPDFs.find(opt)->getParameters(DataVars())));// get parameters not in fit variables
+      fParameters.remove(fConstants);
+      fParameters.remove(fFormulas);
       //     fParameters.add(*(fPDFs.find(opt)->getParameters(MakeArgSet(fFitVars,fFitCats))));// get parameters not in fit variables 
       //Add a yield parameter for this species
       fYields.add(*(fWS.factory(fYld+opt+Form("[%f,0,1E12]",Scale0))));//default yields limits
