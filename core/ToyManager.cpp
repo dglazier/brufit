@@ -112,6 +112,7 @@ namespace HS{
       for(auto* pdf:PDFs){
 	if(auto evPdf=dynamic_cast<RooHSEventsPDF*> (pdf) ) {
 	  TFile entryFile(TString("entryFile_")+evPdf->GetName()+".root");
+	  if(entryFile.IsOpen()==kFALSE) continue; //no events tree or entry list, will just have used Accept or Reject
 	  auto entryList=dynamic_cast<TEntryList*>(entryFile.Get("GenEvents"));
 
 	  auto idata=GetDataBin(GetFiti()); //bin for this generation
