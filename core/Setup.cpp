@@ -120,14 +120,23 @@ namespace HS{
       LoadParameterOnTheFly(opt);
       fParString.push_back(opt);
     }
-     ////////////////////////////////////////////////////////////
+
+       ////////////////////////////////////////////////////////////
     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
     /// Add a fit parameter X between -1 and 1
     void Setup::LoadParameterOnTheFly(const TString& opt){
       cout<<"LoadParameterOnTheFly   "<<opt<<endl;
-      auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
+       //replaceAll -ve signs in name with "neg"
+      TString varname = opt;
+      /*TString varname2 = opt(0,opt.First("[")); //only name before range[]
+       if(varname2.Contains("-")){
+	TString varname3 = varname2;
+	varname3.ReplaceAll("-","neg");
+	varname.ReplaceAll(varname2,varname3);
+	}*/
+      auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
       if(!var) {
-	cout<<"Setup::LoadParameter "<<opt<<" failed"<<endl;
+	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;
 	return;
       }
       if(!fParameters.contains(*var))
@@ -306,12 +315,12 @@ namespace HS{
     void Setup::ParserPDF(const TString& str, PdfParser& parse){
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
-
+      std::cout<<pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
       //Load Parameters
       auto pars = parse.GetParameters();
       for(auto& par:pars)
 	LoadParameter(par);
-    //LoadFormulas
+      //LoadFormulas
       auto forms = parse.GetFormulas();
       for(auto& form:forms)
 	LoadFormula(form);
@@ -344,6 +353,7 @@ namespace HS{
     ///Special ComponentsPDF factory
     RooAbsPdf* Setup::ComponentsPDF(TString opt){
       opt.ReplaceAll("RooComponentsPDF::","");
+      opt.ReplaceAll(" ","");
       TString pdfName=opt(0,opt.First("("));
       //  fWS.Print();
       //cout<<"ComponentsPDF "<<pdfName<<endl;
@@ -415,7 +425,7 @@ namespace HS{
 	  else if( dynamic_cast<RooCategory*>(fWS.cat(vname))) termList.add(*fWS.cat(vname));
 	  else if ( dynamic_cast<RooFormulaVar*>(fWS.function(vname))) termList.add(*fWS.function(vname));
 	  else if ( dynamic_cast<RooAbsReal*>(fWS.function(vname))) termList.add(*fWS.function(vname)); //for function vars
-	  else Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)","variable not found");
+	  else Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
 	}
 	//termList.Print("v");
 	compsLists.push_back(termList);//add this term to the components list

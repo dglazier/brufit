@@ -30,7 +30,7 @@ namespace HS{
       while(!term.empty()){
 	term=NextComponentsTerm(str,pos,tpos);
 
-
+	std::cout<<"term "<<term<<endl;
 	//case predefined
 	if(CheckParameterList(term))
 	  continue;

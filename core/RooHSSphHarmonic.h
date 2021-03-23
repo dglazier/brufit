@@ -20,6 +20,7 @@ namespace HS{
 
       RooHSSphHarmonic(const RooHSSphHarmonic& other, const char* name = nullptr);
       TObject* clone(const char* newname) const override{ return new RooHSSphHarmonic(*this, newname); }
+      
       ~RooHSSphHarmonic() override =default;
 
       //Workspace Factory strings for real and imaginery part

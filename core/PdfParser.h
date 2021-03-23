@@ -95,7 +95,6 @@ namespace HS{
 
       int _entry=-1;
       bool next(){
-	std::cout<<_label <<" "<<_entry<<" "<<std::endl;
 	if(_entry+1==(int)_vals.size()){
 	  _entry=-1;
 	  _currval=_vals[0];

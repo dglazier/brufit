@@ -25,11 +25,12 @@ namespace HS{
 
 	auto realRange="["+WithinBrackets(par,'[')+"]";
 	auto imRange="["+WithinBrackets(StringReplaceFirst(par,realRange,""),'[')+"]";
+	
 
 	//need real and imaginery parameters
 	_parList.push_back("Re"+pname+realRange);
 	_parList.push_back("Im"+pname+imRange);
-	//AddFormula("CoIm"+pname+"=-1*@Im"+pname+"[]");
+
 	_complexArgs.push_back(pname);
       }
       else //just real
@@ -42,7 +43,8 @@ namespace HS{
      if(StringContainsString(fun,"^CONJ")){
        fun=StringReplaceAll(fun,"^CONJ","");
      }
-
+     // fun=StringReplaceAll(fun,"-","neg");
+  
      if(CheckFunctionList(fun)){
        cout<<"WARNING AddToFunctionList already have a "<< StringToNext(fun,"(")<<endl;
        return;
@@ -65,7 +67,7 @@ namespace HS{
       return ;
     }
     ////////////////////////////////////////////////////////////////////////
-    //e.g. AddFunctionTemplate("RooHSSphHarmonicRe","RealY_*_*(*,*)");
+    ///e.g. AddFunctionTemplate("RooHSSphHarmonicRe","RealY_*_*(*,*)");
     void PdfParser::AddFunctionTemplate(string func,string temp){
       temp=StringReplaceAll(temp,"*","[a-zA-Z0-9-_]+");
       temp=StringReplaceFirst(temp,"(","\\(");
@@ -210,7 +212,7 @@ namespace HS{
 	string component1;
 	for(auto &termi  : terms ){//Protect string _CSST_=ComplexSummationSquaredTerm
 	  cout<<" ABOUT TO PARSE TERM "<<termi<<endl;
-	  ParseTerm(termi); //register function
+	  // ParseTerm(termi); //register function
 
 
 	  string term=termi;
@@ -380,7 +382,8 @@ namespace HS{
       for (auto const& fun : _funNames){
 	cout<<"******* REPLACE NAME "<< fun.first<<" "<<fun.second<<" "<<StringContainsString(str,fun.first)<<endl;
 	str=StringReplaceAll(str,fun.first,fun.second);
-      }
+ 	//str=StringReplaceAll(str,"-","neg");
+     }
       return str;
     }
     // string PdfParser::ReplaceConsolidatedSummations(string str,vector<ConsolidatedIndex> indices){
@@ -459,6 +462,7 @@ namespace HS{
 
 	cout<<"CURRENT STRING "<<str<<endl;
       }
+   
       return str;
 
     }
@@ -491,14 +495,14 @@ namespace HS{
 	auto endofsumover=it->position()+sumover.size();
 	auto sum = WithinBrackets(str.substr(endofsumover,str.size()-endofsumover),'{'); //e.g. = {H_L}
 	endofsum=endofsumover+sum.size();//position of end of this sum }
-
+	std::cout<<"sum WithinBrackets"<<sum<<" "<<sumover<<endl;
 	//collect indices
 	auto indices = GetSumIndices(sumover);
 
 	//recurisvely loop over different indices
 	//Order of indice is important
 	sum=SumOverIndex(sum,indices,0);
-
+	std::cout<<"sum=SumOverIndex(sum,indices,0); "<<sum<<endl;
 	//Recursive nested SUMs
 	if(StringContainsString(sum,"SUM"))
 	  result+=ExpandSummation(sum);
@@ -564,7 +568,7 @@ namespace HS{
 
       string result;
       for(auto& val : vals){
-	//	cout<<"val "<<label<<" "<<val <<" "<<minVal<<" "<<maxVal<<endl;
+       	cout<<"val "<<label<<" "<<val <<" "<<minVal<<" "<<maxVal<<endl;
 	//check if valid val
 	if(gotMinVal&&val<=minVal) continue;
 	if(gotMaxVal&&val>=maxVal) continue;
@@ -585,12 +589,25 @@ namespace HS{
 	  string sm=mch[0]; //get the first match for changing
 	  string s0=mch[0]; //keep one for testing
 	  sm.replace(1,label.size(),std::to_string(val));//replace char in pos 1 (label size char long) with val
+	//Purge -ve signs here
+	//replaceAll -ve signs in name with "neg"
+	  /*TString varname = sm.data();
+	  
+	  TString varname2 = varname(0,varname.First("[")); //only name before range[]
+	  if(varname2.Contains("-")){
+	    TString varname3 = varname2;
+	    varname3.ReplaceAll("-","neg");
+	    varname.ReplaceAll(varname2,varname3);
+	  }
+	  sm = varname.Data();
+	  //purged -ve signs
+	  */
+	  
 	  //now replace in subject
-	  // cout<<"sm "<<sm<<endl;
 	  size_t pos=0;
 	  pos = term.find(s0, pos); //get position of this match in subject
 	  term.replace(pos,s0.size(),sm); //and replace it with valued
-
+	  cout<<"term.replace "<<pos<<" "<<s0<<" "<<sm<<" "<<term<<endl;
 	  //look for next match
 	  std::regex_search(term,mch,reglabel);
 	}
@@ -603,7 +620,7 @@ namespace HS{
       }
       //remove last +
       // result.pop_back();
-      //      cout<<"result "<<result<<endl;
+      cout<<"result "<<result<<endl;
       return result;
     }
     /////////////////////////////////////////////////////////////
@@ -658,6 +675,7 @@ namespace HS{
 	SumIndex inde;
 	inde._label=label;
 
+	
 	if(StringContainsChar(ind,'<')||StringContainsChar(ind,'>')||StringContainsChar(ind,'!')){
 	  size_t pos=0; //position along string ind
 
@@ -773,6 +791,7 @@ namespace HS{
 	      else if(count==1)  inde._maxdep.push_back(token);
 	      count++;
 	    }
+
 	  }
 	  cout<<"fandl "<< first <<" "<<last <<endl;
 	  //look for dependents
@@ -810,12 +829,12 @@ namespace HS{
 	    }
 	  inde._currval=first;//initilaise current value
 	}//case range
-
+	cout<<"indices.push_back "<<inde._vals.size()<<endl;
 	indices.push_back(inde);
 
 	++it;//next index label
       }
-
+    
       return indices;
     }
     ////////////////////////////////////////////////////////////////////////
