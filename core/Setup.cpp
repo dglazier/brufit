@@ -134,6 +134,11 @@ namespace HS{
 	varname3.ReplaceAll("-","neg");
 	varname.ReplaceAll(varname2,varname3);
 	}*/
+      if(opt.Contains(',')==false){
+	//assume parameters with no range are constants
+	LoadConstant(opt);
+	return;
+      }
       auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
       if(!var) {
 	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;

@@ -45,6 +45,9 @@ namespace HS{
       mp.AddFormula(Form("COS2PHI=@%s[]*cos(2*@%s[])",Pol.Data(),phiPol.Data()));
       mp.AddFormula(Form("SIN2PHI=-@%s[]*sin(2*@%s[])",Pol.Data(),phiPol.Data()));
 
+      for(Int_t iL=0;iL<=Lmax;iL++)
+	mp.AddConstant(Form("K_%d[%lf]",iL,TMath::Sqrt(2*iL+1.)/TMath::Sqrt(4*TMath::Pi())));
+      
       //////////////////
       //string sum;
       //sum+="H_0_0_0[1]"; //constant == 1

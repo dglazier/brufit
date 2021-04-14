@@ -162,10 +162,10 @@ namespace HS{
 	//	cout<<"product "<<product<<endl;
 	val+=product; //add them to total
       }
-       if(val<0) cout<<"RooComponentsPDF::evaluateData() PDF val less than 0 "<<val<<endl;
-      return val;
-    }
 
+       return val;
+    }
+    
     void RooComponentsPDF::RedirectServersToPdf(){
       cout<<"                 RooComponentsPDF::RedirectServersToPdf()"<<endl;
       //point the terms to the integral events rather than data events

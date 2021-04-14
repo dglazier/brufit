@@ -44,7 +44,7 @@ namespace HS{
     for(RooAbsArg* ipar : pars){ //only need to set branch address once
       tree->SetBranchAddress(ipar->GetName(), &params[pindex++]);
     }
-  
+ 
     for(auto var : vars)
       {
 	auto canName = tag+"_"+var->GetName()+"_MCMC";
@@ -129,9 +129,9 @@ namespace HS{
 
 
 
-    //  CornerFullPlot(setup, mcmc, fCanvases.get());
-    //CornerPlot(setup, mcmc, fCanvases.get());
-    // AutocorrPlot(setup, mcmc, fCanvases.get());
+    CornerFullPlot(setup, mcmc, fCanvases.get());
+    CornerPlot(setup, mcmc, fCanvases.get());
+    AutocorrPlot(setup, mcmc, fCanvases.get());
  
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 

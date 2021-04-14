@@ -91,9 +91,29 @@ namespace HS{
       _formList.push_back(form);
       return ;
     }
+   /////////////////////////////////////////////////////////////////////////
+    void PdfParser::AddConstant(const string& constant){
+     if(CheckConstantsList(constant)){
+       cout<<"WARNING PdfParser::AddConstant already have a "<< StringToNext(constant,"=")<<endl;
+	return;
+      }
+       //make list in  RooFit parameter format
+      _constList.push_back(constant);
+      return ;
+    }
     /////////////////////////////////////////////////////////////////////////
     bool PdfParser::CheckParameterList(const string& par){
       for(auto& lpar:_parList){
+	auto lparName=StringToNext(lpar,"[");
+	auto parName=StringToNext(par,"[");
+	if(parName==lparName)
+	  return true;
+      }
+      return false;
+    }
+   /////////////////////////////////////////////////////////////////////////
+    bool PdfParser::CheckConstantsList(const string& par){
+      for(auto& lpar:_constList){
 	auto lparName=StringToNext(lpar,"[");
 	auto parName=StringToNext(par,"[");
 	if(parName==lparName)
@@ -581,6 +601,13 @@ namespace HS{
 	//index OK
 	sumIndex._currval=val;
 	string term = subject; //start with labelled string
+	//note cannot end with alphanumeric for replacing
+	//but a term might if it is an object name
+	//if it does add a '_' here
+	auto addterm="";
+	if(std::isalpha((term.back()))!=0) addterm="_";
+	term+=addterm;
+	
 	//find instances of the label regex
 	std::smatch mch;
 	std::regex_search(term,mch,reglabel);
@@ -589,19 +616,6 @@ namespace HS{
 	  string sm=mch[0]; //get the first match for changing
 	  string s0=mch[0]; //keep one for testing
 	  sm.replace(1,label.size(),std::to_string(val));//replace char in pos 1 (label size char long) with val
-	//Purge -ve signs here
-	//replaceAll -ve signs in name with "neg"
-	  /*TString varname = sm.data();
-	  
-	  TString varname2 = varname(0,varname.First("[")); //only name before range[]
-	  if(varname2.Contains("-")){
-	    TString varname3 = varname2;
-	    varname3.ReplaceAll("-","neg");
-	    varname.ReplaceAll(varname2,varname3);
-	  }
-	  sm = varname.Data();
-	  //purged -ve signs
-	  */
 	  
 	  //now replace in subject
 	  size_t pos=0;
@@ -611,6 +625,8 @@ namespace HS{
 	  //look for next match
 	  std::regex_search(term,mch,reglabel);
 	}
+	if(addterm=="_") term.pop_back();//remove "_" if we had to add it
+	
 	term=SumOverIndex(term,sumIndices,Ni+1);
 	if(!term.empty()){
 	  ///  cout<<"TERM                  "<<label<<" "<<term<<endl;
