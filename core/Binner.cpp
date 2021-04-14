@@ -49,13 +49,10 @@ namespace HS{
 	if(!fname.BeginsWith("/"))
 	  fname = TString(gSystem->Getenv("PWD"))+"/"+fname;
 
-	std::cout<<"Binner::SplitData  adding "<<name<<" "<<fname<<endl; 
 	fNameToFiles[name]={{fname}};
 	fNameToTree[name]=tname;
 	fBinNames={{""}};
 
-	std::cout<<"Binner::SplitData  adding "<<name<<" "<<fname<<  " "<<fNameToFiles.size()<<endl; 
-	
 	return;
       }
       if(!fIsSetup) {

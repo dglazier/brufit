@@ -125,15 +125,17 @@ namespace HS{
     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
     /// Add a fit parameter X between -1 and 1
     void Setup::LoadParameterOnTheFly(const TString& opt){
-      cout<<"LoadParameterOnTheFly   "<<opt<<endl;
+      //Find parameter name i.e. up to '['
+      auto parName=TString(opt(0,opt.First('[')));
+      if( ArgListContainsName(fParameters,parName) )
+	return; //already loaded
+      if( ArgListContainsName(fConstants,parName) )
+	return; //already loaded
+      
+      //  cout<<"LoadParameterOnTheFly   "<<opt<<endl;
        //replaceAll -ve signs in name with "neg"
       TString varname = opt;
-      /*TString varname2 = opt(0,opt.First("[")); //only name before range[]
-       if(varname2.Contains("-")){
-	TString varname3 = varname2;
-	varname3.ReplaceAll("-","neg");
-	varname.ReplaceAll(varname2,varname3);
-	}*/
+
       if(opt.Contains(',')==false){
 	//assume parameters with no range are constants
 	LoadConstant(opt);
@@ -152,7 +154,11 @@ namespace HS{
     /// Add a constant parameter X with value 1 
     /// and store it for when copied
     void Setup::LoadConstant(const TString& opt){
- 
+      
+      auto parName=TString(opt(0,opt.First('[')));
+      if( ArgListContainsName(fConstants,parName) )
+	return; //already loaded
+      
       auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
       if(!var) {
 	cout<<"Setup::LoadConstant "<<opt<<" failed"<<endl;
@@ -169,7 +175,6 @@ namespace HS{
        //check if already done this one
       if(std::find(fFuncVarString.begin(),fFuncVarString.end(),opt)!=fFuncVarString.end()) return;
       
-      cout<<" Setup::LoadFunctionVar "<<opt<<endl;
       auto var=dynamic_cast<RooAbsReal*>(fWS.factory(opt));
       if(!var) {
 	cout<<"Setup::LoadFunctionVar "<<opt<<" failed"<<endl;
@@ -320,7 +325,7 @@ namespace HS{
     void Setup::ParserPDF(const TString& str, PdfParser& parse){
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
-      std::cout<<pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+      std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
       //Load Parameters
       auto pars = parse.GetParameters();
       for(auto& par:pars)
@@ -329,10 +334,14 @@ namespace HS{
       auto forms = parse.GetFormulas();
       for(auto& form:forms)
 	LoadFormula(form);
+      //LoadConstants
+      auto cons = parse.GetConstants();
+      for(auto& con:cons)
+	LoadConstant(con);
        //LoadFunctionVars
       auto funs = parse.GetFunctions();
       for(auto& fun:funs){
-	cout<<"Load Function var "<<fun<<endl;
+	//	cout<<"Load Function var "<<fun<<endl;
 	LoadFunctionVar(fun);
 	
       }
@@ -557,7 +566,12 @@ namespace HS{
 	}
       }
     }
+    Bool_t ArgListContainsName(RooArgList& items,TString name){
+    for(Int_t idr=0;idr<items.getSize();idr++)
+      if(TString(items[idr].GetName())==name) return kTRUE;
 
+      return kFALSE;
+    }
     void ReadFormula(TString forma, strings_t& svars,strings_t& sranges){
       
       svars.clear();

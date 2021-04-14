@@ -55,7 +55,7 @@ namespace HS{
       const RooAbsArg *tmp=nullptr;
       while ((tmp = dynamic_cast<RooAbsArg*>(iter.Next()))){
 	auto arg=fitvars.find(tmp->GetName());
-	cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
+	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
 
       while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here

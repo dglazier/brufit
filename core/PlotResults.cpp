@@ -12,14 +12,14 @@ namespace HS{
     PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag){
 
       using namespace RooFit;
-      cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
+      //cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
       //fCanvases->SetOwner();
       fCanvases->SetName(TString("RFPlots")+setup->GetName());
 
   	
       auto vars=setup->FitVars();
       auto *model=setup->Model();
-      cout<<"model "<<model<<endl;
+      // cout<<"model "<<model<<endl;
       //For RooHSEventsPDF flag plotting so can calc partial integrals
       //for 1 observable case;
       RooHSEventsPDF::SetIsPlotting(kTRUE);

@@ -47,7 +47,7 @@ namespace HS{
     RooArgSet MakeArgSet(catvars_t cats);
     void SetAllValLimits(RooArgList&,Double_t val,Double_t low=0,Double_t high=0);
     void ReadFormula(TString forma, strings_t& svars,strings_t& sranges);
-    
+    Bool_t ArgListContainsName(RooArgList& items,TString name);
       
     class Setup : public TNamed {
       

@@ -61,7 +61,7 @@ namespace HS{
        return;
      }
      string full=funcType+"::"+fun;
-     cout<<"full "<<full<<endl;
+     //cout<<"full "<<full<<endl;
      _funList.push_back(full); //for LoadFunctionVar
      _funNames[fun]=(StringToNext(fun,"(")); //For using just name
       return ;
@@ -193,7 +193,7 @@ namespace HS{
 
  	auto sumStr=it->str();// = SUM(L[],..){}^2
 
-	cout<<" SUMMATION "<<sumStr<<endl<<endl<<endl;
+	//cout<<" SUMMATION "<<sumStr<<endl<<endl<<endl;
 	//	auto endofsumover=it->position()+sumover.size();
 
 	//First make sure all complex functions are created
@@ -231,7 +231,7 @@ namespace HS{
 	//First part of expansion Sum(L,i){F(A_L_i,A_L_i)*F(B_L_i,B_L_i)*F...}
 	string component1;
 	for(auto &termi  : terms ){//Protect string _CSST_=ComplexSummationSquaredTerm
-	  cout<<" ABOUT TO PARSE TERM "<<termi<<endl;
+	  //cout<<" ABOUT TO PARSE TERM "<<termi<<endl;
 	  // ParseTerm(termi); //register function
 
 
@@ -392,7 +392,7 @@ namespace HS{
 	//	result+="+SUM("+sumover1+","+sumover2+"){"+component2+"}";
        	result+="+SUM("+sumover1+","+sumover2+"){"+component3+"}";
 
- 	cout<<"Currently "<<result<<endl;
+ 	//cout<<"Currently "<<result<<endl;
 
 	auto replaceSum=ReplaceSummations(result);
 	str=StringReplaceAll(str,sumStr,replaceSum);
@@ -400,7 +400,7 @@ namespace HS{
 
        //Change full function string to just name
       for (auto const& fun : _funNames){
-	cout<<"******* REPLACE NAME "<< fun.first<<" "<<fun.second<<" "<<StringContainsString(str,fun.first)<<endl;
+	//cout<<"******* REPLACE NAME "<< fun.first<<" "<<fun.second<<" "<<StringContainsString(str,fun.first)<<endl;
 	str=StringReplaceAll(str,fun.first,fun.second);
  	//str=StringReplaceAll(str,"-","neg");
      }
@@ -473,14 +473,14 @@ namespace HS{
 	auto sum = WithinBrackets(str.substr(endofsumover,str.size()-endofsumover),'{'); //e.g. = {H_L}
 	auto sumString=sumover+"{"+sum+"}";
 
-	cout <<" GOING TO EXPAND "<<sumString<<" "<<sumover<<" "<<sum<<endl;
+	//cout <<" GOING TO EXPAND "<<sumString<<" "<<sumover<<" "<<sum<<endl;
 
 	auto expandString=ExpandSummation(sumString);
 	if(expandString.back()=='+')expandString.pop_back();
 	//	str=StringReplaceFirst(str,sumString,"("+expandString+")");
 	str=StringReplaceFirst(str,sumString,expandString);
 
-	cout<<"CURRENT STRING "<<str<<endl;
+	//cout<<"CURRENT STRING "<<str<<endl;
       }
    
       return str;
@@ -515,14 +515,14 @@ namespace HS{
 	auto endofsumover=it->position()+sumover.size();
 	auto sum = WithinBrackets(str.substr(endofsumover,str.size()-endofsumover),'{'); //e.g. = {H_L}
 	endofsum=endofsumover+sum.size();//position of end of this sum }
-	std::cout<<"sum WithinBrackets"<<sum<<" "<<sumover<<endl;
+	//std::cout<<"sum WithinBrackets"<<sum<<" "<<sumover<<endl;
 	//collect indices
 	auto indices = GetSumIndices(sumover);
 
 	//recurisvely loop over different indices
 	//Order of indice is important
 	sum=SumOverIndex(sum,indices,0);
-	std::cout<<"sum=SumOverIndex(sum,indices,0); "<<sum<<endl;
+	//std::cout<<"sum=SumOverIndex(sum,indices,0); "<<sum<<endl;
 	//Recursive nested SUMs
 	if(StringContainsString(sum,"SUM"))
 	  result+=ExpandSummation(sum);
@@ -578,7 +578,7 @@ namespace HS{
 	for(auto& indNeq:sumIndex._notequaldep){
 	  auto indNeqVal= EvalIndiceFormula(indNeq,sumIndices);
 	  notEqVals.push_back(indNeqVal);
-	  cout<<"NOT EQUAL "<<sumIndex._label<<" "<<indNeqVal<<endl;
+	  //cout<<"NOT EQUAL "<<sumIndex._label<<" "<<indNeqVal<<endl;
 	}
 	gotNotEq=true;
       }
@@ -588,7 +588,7 @@ namespace HS{
 
       string result;
       for(auto& val : vals){
-       	cout<<"val "<<label<<" "<<val <<" "<<minVal<<" "<<maxVal<<endl;
+       	//cout<<"val "<<label<<" "<<val <<" "<<minVal<<" "<<maxVal<<endl;
 	//check if valid val
 	if(gotMinVal&&val<=minVal) continue;
 	if(gotMaxVal&&val>=maxVal) continue;
@@ -621,7 +621,7 @@ namespace HS{
 	  size_t pos=0;
 	  pos = term.find(s0, pos); //get position of this match in subject
 	  term.replace(pos,s0.size(),sm); //and replace it with valued
-	  cout<<"term.replace "<<pos<<" "<<s0<<" "<<sm<<" "<<term<<endl;
+	  //cout<<"term.replace "<<pos<<" "<<s0<<" "<<sm<<" "<<term<<endl;
 	  //look for next match
 	  std::regex_search(term,mch,reglabel);
 	}
@@ -636,7 +636,7 @@ namespace HS{
       }
       //remove last +
       // result.pop_back();
-      cout<<"result "<<result<<endl;
+      //cout<<"result "<<result<<endl;
       return result;
     }
     /////////////////////////////////////////////////////////////
@@ -673,7 +673,7 @@ namespace HS{
     ///or Label[v1,v2,v3,...]
     ///returns vector of SumIndex structs
     SumIndices PdfParser::GetSumIndices(string str){
-      cout<<" PdfParser::GetSumIndices "<<str<<endl;
+      //cout<<" PdfParser::GetSumIndices "<<str<<endl;
       SumIndices indices;
 
       string regex_indice = R"(\w+\[.*?\]+?)";
@@ -683,7 +683,7 @@ namespace HS{
       sregex_iterator it_end;
       while(it != it_end) {
 	auto indstr=it->str();
-	cout<<"indstr "<<indstr<<endl;
+	//cout<<"indstr "<<indstr<<endl;
 	auto label=indstr.substr(0,indstr.find('['));
 
 	auto ind=WithinBrackets(indstr,'[');
@@ -705,7 +705,7 @@ namespace HS{
 	  else//!
 	    ind=StringToNext(ind,"!");
 
-	  cout<<"ind "<<ind<<endl;
+	  //cout<<"ind "<<ind<<endl;
 	  gOrl=-1;
 	  pos=0;
 
@@ -809,7 +809,7 @@ namespace HS{
 	    }
 
 	  }
-	  cout<<"fandl "<< first <<" "<<last <<endl;
+	  //	  cout<<"fandl "<< first <<" "<<last <<endl;
 	  //look for dependents
 	  //Replace with < and >
 	  // if(first==-INT_MAX||last==INT_MAX){
@@ -845,7 +845,7 @@ namespace HS{
 	    }
 	  inde._currval=first;//initilaise current value
 	}//case range
-	cout<<"indices.push_back "<<inde._vals.size()<<endl;
+	//cout<<"indices.push_back "<<inde._vals.size()<<endl;
 	indices.push_back(inde);
 
 	++it;//next index label
@@ -870,10 +870,10 @@ namespace HS{
 
       _indices = indices;
       for(auto& ind: indices){
-	cout<<ind._label<<" ";
+	//cout<<ind._label<<" ";
 	_labels.push_back(ind._label);
       }
-      cout<<endl;
+      //cout<<endl;
 
       _tempVals.resize(_indices.size());
 
@@ -887,7 +887,7 @@ namespace HS{
 
     }
     bool ConsolidateIndex::getValues(int Nl){
-      cout<<"ConsolidateIndex::GetValues(uint Nl) "<<Nl<<endl;
+      //cout<<"ConsolidateIndex::GetValues(uint Nl) "<<Nl<<endl;
       if(Nl+1>=(int)_labels.size() )
 	return false; //terminate
 
