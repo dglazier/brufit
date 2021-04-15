@@ -33,10 +33,11 @@ namespace HS{
        cout<<Cut()<<""<<endl;
        fIDBranchName=other.fIDBranchName;
        fOutDir=other.fOutDir;
-       for(auto &parStr: other.fParString)
-	 LoadParameter(parStr);
+       //constants first so can overide parameters
        for(auto &conStr: other.fConstString)
 	 LoadConstant(conStr);
+       for(auto &parStr: other.fParString)
+	 LoadParameter(parStr);
        for(auto &varStr: other.fVarString)
 	 LoadVariable(varStr);
        for(auto &catStr: other.fCatString)
@@ -70,15 +71,16 @@ namespace HS{
       fOutDir=other.fOutDir;
       //fWS={"HSWS"};
       
+     //constants first so can overide parameters
+      for(auto &conStr: other.fConstString)
+	LoadConstant(conStr);
       for(auto &parStr: other.fParString)
-	 LoadParameter(parStr);
-       for(auto &varStr: other.fVarString){
+	LoadParameter(parStr);
+      for(auto &varStr: other.fVarString){
     	LoadVariable(varStr);
       }
-       for(auto &conStr: other.fConstString)
-	 LoadConstant(conStr);
-       for(auto &catStr: other.fCatString)
-	 LoadCategory(catStr);
+      for(auto &catStr: other.fCatString)
+	LoadCategory(catStr);
       for(auto &varStr: other.fAuxVarString)
     	LoadAuxVar(varStr);
       for(auto &formStr: other.fFormString)
@@ -172,7 +174,12 @@ namespace HS{
      ////////////////////////////////////////////////////////////
     /// Load a fit RooAbsReal class e.g s.LoadFunctionVar("RooRealSphHarmonic::leg2(CTh[0,-1,1],Phi[0,-3.141,3.141],2,1)"));
      void Setup::LoadFunctionVar(const TString& opt){
-       //check if already done this one
+  
+       auto parName=TString(opt(0,opt.First('(')));
+       if( ArgListContainsName(fConstants,parName) )
+	 return; //already loaded as constant (constants overide all else)
+
+      //check if already done this one
       if(std::find(fFuncVarString.begin(),fFuncVarString.end(),opt)!=fFuncVarString.end()) return;
       
       auto var=dynamic_cast<RooAbsReal*>(fWS.factory(opt));
@@ -194,6 +201,10 @@ namespace HS{
     /// Load a formulaVar e.g s.LoadFormula("name=@v1[1,0,2]+@v2[]");
     ///
     void Setup::LoadFormula(TString formu){
+      auto parName=TString(formu(0,formu.First('=')));
+      if( ArgListContainsName(fConstants,parName) )
+	return; //already loaded as constant (constants overide all else)
+
       fFormString.push_back(formu);
       //get formula name
       TString name=formu(0,formu.First("="));
@@ -326,6 +337,10 @@ namespace HS{
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
       std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+      //LoadConstants first so can overide parameters or functions with constants
+      auto cons = parse.GetConstants();
+      for(auto& con:cons)
+	LoadConstant(con);
       //Load Parameters
       auto pars = parse.GetParameters();
       for(auto& par:pars)
@@ -334,18 +349,19 @@ namespace HS{
       auto forms = parse.GetFormulas();
       for(auto& form:forms)
 	LoadFormula(form);
-      //LoadConstants
-      auto cons = parse.GetConstants();
-      for(auto& con:cons)
-	LoadConstant(con);
-       //LoadFunctionVars
+        //LoadFunctionVars
       auto funs = parse.GetFunctions();
       for(auto& fun:funs){
 	//	cout<<"Load Function var "<<fun<<endl;
 	LoadFunctionVar(fun);
 	
       }
-       
+      TString tpdf(pdfString);
+      tpdf.ReplaceAll(";ReDab_0_0_0_0","");
+      tpdf.ReplaceAll("H_0_0_0_0[0,-1,1]","H_0_0_0_0[1]");
+      pdfString=tpdf.Data();
+      
+     std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
       FactoryPDF(pdfString);
     }
     ///////////////////////////////////////////////////////////
