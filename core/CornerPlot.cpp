@@ -33,7 +33,9 @@ namespace HS{
   
       auto vars=setup->FitVars();
 
-      auto tree = mcmc->GetTree();
+      auto tree =mcmc->GetTree()->CopyTree("",""); //make a copy
+      RemoveNegativeInNames(tree);
+
       auto burnIn=mcmc->GetNumBurnInSteps();
 
       auto& pars = setup->ParsAndYields();
@@ -69,7 +71,7 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 		      
-		  TString DrawParInd1 = ipar->GetName();
+		  TString DrawParInd1 = CheckForNegatives(ipar->GetName());
 		  TString DrawParInd = DrawParInd1 + ">>";
 		  TString histname= "corner_";
 		  histname+=ipar->GetName();
@@ -104,8 +106,8 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 		  
-		  TString DrawPar = ipar->GetName();
-		  TString DrawPar2 = ipar2->GetName();
+		  TString DrawPar = CheckForNegatives(ipar->GetName());
+		  TString DrawPar2 = CheckForNegatives(ipar2->GetName());
 		  TString title = DrawPar + ":" + DrawPar2;
 		  TString Draw2D = DrawPar + ":" + DrawPar2 + ">>";
 		  TString histname="corner2_";
@@ -150,7 +152,8 @@ namespace HS{
       canvas->Update();
       canvas->Draw();
     
-      
+      delete tree;
+ 
       
       //change style back
       gStyle=defStyle;

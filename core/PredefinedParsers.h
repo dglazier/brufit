@@ -42,12 +42,14 @@ namespace HS{
       mp.AddFunctionTemplate("RooHSSphHarmonicIm","ImY_*_*(*,*,Y_*_*)");
 
       //Create   RooHSSphHarmonic functions, this only needs done here because RooHSSphHarmonic are not created by the parser otherwise...
+      //Note extra factor 2 when M!=0 (tau in paper)
       mp.ConstructPDF(mp.ReplaceSummations(Form("SUM(L[0|%d],M[%d|%d>-L-1<L+1!0]){Y_L_M(%s,%s,L,M,2)}+SUM(L[0|%d]){Y_L_0(%s,%s,L,0,1)}",Lmax,Mmin,Mmax,cth.Data(),phi.Data(),Lmax,cth.Data(),phi.Data())));
 
 
       
       mp.AddFormula(Form("COS2PHI=@%s[]*cos(2*@%s[])",Pol.Data(),phiPol.Data()));
       mp.AddFormula(Form("SIN2PHI=-@%s[]*sin(2*@%s[])",Pol.Data(),phiPol.Data()));
+       //mp.AddFormula(Form("SIN2PHI=@%s[]*sin(2*@%s[])",Pol.Data(),phiPol.Data()));
 
       for(Int_t iL=0;iL<=Lmax;iL++)
 	mp.AddConstant(Form("K_%d[%lf]",iL,TMath::Sqrt(2*iL+1.)/TMath::Sqrt(4*TMath::Pi())));
@@ -89,7 +91,7 @@ namespace HS{
 
 
       for(Int_t iL=0;iL<=Lmax;iL++)
-	mp.AddConstant(Form("K_%d[%lf]",iL,TMath::Sqrt(2*iL+1.)/TMath::Sqrt(4*TMath::Pi())));
+	mp.AddConstant(Form("K_%d[%lf]",iL,(2*iL+1.)/(4*TMath::Pi())));
       
       
       return mp;
@@ -126,7 +128,7 @@ namespace HS{
       
       auto LMAX=Lmax1>Lmax2?Lmax1:Lmax2;
       for(Int_t iL=0;iL<=LMAX;iL++)
-	mp.AddConstant(Form("K_%d[%lf]",iL,TMath::Sqrt(2*iL+1.)/TMath::Sqrt(4*TMath::Pi())));
+	mp.AddConstant(Form("K_%d[%lf]",iL,(2*iL+1.)/(4*TMath::Pi())));
       
       return mp;
       
@@ -173,7 +175,7 @@ namespace HS{
       
       auto LMAX=Lmax1>Lmax2?Lmax1:Lmax2;
       for(Int_t iL=0;iL<=LMAX;iL++)
-	mp.AddConstant(Form("K_%d[%lf]",iL,TMath::Sqrt(2*iL+1.)/TMath::Sqrt(4*TMath::Pi())));
+	mp.AddConstant(Form("K_%d[%lf]",iL,(2*iL+1.)/(4*TMath::Pi())));
       
       return mp;
       

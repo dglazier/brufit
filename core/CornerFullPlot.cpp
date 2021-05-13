@@ -34,8 +34,9 @@ namespace HS{
  
       auto vars=setup->FitVars();
 
-      auto tree = mcmc->GetTree();
-
+      auto tree =mcmc->GetTree()->CopyTree("",""); //make a copy
+      RemoveNegativeInNames(tree);
+      
       auto& pars = setup->ParsAndYields();
       //  std::cout<<"The Parameters are: "<<std::endl;
       Int_t Npars = pars.size();
@@ -67,7 +68,7 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 
-		  TString DrawParInd1 = ipar->GetName();
+		  TString DrawParInd1 = CheckForNegatives(ipar->GetName());
 		  TString histname= TString("cornerf_")+ipar->GetName();
 		  DrawParInd1+=">>";
 		  DrawParInd1+=histname;
@@ -94,8 +95,8 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 		      
-		  TString DrawPar = ipar->GetName();
-		  TString DrawPar2 = ipar2->GetName();
+		  TString DrawPar = CheckForNegatives(ipar->GetName());
+		  TString DrawPar2 = CheckForNegatives(ipar2->GetName());
 
 		  Double_t maxY =  tree->GetMaximum(DrawPar);		 
 		  Double_t minY =  tree->GetMinimum(DrawPar);
@@ -107,7 +108,7 @@ namespace HS{
 		  histname+=ipar2->GetName();
 
 		  auto hist =  new TH2F{histname,histname, 50,minX, maxX,50, minY,maxY };
-		  TString Draw2D = DrawPar + ":" + DrawPar2;
+		  // TString Draw2D = DrawPar + ":" + DrawPar2;
 		  TString Draw2D1 = DrawPar + ":" + DrawPar2 + ">>"+histname;
 		      
 		  tree->Draw(Draw2D1,"","col");
@@ -137,11 +138,15 @@ namespace HS{
       canvas->Update();
       canvas->Draw();
 
+      delete tree;
  
       //change style back
       gStyle=defStyle;
 
     }//CornerFullPlot
+
+
+
   }//FIT
 }//HS
 

@@ -61,7 +61,8 @@ namespace HS{
 	
 	//loop over mcmc tree samples
 	Int_t Nentries = tree->GetEntries();
-	Int_t NthDraw = (Nentries-burnIn)/25;
+	Int_t NthDraw = (Nentries-burnIn)/10;
+	//Int_t NthDraw = (Nentries-burnIn)/1;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
 	Int_t param_index = 0;
@@ -76,7 +77,6 @@ namespace HS{
 		for(RooAbsArg* ipar : pars)
 		  {//Loop over parameters
 		    
-		    //std::cout<<"MCMCPlotResults "<<param_index<<"  "<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		    string string1 = ipar->GetName();	     
 		    string string2 = "_str";
 		    string ipar_str = string1 + string2;
@@ -84,36 +84,31 @@ namespace HS{
 		    if(ipar_str.find("Yld") != std::string::npos)
 		      {//If yield, Set Yields
 			setup->SetYldVal(ipar->GetName(), params[param_index]);
-			//	std::cout<< ipar->GetName()<<"  " <<params[param_index]<<std::endl;
 		      }//Close if yields
 		    else
 		      {//If par, Set pars
 			setup->SetParVal(ipar->GetName(), params[param_index]);
-			//	std::cout<<ipar->GetName()<<"  "<<params[param_index]<<std::endl;
 		      }//Close if pars
-		    
-		    if(param_index==(Npars-1))
-		      {//if the parameters have all been set
-			//plot the model
-			setup->TotalPDF();
-			auto model = setup->Model();
-			model->plotOn(frame,LineColor(kRed), LineWidth(1)) ;
-			const auto& pdfs = setup->PDFs();
-			if(pdfs.getSize()>1){
-			  for (Int_t ic = 0; ic<pdfs.getSize(); ic++)
-			    {
-			      model->plotOn(frame, Components(pdfs[ic]),LineWidth(1), LineColor(ic%8+3));
-			    }
-			}//if more than 1
-			frame->Draw();
-		      }
-		    //		    std::cout<<"next param "<<param_index<<std::endl;
 		    param_index++;	 
+		    
 		  }//Close loop over params
-		//	std::cout<<"done all  param "<<param_index<<std::endl;
-				
 
-	      }//Close if selection of entries    
+		//in case use RooHSEventsPDF need to reset
+		// histogram integral cache,
+		// so recalculated for new parameters
+		const auto& pdfs = setup->PDFs();
+		if(pdfs.getSize()>0){
+		  for (Int_t ic = 0; ic<pdfs.getSize(); ic++)
+		    {
+		      if(dynamic_cast<RooHSEventsPDF*>(&pdfs[ic]))dynamic_cast<RooHSEventsPDF*>(&pdfs[ic])->ResetHistIntegrals();
+		    }
+		}
+		model->plotOn(frame,LineColor(kRed), LineWidth(1)) ;
+
+
+	      }//Close if selection of entries
+	    frame->Draw();
+
 	  }//Close loop over entries
 	
 	

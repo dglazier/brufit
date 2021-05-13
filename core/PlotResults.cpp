@@ -95,6 +95,26 @@ namespace HS{
     void PlotResults::Write(){
       fCanvases->Write();
     }
+
+    TString PlotResults::CheckForNegatives(TString name){
+      if(name.Contains('-')){
+	name.ReplaceAll("-","neg");
+      }
+      return name;
+    }
+    
+    void PlotResults::RemoveNegativeInNames(TTree* tree){
+      
+      auto branches=tree->GetListOfBranches();
+      for(auto br:*branches){
+	TString name=br->GetName();
+	if(name.Contains('-')){
+	  name.ReplaceAll("-","neg");
+	  dynamic_cast<TBranch*>(br)->SetName(name);
+	}
+      }
+      
+    }
   }//namespace FIT
 
 }//namespace HS

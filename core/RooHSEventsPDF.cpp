@@ -294,6 +294,7 @@ namespace HS{
       else{
 	if(fHistIntegrals.size()==0)
 	  HistIntegrals(rangeName);
+	
 	Int_t vindex=code-2;
 	Double_t vval=*(fProxSet[vindex]);
 	integral=fHistIntegrals[vindex].Interpolate(vval);
@@ -358,8 +359,9 @@ namespace HS{
 			}
 		cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << endl;
 		}
-		else
-			return 0;
+		else{
+		  return 0;
+		}
 		return integral;
     }
     
@@ -369,7 +371,7 @@ namespace HS{
       Long64_t ilow=0;
       Long64_t ihigh=0;
       SetLowHighVals(ilow,ihigh);
-      cout<<"RooHSEventsPDF::HistIntegrals"<<endl;
+      // cout<<"RooHSEventsPDF::HistIntegrals"<<endl;
       for(Int_t i=0;i<fNvars;i++){
 	auto  arg=dynamic_cast<const RooRealVar*>(&fProxSet[i]->arg());
 	if(arg)
@@ -381,8 +383,9 @@ namespace HS{
 	if(!CheckRange(TString(rangeName).Data())){continue;}
 	accepted++;
 	Double_t value=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
-	for(Int_t vindex=0;vindex<fNvars;vindex++)
+	for(Int_t vindex=0;vindex<fNvars;vindex++){
 	  fHistIntegrals[vindex].Fill(fvecReal[fTreeEntry*fNvars+vindex],value/fHistIntegrals[vindex].GetBinWidth(1));
+	}
       }
       //normalise to number of accepted events
       for(Int_t vindex=0;vindex<fNvars;vindex++)
@@ -432,8 +435,11 @@ namespace HS{
       for(Int_t i=1;i<fNpars+1;i++)
 	if(fLast[i]!=(*(fParSet[i-1]))) hasChanged=true;
       if(hasChanged){
-	for(Int_t i=1;i<fNpars+1;i++)
+	for(Int_t i=1;i<fNpars+1;i++){
+	  std::cout<<"RooHSEventsPDF check change "<<fParSet[i-1]->GetName()<<" "<<fLast[i]<<" "<<*(fParSet[i-1])<<std::endl;
 	  fLast[i]=*(fParSet[i-1]);
+	 
+	}
       }
       return hasChanged;
     }

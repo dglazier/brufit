@@ -200,6 +200,7 @@ namespace HS{
       Bool_t HasMCGenTree(){return fHasMCGenTree;}
       void Plotting(Bool_t plotting=kTRUE){fIsPlotting=plotting;}
       void SetHistIntegrals(vector<TH1F> &hists){fHistIntegrals=hists;}
+      void ResetHistIntegrals(){fHistIntegrals.clear();}
 
       
       ClassDefOverride(HS::FIT::RooHSEventsPDF,1); // Yor description goes here...

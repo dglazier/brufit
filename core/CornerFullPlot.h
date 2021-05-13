@@ -24,7 +24,7 @@ namespace HS{
       CornerFullPlot& operator = (CornerFullPlot&& other) = default;
 
     protected:
-
+       
     private:
 
     };

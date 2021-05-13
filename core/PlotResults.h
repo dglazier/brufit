@@ -33,6 +33,9 @@ namespace HS{
     protected:
       std::unique_ptr<TList> fCanvases{new TList()};
       std::vector<roohist_uptr> fRooHists;
+      
+      void RemoveNegativeInNames(TTree* tree);
+      TString CheckForNegatives(TString name);
 
     private:
 
