@@ -30,7 +30,6 @@ namespace HS{
        fAddCut=other.fAddCut;
        fVarCut=""; //contructed from LoadAuxVar
        fDataOnlyCut=other.fDataOnlyCut;
-       cout<<Cut()<<""<<endl;
        fIDBranchName=other.fIDBranchName;
        fOutDir=other.fOutDir;
        //constants first so can overide parameters
@@ -134,7 +133,7 @@ namespace HS{
       if( ArgListContainsName(fConstants,parName) )
 	return; //already loaded
       
-      //  cout<<"LoadParameterOnTheFly   "<<opt<<endl;
+        cout<<"LoadParameterOnTheFly   "<<opt<<endl;
        //replaceAll -ve signs in name with "neg"
       TString varname = opt;
 
@@ -344,7 +343,7 @@ namespace HS{
       //Load Parameters
       auto pars = parse.GetParameters();
       for(auto& par:pars)
-	LoadParameter(par);
+	LoadParameterOnTheFly(par);
       //LoadFormulas
       auto forms = parse.GetFormulas();
       for(auto& form:forms)
@@ -371,7 +370,18 @@ namespace HS{
       //take a copy of the pdf from the workspace, so no ownership issues
       auto* pdf=reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
       fPDFs.add(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
-      fParameters.add(*(fPDFs.find(opt)->getParameters(DataVars())));// get parameters not in fit variables
+
+      //extra parameters
+      // get parameters not in fit variables
+      auto dataVarsPdf=*(fPDFs.find(opt)->getParameters(DataVars()));
+      dataVarsPdf.Print("v");
+      for(auto& extra:dataVarsPdf){
+	if(fParameters.find(extra->GetName()))
+	  continue;
+	else
+	  fParameters.add(*extra);
+      }
+      
       fParameters.remove(fConstants);
       fParameters.remove(fFormulas);
       //     fParameters.add(*(fPDFs.find(opt)->getParameters(MakeArgSet(fFitVars,fFitCats))));// get parameters not in fit variables 
@@ -523,33 +533,82 @@ namespace HS{
       fParsAndYields.add(fYields);
       return fParsAndYields;
     }
+   RooArgSet& Setup::NonConstParsAndYields(){
+     fNCParsAndYields.clear();
+     for(auto par:fParameters){
+       if(par->isConstant()==false)
+	 fNCParsAndYields.add(*par);
+     }
+     for(auto par:fYields){
+       if(par->isConstant()==false)
+	 fNCParsAndYields.add(*par);
+     }
+     return fNCParsAndYields;
+   }
 
+    void Setup::OrganiseConstraints(){
+
+      _parConstraints.clear();
+      //Loop over paramters to see if they have constraints
+      for(Int_t ip=0;ip<fParameters.getSize();ip++){
+	RooRealVar *par=(dynamic_cast<RooRealVar*>(&fParameters[ip]));
+	//check if par this is fxed constant.
+	if(par->isConstant()){
+	  _parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
+	  continue;
+	}
+	//Look through constraints to see if one is defined for this parameter
+	Bool_t hadCon=kFALSE;
+	for(Int_t ic=0;ic<fConstraints.getSize();ic++){
+	  
+	  RooAbsPdf *pdfCon=(dynamic_cast<RooAbsPdf*>(&fConstraints[ic]));
+	  auto obs=pdfCon->getObservables(fParameters);
+	  if(obs->contains(*par)){ //does it contain par?
+
+	    auto randCons=std::unique_ptr<RandomConstrained>{new RandomConstrained{pdfCon,par,1000}};
+	    _parConstraints.push_back(std::move(randCons));
+	  // delete obs;
+	    hadCon=kTRUE;
+	    break;	    
+	  }
+	  delete obs;
+	}
+	//no constraint for this parameter
+      if(hadCon==kFALSE)_parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
+
+	
+      }
+    }
+    
     void Setup::RandomisePars(){
-      //randomise fit parameters
+      if(_parConstraints.empty()) OrganiseConstraints();
+      if(_parConstraints.size()!=fParameters.getSize()){
+	std::cerr<<"Setup::RandomisePars() constraints mismatch "<<fParameters.getSize()<<" parameters with "<<_parConstraints.size()<<std::endl;
+	exit(0);
+      }
+         //randomise fit parameters
       for(Int_t ip=0;ip<fParameters.getSize();ip++){
 	RooRealVar *par=(dynamic_cast<RooRealVar*>(&fParameters[ip]));
 	//check if par this is fxed constant.
 	if(par->isConstant()) continue;
-	//Look through constraints to see if one is defined for this parameter
-	Bool_t hadCon=kFALSE;
-	for(Int_t ic=0;ic<fConstraints.getSize();ic++){
-	  RooAbsPdf *pdfCon=(dynamic_cast<RooAbsPdf*>(&fConstraints[0]));//get RooPdf constraint
-	  if(pdfCon->getObservables(fParameters)->contains(*par)){ //does it contain par?
+
+	if(_parConstraints[ip].get()!=nullptr){
+	
 	    //Yes, must generate random number from constraint
-	    RooArgSet setPar(*par); //make an argset from this 1 par as needed for..
-	    RooDataSet *oneEv=pdfCon->generate(setPar,1); //gen 1 event
-	    const RooArgSet* theEv = oneEv->get(); //get the event
-	    theEv->getRealValue(par->GetName()); //get par value of event
-	    hadCon=kTRUE;
-	    delete oneEv;
-	    break;//can only have 1!	
-	  }
+	  // RooArgSet setPar(*par); //make an argset from this 1 par as needed for..
+	  //RooDataSet *oneEv=_parConstraints[ip]->generate(setPar,1); //gen 1 event
+	    //const RooArgSet* theEv = oneEv->get(); //get the event
+	    // par->setVal(theEv->getRealValue(par->GetName())); //get par value of event
+	    //setPar.removeAll();
+	    //delete oneEv;
+	  par->setVal(_parConstraints[ip]->get());
 	}
+      
 	//If there was no constraint to select from just take random in range 
-	if(!hadCon)par->setVal(gRandom->Uniform(par->getMin(""),par->getMax("")));
+	else par->setVal(gRandom->Uniform(par->getMin(""),par->getMax("")));
       }//end Paramter loop
     }
-  
+ 
     ////////////////////////////////////////////////////////////
     RooStats::ModelConfig*  Setup::GetModelConfig(){
       auto modelConfig =new RooStats::ModelConfig(&fWS);
