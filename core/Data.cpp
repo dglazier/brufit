@@ -115,7 +115,9 @@ namespace HS{
      while(auto* arg=dynamic_cast<RooAbsArg*>(iter()))	
        rawtree->SetBranchStatus(arg->GetName(),true);	
 
-     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(),fInWeightName});
+     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{
+       "DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(), fInWeightName==""?0:fInWeightName.Data()
+     });
 
      fFiledTrees[iset].reset(); //delete rawtree 
      if(fInWeights.get()){
