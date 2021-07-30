@@ -97,8 +97,11 @@ namespace HS{
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
 
       if(fChainData){
+	if(fTreeMCMCfile){ delete fTreeMCMCfile; fTreeMCMCfile=nullptr;}
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	
+	TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
+	fTreeMCMCfile = new TFile(fileName,"RECREATE");
  	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
 	delete fChainData; fChainData=nullptr;
       }  
@@ -330,8 +333,8 @@ namespace HS{
     ///////////////////////////////////////////////////////////////
     file_uptr RooMcmc::SaveInfo(){
       
-      TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
-      file_uptr file(TFile::Open(fileName,"recreate"));
+      file_uptr file(fTreeMCMCfile);
+      fTreeMCMCfile->cd();
       Result();
       
       fTreeMCMC->Write();

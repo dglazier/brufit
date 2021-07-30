@@ -106,6 +106,7 @@ namespace HS{
   
       RooStats::MarkovChain* fChain =nullptr; //!
       RooDataSet* fChainData=nullptr;//!
+      TFile* fTreeMCMCfile=nullptr;//!
       TTree* fTreeMCMC=nullptr;//!
       Bool_t fCorrectForWeights=kTRUE;
       RooArgSet* fParams=nullptr;//!
