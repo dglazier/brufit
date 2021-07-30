@@ -22,6 +22,7 @@ namespace HS{
 	for(auto br:_formBranches)
 	  delete br;
       }
+      if(fTreeMCMCfile){ fTreeMCMCfile->Close(); delete fTreeMCMCfile;}
     }
     
     void RooMcmc::Run(Setup &setup,RooAbsData &fitdata){
@@ -97,7 +98,6 @@ namespace HS{
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
 
       if(fChainData){
-	if(fTreeMCMCfile){ delete fTreeMCMCfile; fTreeMCMCfile=nullptr;}
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	
 	TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
