@@ -193,7 +193,7 @@ namespace HS{
     void FitManager::LoadPrevResult(const TString& resultDir,const TString& resultMinimiser){
       TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+resultMinimiser+".root";
 
-     
+      cout<<" FitManager::LoadPrevResult open file "<<resultFile<<endl;
       std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
       std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};
       //fitFile.reset();

@@ -21,7 +21,8 @@ namespace HS{
 //I think this fileName will need to be constructed in the  void FitManager::PlotDataModel() function and passed to the MCMCPlotResults :
     MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc) : PlotResults(setup,data,tag)
     {
-     
+         
+    
     RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
@@ -42,7 +43,8 @@ namespace HS{
     vector<Double_t> params(pars.size());
     int pindex=0;
     for(RooAbsArg* ipar : pars){ //only need to set branch address once
-      tree->SetBranchAddress(ipar->GetName(), &params[pindex++]);
+      if(ipar->isConstant())tree->SetBranchAddress(ipar->GetName(), &params[pindex]);
+      ++pindex;
     }
  
     for(auto var : vars)
@@ -87,7 +89,8 @@ namespace HS{
 		      }//Close if yields
 		    else
 		      {//If par, Set pars
-			setup->SetParVal(ipar->GetName(), params[param_index]);
+			// constants not kept in tree
+			if(ipar->isConstant()==kFALSE)setup->SetParVal(ipar->GetName(), params[param_index]);
 		      }//Close if pars
 		    param_index++;	 
 		    

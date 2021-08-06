@@ -117,12 +117,11 @@ namespace HS{
 
     TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin){
           
-      auto pars = fSetup->ParsAndYields();
+      auto pars = fSetup->NonConstParsAndYields();
       Int_t Npars = pars.size();
       Int_t Nentries = tree->GetEntries()-burnin;
       Int_t param_index=0;     
       vector<Double_t> params(Npars);
-      int pindex=0;
       Double_t data[Npars];
       //Int_t NburnC = fNumBurnInStepsCov;
   
@@ -130,11 +129,16 @@ namespace HS{
       //Loop over parameters of the model and set values from the tree
       //Needed for RobustEstimator
       //Only needed once
+      int pindex=0;
       for(RooAbsArg* ipar : pars)
 	{
-	  tree->SetBranchAddress(ipar->GetName(), &params[pindex++]); 
+	  if(ipar->isConstant()) continue;
+	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
+	    pindex++;
+	  }
 	}
-     
+      Npars=pindex; //should be = number of branches in tree, protects for constant pars
+      cout<<"Robust "<<Nentries<<" "<<Npars<<" "<<tree->GetEntries()<<" "<<burnin<<endl;
       //Create instance of TRobustEstimator
       TRobustEstimator r(Nentries,Npars);
 
@@ -154,7 +158,7 @@ namespace HS{
 	}
      
       r.Evaluate(); //Necessary to calculate RE properly
-      const TMatrixDSym* covMatSym;
+      const TMatrixDSym* covMatSym=nullptr;
       covMatSym = r.GetCovariance();
       covMatSym->Print();
       //covMatSym is the symmetric covariance matrix to be used in the proposal function
@@ -450,13 +454,14 @@ namespace HS{
       auto saveBurn=fNumBurnInSteps;
       fNumBurnInSteps=fNumBurnInStepsThenCov;
 
-      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
+      //      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
       auto divideNorm = 1./fNorm;
       covMat*= divideNorm;
  
         
       ProposalHelper ph;
-      ph.SetVariables(fSetup->ParsAndYields());
+      ph.SetVariables(fSetup->NonConstParsAndYields());
       ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
 
 

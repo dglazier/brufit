@@ -39,7 +39,8 @@ namespace HS{
 
       for (RooAbsArg* ipar : pars)
 	{//Loop over parameters
-	  
+	  if(ipar->isConstant()==kTRUE) continue;
+
 	  Double_t entryTree[Nentries];
 	  Double_t lag[Nentries]; 
 	  Double_t autocorr[Nentries];	

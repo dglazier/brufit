@@ -60,17 +60,17 @@
   Generator.SetUp().LoadConstant("H_0_0_0_0[2]");//Normalisation constant
   string sum;
   sum +="SUM(L[0|2],l[0|2],M[0|2<L+1],m[0|2<L+1<l+1]){K_l*K_L*H_l_m_L_M[0,-1,1]*ReDab_l_m_L_M}";
-  sum +="+ SUM(L[0|2],l[0|2],M[0|2<L+1],m[0|2<L+1<l+1]){K_l*K_L*H_l_m_L_M[0,-1,1]*ResymDab_l_m_L_M}";
+  sum +="+ SUM(L[0|2],l[0|2],M[0|2<L+1],m[0|2<L+1<l+1]){K_l*K_L*H_l_m_L_M*ResymDab_l_m_L_M}";
 
   Generator.SetUp().ParserPDF(sum,parser);
  
   Generator.SetUp().LoadSpeciesPDF("Moments",40000); //2000 events
 
   //Set some moment values to generate toy data with
-  Generator.SetUp().WS().var("H_2_2_2_2")->setVal(0.6);
+  Generator.SetUp().WS().var("H_2_2_2_2")->setVal(0.3);
   Generator.SetUp().WS().var("H_1_0_1_0")->setVal(0.2);
-  Generator.SetUp().WS().var("H_2_0_0_0")->setVal(-0.4);
-  
+  Generator.SetUp().WS().var("H_2_0_0_0")->setVal(-0.2);
+  cout<<" value "<<Generator.SetUp().WS().function("ResymDab_0_0_0_0")->getVal()<<endl;exit(0);
   //"Simulated" data to project spherical harmonic distributions onto
   Generator.LoadSimulated("ToyData","flatDWignerProductSym/Toy0.root","Moments");
 
@@ -83,10 +83,11 @@
   
   //now create a fitter from the toymanager
   auto Fitter=Generator.Fitter();
-  Fitter->SetMinimiser(new RooMcmcSeq(5000,500,100));
+  //  Fitter->SetMinimiser(new RooMcmcSeq(5000,500,100));
  
   //And fit the sample data
   gBenchmark->Start("fit");
+  //Proof::Go(Fitter,1);
   Here::Go(Fitter);
   gBenchmark->Stop("fit");
   gBenchmark->Print("fit");
