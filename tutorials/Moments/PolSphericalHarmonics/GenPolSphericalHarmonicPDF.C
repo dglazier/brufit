@@ -1,6 +1,8 @@
 {
   //////////////////////////////////////////////////////////////////
-  //Create "Simulated data for generator and normalisation integral
+  //Create "Simulated data" for generator and normalisation integral
+  //Here it is just flar distributions in all variables
+  //no acceptance effects are included
   ToyManager Flat{1};
   Flat.SetUp().SetOutDir("flatSphHar/");
 
@@ -21,7 +23,7 @@
   
   cout<<" GENERATED pseudo simulated events "<<endl<<endl;
   //////////////////////////////////////////
-  //Creaet pseuso data for fitting
+  //Create pseudo data for fitting
   ToyManager Generator{1};
   Generator.SetUp().SetOutDir("genSphHar/");
   Generator.SetUp().LoadVariable("CosTh[-1,1]");
@@ -42,11 +44,16 @@
   //PolarisedSphHarmonicMoments function
 
   string sum = "H_0_0_0[1]"; //constant == 1;
+  //SUM(L[1|4]) => Sum over indice L between 1->4
+  //H_0_L_M[0,-1,1] => create parameters e.g. H_0_1_1 initial value 0, range -1 to 1
+  //M[0|4<L+1] sum over M up to 4 but <= L+1
+  //COS2PHI => formula defined in  PolarisedSphHarmonicMoments
+  //ReY_L_M(CosTh,Phi,Y_L_M)} => real part of Y^M_L a function of CosTh, Phi
   sum +=       "+ SUM(L[1|4],M[0|4<L+1]){H_0_L_M[0,-1,1]*K_L*ReY_L_M(CosTh,Phi,Y_L_M)}";
   sum +=       "+ SUM(L[0|4],M[0|4<L+1]){H_1_L_M[0,-1,1]*K_L*ReY_L_M(CosTh,Phi,Y_L_M)*COS2PHI}";
   sum+=        "+ SUM(L[1|4],M[1|4<L+1]){H_2_L_M[0,-1,1]*K_L*ImY_L_M(CosTh,Phi,Y_L_M)*SIN2PHI}";
 
-  
+  //load the sum string into a brufit pdf
   Generator.SetUp().ParserPDF(sum,parser);
   Generator.SetUp().LoadSpeciesPDF("SphHarmonicMoments",100000); //100000 events
 
@@ -71,7 +78,9 @@
   //And fit the sample data
   // Fitter->SetUp().AddFitOption(RooFit::NumCPU(4));
   gBenchmark->Start("fit");
+  //  Fitter->SetMinimiser(new RooMcmcSeq(1000,500,100));
   Here::Go(Fitter);
+  //Proof::Go(Fitter,1);
   gBenchmark->Stop("fit");
   gBenchmark->Print("fit");
 
