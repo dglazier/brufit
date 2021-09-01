@@ -29,7 +29,7 @@ namespace HS{
       ToyManager(ToyManager&&)=default;
       ~ToyManager() override =default;
       ToyManager& operator=(const ToyManager& other) = default;
-      ToyManager& operator=(ToyManager&& other) = default;
+      ToyManager& operator=(ToyManager&& other) = delete;
       
       Bool_t Run() override;
       void SaveResults() override;

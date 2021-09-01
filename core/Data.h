@@ -27,7 +27,7 @@ namespace HS{
   namespace FIT{
 
     using strings_t = std::vector<TString>;
-    using weights_uptr = std::unique_ptr<HS::FIT::Weights>;
+    using weights_ptr = std::shared_ptr<HS::FIT::Weights>;
     
     class FitData : public TObject {
       
@@ -118,15 +118,15 @@ namespace HS{
       
 
       filedtrees_t fFiledTrees;
-      std::unique_ptr<BootStrapper> fBootStrap;//!;
+      std::shared_ptr<BootStrapper> fBootStrap;//!;
 
       Int_t fNBoots=-1;
       Int_t fNToys=-1;
       
-      weights_uptr fInWeights;//!
+      weights_ptr fInWeights;//!
       WeightsConfig fWgtsConf;
 
-      std::unique_ptr<RooRealVar> fWeightVar;//!
+      std::shared_ptr<RooRealVar> fWeightVar;//!
       
       ClassDefOverride(HS::FIT::DataEvents,1);
      };

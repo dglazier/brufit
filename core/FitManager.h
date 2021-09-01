@@ -43,7 +43,7 @@ namespace HS{
       FitManager(FitManager&&)=default;
       ~FitManager() override =default;
       FitManager& operator=(const FitManager& other);
-      FitManager& operator=(FitManager&& other) = default;
+      FitManager& operator=(FitManager&& other) = delete;
 
       Setup *PointerSetUp() {return &fSetup;};
       Setup &SetUp() {return fSetup;};

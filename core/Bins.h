@@ -52,14 +52,13 @@ namespace HS{
 
     public:
     
-    Bins()  = default;;
+      Bins()  = default;;
       Bins(const TString& name,const TString& filename);
       Bins(const Bins& other, const char* name=nullptr);
- 
+      
       Bins(const TString& name);
       ~Bins() override;
-
-      Bins(const Bins& other)=default;
+      
       Bins(Bins&&)=default;
       Bins& operator=(const Bins& other)= default;
       Bins& operator=(Bins&& other) = default;

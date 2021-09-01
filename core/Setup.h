@@ -61,7 +61,7 @@ namespace HS{
       Setup(Setup&&)=default;
       ~Setup() override{if(fModel) delete fModel;fModel=nullptr;}
       Setup& operator=(const Setup& other);
-      Setup& operator=(Setup&& other) = default;
+      Setup& operator=(Setup&& other) = delete;//because RooWorkSpace
 
 
       void FactoryPDF(TString opt);

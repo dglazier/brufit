@@ -1,3 +1,5 @@
+#pragma once
+
 #include "ComponentsPdfParser.h"
 #include "TString.h"
 //#include ""
