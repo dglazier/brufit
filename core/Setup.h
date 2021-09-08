@@ -133,7 +133,8 @@ namespace HS{
       RooArgList& Constants() {return fConstants;}
       RooArgList& Formulas() {return fFormulas;}
       RooArgList& ParameterFormulas() {return fParameterFormulas;}
-      const RooArgList& PDFs() const  {return fPDFs;}
+      RooArgList& PDFs()   {return fPDFs;}
+      const RooArgList& constPDFs()   const {return fPDFs;}
       RooArgList& Constraints(){return fConstraints;}
 
       Double_t SumOfYields();

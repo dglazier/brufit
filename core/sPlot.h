@@ -51,6 +51,7 @@ namespace HS{
     protected:
       
       void WeightedTree();
+      Bool_t ZeroYieldCheck();
       
     private:
       splot_shptr fSPlot; //!sPlot object
@@ -58,6 +59,9 @@ namespace HS{
       tree_shptr fWeightedTree;//!
       filed_shptr fWeightedFiledTree;//!
 
+      TString fSingleYield;
+      std::vector<TString> fZeroYields;
+      
       ClassDefOverride(HS::FIT::sPlot,1);
     };
     

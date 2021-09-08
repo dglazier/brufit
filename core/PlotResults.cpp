@@ -37,7 +37,7 @@ namespace HS{
 	RooPlot* frame = var->frame();
        	data->plotOn(frame, DataError(RooAbsData::SumW2) ) ; 
 
-	const auto& pdfs = setup->PDFs();
+	const auto& pdfs = setup->constPDFs();
 
 	for(Int_t ic=0;ic<pdfs.getSize();ic++)
 	  model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(1E-2));
