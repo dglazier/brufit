@@ -59,8 +59,8 @@ namespace HS{
       tree_shptr fWeightedTree;//!
       filed_shptr fWeightedFiledTree;//!
 
-      TString fSingleYield;
-      std::vector<TString> fZeroYields;
+      TString fSingleYield;//!
+      std::vector<TString> fZeroYields;//!
       
       ClassDefOverride(HS::FIT::sPlot,1);
     };

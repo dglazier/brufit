@@ -22,13 +22,13 @@ namespace HS{
  
       //Note sPlot is much (10X) faster with tree store
       //Normal fit is 2X faster with vector...
-      // RooAbsData::setDefaultStorageType(RooAbsData::Tree);
+      //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
       //auto* dataset =dynamic_cast<RooDataSet*>( fCurrDataSet->emptyClone());
       //dataset->append(*fCurrDataSet.get());
       //RooAbsData::setDefaultStorageType(RooAbsData::Vector);
 
       //Note at tested again with 6.24 and Vector store is now faster...
-      RooDataSet* dataset =fCurrDataSet.get();
+       RooDataSet* dataset =fCurrDataSet.get();
 
       
       auto *model=fCurrSetup->Model();
@@ -37,19 +37,16 @@ namespace HS{
        //sPlot
        cout<<"HS::FIT::sPlot::Run create sWeights "<<endl;
        fCurrSetup->Parameters().setAttribAll("Constant");
-       gBenchmark->Start("sPlot");
        fSPlot.reset(new RooStats::SPlot{"splot_fit", "sPlot Fit",
 	     *dataset,model,fCurrSetup->Yields()});
-       gBenchmark->Stop("sPlot");
-       gBenchmark->Print("sPlot");
-     
+      
        fCurrSetup->Parameters().setAttribAll("Constant",kFALSE);
 
        CreateWeights();
        
        // PlotDataModel();
 
-       delete dataset;
+       //delete dataset;
 
        return kTRUE;
    }
@@ -74,7 +71,7 @@ namespace HS{
 
 	}
     
-	//else Warning("sPlot::sPlot()"," total weights 0, fit did not converge. Make sure the non-sweight fit to fix parameters was succesful. No weights will be assigned for these events");
+      else Warning("sPlot::sPlot()"," total weights 0, fit did not converge. Make sure the non-sweight fit to fix parameters was succesful. No weights will be assigned for these events");
       
     }
 

@@ -482,7 +482,7 @@ namespace HS{
     void Setup::TotalPDF(){
   
       //if(fModel)fModel->Print();
-
+      if(fModel){delete fModel;}
       //Construct a total PDF whcih is the sum of the species PDFs
       fModel=new RooAddPdf(fName+"TotalPDF","total model",
 			   fPDFs, 
