@@ -22,8 +22,7 @@ namespace HS{
     MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc) : PlotResults(setup,data,tag)
     {
          
-    
-    RooHSEventsPDF::SetIsPlotting(kTRUE);
+     RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
 
@@ -39,11 +38,12 @@ namespace HS{
 
     //Start here
     auto& pars = setup->ParsAndYields();
-
+    RooArgSet* savePars=pars.snapshot();//make a copy
+    
     vector<Double_t> params(pars.size());
     int pindex=0;
     for(RooAbsArg* ipar : pars){ //only need to set branch address once
-      if(ipar->isConstant())tree->SetBranchAddress(ipar->GetName(), &params[pindex]);
+      if(ipar->isConstant()==kFALSE)tree->SetBranchAddress(ipar->GetName(), &params[pindex]);
       ++pindex;
     }
  
@@ -63,7 +63,8 @@ namespace HS{
 	
 	//loop over mcmc tree samples
 	Int_t Nentries = tree->GetEntries();
-	Int_t NthDraw = (Nentries-burnIn)/10;
+	//Int_t NthDraw = (Nentries-burnIn)/10;
+	Int_t NthDraw = 1;
 	//Int_t NthDraw = (Nentries-burnIn)/1;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
@@ -125,12 +126,14 @@ namespace HS{
 
     tree->ResetBranchAddresses();
 
-
-
+    savePars->Print("V");
+    setup->ParsAndYields().assignFast(*savePars);
+    delete savePars;
+    /*
     CornerFullPlot(setup, mcmc, fCanvases.get());
     CornerPlot(setup, mcmc, fCanvases.get());
     AutocorrPlot(setup, mcmc, fCanvases.get());
- 
+    */
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 
     }//MCMCPlotResults
