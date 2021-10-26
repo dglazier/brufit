@@ -22,6 +22,10 @@ namespace HS{
 	for(auto br:_formBranches)
 	  delete br;
       }
+      if(fChain!=nullptr){delete fChain;fChain =nullptr;}
+      if(fChainData!=nullptr) {delete fChainData;fChainData=nullptr;}
+      if(fTreeMCMC!=nullptr){delete fTreeMCMC;fTreeMCMC=nullptr;}
+ 
     }
     
     void RooMcmc::Run(Setup &setup,RooAbsData &fitdata){
@@ -159,12 +163,13 @@ namespace HS{
      
       r.Evaluate(); //Necessary to calculate RE properly
       const TMatrixDSym* covMatSym=nullptr;
-      covMatSym = r.GetCovariance();
+      covMatSym = r.GetCovariance(); //actually returns pointer to reference so do not delete
       covMatSym->Print();
       //covMatSym is the symmetric covariance matrix to be used in the proposal function
      
       TMatrixDSym covMatSymNorm=*covMatSym;
      
+      
       tree->ResetBranchAddresses();
       return covMatSymNorm;
     }

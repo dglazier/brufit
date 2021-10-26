@@ -187,7 +187,7 @@ namespace HS{
     }
 
     Bool_t sPlot::ZeroYieldCheck(){
-   auto& yields=fCurrSetup->Yields(); //get reference to yields
+      auto& yields=fCurrSetup->Yields(); //get reference to yields
       auto& pdfs=fCurrSetup->PDFs(); //get reference to yields
       bool removedPdf=false;    
       for(Int_t iy=0;iy<yields.getSize();iy++){

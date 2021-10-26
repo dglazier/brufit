@@ -15,13 +15,20 @@ namespace HS{
       fSetup=other.fSetup;
       fBinner=other.fBinner;
       //LoadData(other.GetDataTreeName(),other.GetDataFileNames());
-  
+      fPlotOptions=other.fPlotOptions;
+      fUsePrevResult=other.fUsePrevResult;
+      fPrevResultDir=other.fPrevResultDir;
+      fPrevResultMini=other.fPrevResultMini;
     }
 
     FitManager&  FitManager::operator=(const FitManager& other){
       cout<<"=============FitManager"<<endl;
       fSetup=other.fSetup;
       fBinner=other.fBinner;
+      fPlotOptions=other.fPlotOptions;
+      fUsePrevResult=other.fUsePrevResult;
+      fPrevResultDir=other.fPrevResultDir;
+      fPrevResultMini=other.fPrevResultMini;
       //LoadData(other.fData.ParentTreeName(),other.fData.FileNames());
       return *this;
     }

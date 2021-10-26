@@ -9,7 +9,7 @@
 namespace HS{
   namespace FIT{
     
-    PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag){
+    PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag,const TString& opt):fPlotOptions{opt}{
 
       using namespace RooFit;
       //cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;

@@ -153,10 +153,10 @@ namespace HS{
       {
 	if(dynamic_cast<RooMcmc*>(fMinimiser.get()))
 	  { 
-	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get())})));
+	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get()),fPlotOptions})));
 	  }
 	else
-	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
+	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),fPlotOptions})));
       }
       
       void RedirectOutput(const TString& log="");
@@ -166,6 +166,8 @@ namespace HS{
 	fCompiledMacros=std::move(macs);
       }
       strings_t GetCompiledMacros(){return fCompiledMacros;}
+
+      void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
       
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
@@ -198,6 +200,7 @@ namespace HS{
       TString fPrevResultDir;
       TString fPrevResultMini;
       
+      TString fPlotOptions;
 	
       ClassDefOverride(HS::FIT::FitManager,1);
      };

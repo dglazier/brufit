@@ -19,9 +19,8 @@ namespace HS{
 
 
 //I think this fileName will need to be constructed in the  void FitManager::PlotDataModel() function and passed to the MCMCPlotResults :
-    MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc) : PlotResults(setup,data,tag)
+    MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc,const TString& opt) : PlotResults(setup,data,tag,opt)
     {
-         
      RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
@@ -63,8 +62,8 @@ namespace HS{
 	
 	//loop over mcmc tree samples
 	Int_t Nentries = tree->GetEntries();
-	//Int_t NthDraw = (Nentries-burnIn)/10;
-	Int_t NthDraw = 1;
+	Int_t NthDraw = (Nentries-burnIn)/10;
+	//	Int_t NthDraw = 1;
 	//Int_t NthDraw = (Nentries-burnIn)/1;
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
@@ -129,11 +128,12 @@ namespace HS{
     savePars->Print("V");
     setup->ParsAndYields().assignFast(*savePars);
     delete savePars;
-    /*
-    CornerFullPlot(setup, mcmc, fCanvases.get());
-    CornerPlot(setup, mcmc, fCanvases.get());
-    AutocorrPlot(setup, mcmc, fCanvases.get());
-    */
+
+    cout<<"MCMCPlotResults plot options "<<fPlotOptions<<endl;
+    if(fPlotOptions.Contains("CORNERFULL"))CornerFullPlot(setup, mcmc, fCanvases.get());
+    if(fPlotOptions.Contains("CORNERZOOM"))CornerPlot(setup, mcmc, fCanvases.get());
+    if(fPlotOptions.Contains("AUTOCORR"))AutocorrPlot(setup, mcmc, fCanvases.get());
+    
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 
     }//MCMCPlotResults
