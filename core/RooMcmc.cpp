@@ -171,6 +171,13 @@ namespace HS{
      
       
       tree->ResetBranchAddresses();
+
+      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
+       
+      TFile* saveSeq=new TFile(saveName,"recreate");
+      tree->Write();
+      delete saveSeq;
+      
       return covMatSymNorm;
     }
 
