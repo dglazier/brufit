@@ -155,7 +155,7 @@ namespace HS{
 	  for (int param_index = 0; param_index<Npars; param_index++)
 	    { //Loop over parameters of the model
 	      //And set 'data' element
-	      data[param_index]=params[param_index];
+	      data[param_index]=params[param_index]+gRandom->Gaus(0,1E-3);
 	    }
 	 
 	  r.AddRow(data);//Appends data to RE
