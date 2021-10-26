@@ -42,8 +42,10 @@ namespace HS{
     vector<Double_t> params(pars.size());
     int pindex=0;
     for(RooAbsArg* ipar : pars){ //only need to set branch address once
-      if(ipar->isConstant()==kFALSE)tree->SetBranchAddress(ipar->GetName(), &params[pindex]);
-      ++pindex;
+      if(ipar->isConstant()==kFALSE){
+	tree->SetBranchAddress(ipar->GetName(), &params[pindex]);
+	++pindex;
+      }
     }
  
     for(auto var : vars)
