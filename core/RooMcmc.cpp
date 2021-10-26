@@ -7,8 +7,8 @@
 #include <RooStats/SequentialProposal.h>
 #include <RooStats/ProposalHelper.h>
 #include <TRobustEstimator.h>
+#include <TPrincipal.h>
 #include <TMatrixD.h>
-#include <TRandom.h>
 #include <TMatrixDSym.h>
 
 namespace HS{
@@ -119,7 +119,7 @@ namespace HS{
       return;
     }
     ////////////////////////////////////////////////////////
-
+    
     TMatrixDSym RooMcmc::MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin){
           
       auto pars = fSetup->NonConstParsAndYields();
@@ -156,7 +156,7 @@ namespace HS{
 	  for (int param_index = 0; param_index<Npars; param_index++)
 	    { //Loop over parameters of the model
 	      //And set 'data' element
-	      data[param_index]=params[param_index]+gRandom->Gaus(0,1E-3);
+	      data[param_index]=params[param_index];
 	    }
 	 
 	  r.AddRow(data);//Appends data to RE
@@ -174,12 +174,81 @@ namespace HS{
       tree->ResetBranchAddresses();
 
       TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
+      /* 
+      TFile* saveSeq=new TFile(saveName,"recreate");
+      tree->Write();
+      delete saveSeq;
+      */
+      return covMatSymNorm;
+    }
+    TMatrixDSym RooMcmc::MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin){
+          
+      auto pars = fSetup->NonConstParsAndYields();
+      Int_t Npars = pars.size();
+      Int_t Nentries = tree->GetEntries()-burnin;
+      Int_t param_index=0;     
+      vector<Double_t> params(Npars);
+      Double_t data[Npars];
+      //Int_t NburnC = fNumBurnInStepsCov;
+  
+     
+      //Loop over parameters of the model and set values from the tree
+      //Needed for RobustEstimator
+      //Only needed once
+      int pindex=0;
+      for(RooAbsArg* ipar : pars)
+	{
+	  if(ipar->isConstant()) continue;
+	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
+	    pindex++;
+	  }
+	}
+      Npars=pindex; //should be = number of branches in tree, protects for constant pars
+      cout<<"Robust "<<Nentries<<" "<<Npars<<" "<<tree->GetEntries()<<" "<<burnin<<endl;
+      //Create instance of TRobustEstimator
+      //TRobustEstimator r(Nentries,Npars);
+      TPrincipal principal(Npars,"ND");
+      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
+      // for (int ientry = 0; ientry<Nentries; ientry++)
+      for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
+	{//Loop over entries of the tree
+	  tree->GetEntry(ientry);
+	 
+	  for (int param_index = 0; param_index<Npars; param_index++)
+	    { //Loop over parameters of the model
+	      //And set 'data' element
+	      data[param_index]=params[param_index];
+	    }
+	  principal.AddRow(data);
+	  //	  r.AddRow(data);//Appends data to RE
+	}
+      // Do the actual analysis
+      //principal.MakePrincipals();
+      //principal.Print();
+ 
+ 
+      // r.Evaluate(); //Necessary to calculate RE properly
+      const TMatrixD* covMat=nullptr;
+      covMat = principal.GetCovarianceMatrix(); //actually returns pointer to reference so do not delete
+      //covMat->Print();
+      //covMatSym is the symmetric covariance matrix to be used in the proposal function
+      // const TMatrixD* m = p.GetCovarianceMatrix();
+     TMatrixD mt = *covMat; mt.T();
+     TMatrixDDiag d(mt); d = 0;
+     TMatrixD tempMat = *covMat+mt;
+     //tempMat.Print();
+     TMatrixDSym  covMatSym(0,Npars-1);
+     covMatSym.SetMatrixArray(tempMat.GetMatrixArray());
+     covMatSym.Print();
+     tree->ResetBranchAddresses();
+
+      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
        
       TFile* saveSeq=new TFile(saveName,"recreate");
       tree->Write();
       delete saveSeq;
       
-      return covMatSymNorm;
+      return covMatSym;
     }
 
     /////////////////////////////////////////////////////////
@@ -468,7 +537,8 @@ namespace HS{
       fNumBurnInSteps=fNumBurnInStepsThenCov;
 
       //      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
-      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
+      MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
+      TMatrixDSym covMat =  MakeMcmcPrincipalCovarianceMatrix(fTreeMCMC,saveBurn);
       auto divideNorm = 1./fNorm;
       covMat*= divideNorm;
  

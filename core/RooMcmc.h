@@ -42,6 +42,7 @@ namespace HS{
       void MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
       TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
