@@ -8,6 +8,7 @@
 #include <RooStats/ProposalHelper.h>
 #include <TRobustEstimator.h>
 #include <TMatrixD.h>
+#include <TRandom.h>
 #include <TMatrixDSym.h>
 
 namespace HS{
