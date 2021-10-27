@@ -583,7 +583,7 @@ namespace HS{
       fMCMCHelp=kTRUE; //turn on help
       while(MakeChain()==kFALSE){
 	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
-	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.01; //in case no event accepted start with correcting for 1%
+	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
 	
 	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.234);
 
