@@ -588,7 +588,7 @@ namespace HS{
 	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.234);
 
 	cout<<"RooMcmcSeqThenCov adjust norm to "<<1./divideNorm<<" from "<<fNorm<< endl;
-	if(fChainAcceptance==0) exit(0);
+	//if(fChainAcceptance==0) exit(0);
 	//	covMat*= divideNorm;
 	ph.reset(new ProposalHelper());
 	ph->SetUniformFraction(0);
