@@ -39,7 +39,7 @@ namespace HS{
       file_uptr SaveInfo() override;
       void AddFormulaToMCMCTree();
       
-      void MakeChain();
+      Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
       TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
       TMatrixDSym MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin);
@@ -101,10 +101,12 @@ namespace HS{
       void SetupBasicUsage();
       void SetKeepStart(Bool_t keep=kTRUE){fKeepStart=keep;}
 
-      Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
+      virtual Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
  
     protected :
-  
+      void AddEntryBranch();
+      void CleanMakeChain();
+      
       RooStats::MarkovChain* fChain =nullptr; //!
       RooDataSet* fChainData=nullptr;//!
       TTree* fTreeMCMC=nullptr;//!
@@ -112,7 +114,7 @@ namespace HS{
       RooArgSet* fParams=nullptr;//!
 
       Bool_t fKeepStart=kFALSE; //randomise starting values
-      
+      Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.
       //MCMCCalculator
       RooStats::ModelConfig *fModelConfig=nullptr;
       
@@ -136,6 +138,9 @@ namespace HS{
       vector<Double_t> _formVals;//(formulas.getSize(),0);
       vector<TBranch*> _formBranches;//(formulas.getSize(),nullptr);
 
+      Double_t fChainAcceptance=0;//!
+  
+      
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
      };
@@ -192,6 +197,7 @@ namespace HS{
       RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
+      Int_t GetNumBurnInSteps()const final{return fNumBurnInStepsThenCov;}
 
  private:
    

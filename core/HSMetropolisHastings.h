@@ -7,6 +7,7 @@
 #pragma once
 
 #include <RooStats/MetropolisHastings.h>
+#include <vector>
 
 namespace HS{
   namespace FIT{
@@ -25,11 +26,21 @@ namespace HS{
       void SetKeepStart(){fRandomiseStart=kFALSE;}
 
       RooStats::MarkovChain* ConstructChain() override;
+
+      Double_t GetAcceptance()const {return fAcceptance;}
+
+      void Help(){fTryHelp=kTRUE;}
+      Bool_t CheckForBurnIn(RooStats::MarkovChain* chain);
+      
     protected:
       Bool_t wasEvalErrors();
     private:
       Bool_t fRandomiseStart=kTRUE;
-      
+      Bool_t fTryHelp=kFALSE;
+      Int_t fNWorse=0;
+      Double_t fAcceptance=0;
+      std::vector<Double_t> fMeans;
+      std::vector<Double_t> fSigmas;
       ClassDefOverride(HS::FIT::HSMetropolisHastings,1);
      };
     

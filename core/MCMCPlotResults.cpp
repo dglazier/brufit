@@ -70,7 +70,7 @@ namespace HS{
 	Int_t mod = 0; //mod<NthDraw!
 	Int_t Npars = pars.size();
 	Int_t param_index = 0;
-
+	cout<<"MCMCPlotResults start entries loop "<<NthDraw<<" "<<Nentries<<" "<<burnIn<<endl;
 	for (int ientry = burnIn; ientry<Nentries; ientry++)
 	  {//Loop over entries of the tree
 	    if(ientry%NthDraw==mod)
@@ -88,13 +88,17 @@ namespace HS{
 		    if(ipar_str.find("Yld") != std::string::npos)
 		      {//If yield, Set Yields
 			setup->SetYldVal(ipar->GetName(), params[param_index]);
+			param_index++;
 		      }//Close if yields
 		    else
 		      {//If par, Set pars
 			// constants not kept in tree
-			if(ipar->isConstant()==kFALSE)setup->SetParVal(ipar->GetName(), params[param_index]);
+			if(ipar->isConstant()==kFALSE){
+			  setup->SetParVal(ipar->GetName(), params[param_index]);
+			  param_index++;
+			}
 		      }//Close if pars
-		    param_index++;	 
+		    	 
 		    
 		  }//Close loop over params
 

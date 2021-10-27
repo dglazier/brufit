@@ -42,11 +42,11 @@ namespace HS{
     }
   
     ///////////////////////////////////////////
-    void RooMcmc::MakeChain()
+    Bool_t RooMcmc::MakeChain()
     {
       cout<<"HSMCMC::MakeChain() "<<fData<<" "<<fPdf<<" "<<fPOI.getSize()<<endl;
-      if (!fData || !fPdf   ) return;
-      if (fPOI.getSize() == 0) return;
+      if (!fData || !fPdf   ) return kFALSE;
+      if (fPOI.getSize() == 0) return kFALSE;
      std::cout<<"proceed"<<endl;
  
    
@@ -86,6 +86,8 @@ namespace HS{
       std::cout<<"metropolis"<<endl;
       HSMetropolisHastings mh;
       if(fKeepStart) mh.SetKeepStart();
+      if(fMCMCHelp) mh.Help();
+      
       mh.SetFunction(*nll);
       mh.SetType(MetropolisHastings::kLog);
       mh.SetSign(MetropolisHastings::kNegative);
@@ -97,7 +99,16 @@ namespace HS{
       if(fChain){ delete fChain; fChain=nullptr;}
       
       fChain= mh.ConstructChain(); //mh is still owner and will delete
-      
+
+      if(fChain==nullptr){
+	if (useDefaultPropFunc) delete fPropFunc;
+	if (usePriorPdf) delete prodPdf;
+
+	fChainAcceptance=mh.GetAcceptance();
+	
+	delete nll;
+	return kFALSE; //unsuccessful
+      }
       if(fChainData){ delete fChainData; fChainData=nullptr;}
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
 
@@ -112,11 +123,16 @@ namespace HS{
 
  
       nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
+
+      CleanMakeChain();
       if (useDefaultPropFunc) delete fPropFunc;
       if (usePriorPdf) delete prodPdf;
       delete nll;
-      
-      return;
+
+      return kTRUE;
+    }
+    void RooMcmc::CleanMakeChain(){
+   
     }
     ////////////////////////////////////////////////////////
     
@@ -174,11 +190,12 @@ namespace HS{
       tree->ResetBranchAddresses();
 
       TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
-      /* 
+      
       TFile* saveSeq=new TFile(saveName,"recreate");
+      AddEntryBranch();
       tree->Write();
       delete saveSeq;
-      */
+      
       return covMatSymNorm;
     }
     TMatrixDSym RooMcmc::MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin){
@@ -245,6 +262,7 @@ namespace HS{
       TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
        
       TFile* saveSeq=new TFile(saveName,"recreate");
+      AddEntryBranch();
       tree->Write();
       delete saveSeq;
       
@@ -252,14 +270,17 @@ namespace HS{
     }
 
     /////////////////////////////////////////////////////////
-
-    void RooMcmc::Result(){
+    void RooMcmc::AddEntryBranch(){
       //Add entry branch to mcmc tree for easy cutting on BurnIn
       //fMCMCtree contains all events
       Long64_t entry=0;
       auto entryBranch=fTreeMCMC->Branch("entry",&entry,"entry/L");
       for(entry=0;entry<fTreeMCMC->GetEntries();entry++)
 	entryBranch->Fill();
+      
+    }
+    void RooMcmc::Result(){
+      AddEntryBranch();
       //Add any formulas
       //Need to get a copy of variables first or setting
       //the means as parameter values does not seem to work...
@@ -508,7 +529,8 @@ namespace HS{
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
  void RooMcmcSeqThenCov::Run(Setup &setup, RooAbsData &fitdata){
-      
+
+   
       fSetup=&setup;
       fData=&fitdata;
       //initialise MCMCCalculator
@@ -523,7 +545,7 @@ namespace HS{
 3.Finds the covariance matrix from the seq prop run
 4.Uses the cov mat to generate new prop func and run
       */
-
+      fMCMCHelp=kFALSE; //not for seqential (yet)
       RooStats::SequentialProposal sp(fNorm);
       SetProposalFunction(sp);
       fKeepStart=kTRUE; //start values from previous
@@ -537,26 +559,47 @@ namespace HS{
       fNumBurnInSteps=fNumBurnInStepsThenCov;
 
       //      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
-      MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
-      TMatrixDSym covMat =  MakeMcmcPrincipalCovarianceMatrix(fTreeMCMC,saveBurn);
+      //MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
+      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
       auto divideNorm = 1./fNorm;
-      covMat*= divideNorm;
+      // covMat*= divideNorm;
  
         
-      ProposalHelper ph;
-      ph.SetVariables(fSetup->NonConstParsAndYields());
-      ph.SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+      std::unique_ptr<ProposalHelper> ph{new ProposalHelper()};
+      ph->SetUniformFraction(0);
+      ph->SetVariables(fSetup->NonConstParsAndYields());
+      ph->SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
 
 
       //nite we reset the cache every proposal as was
       //causing the chain to get stuck
-      ph.SetCacheSize(1);
-      ph.SetCovMatrix(covMat);
-      ProposalFunction* pf = ph.GetProposalFunction();
+      ph->SetCacheSize(1);
+      ph->SetCovMatrix(covMat*divideNorm);
+      auto* pf = dynamic_cast<RooStats::PdfProposal*>(ph->GetProposalFunction());
+      pf->SetOwnsPdf(kTRUE);
       SetProposalFunction(*pf);
      	
       fKeepStart=kTRUE; //start values from previous
-      MakeChain();
+      fMCMCHelp=kTRUE; //turn on help
+      while(MakeChain()==kFALSE){
+	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
+	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.01; //in case no event accepted start with correcting for 1%
+	
+	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.234);
+
+	cout<<"RooMcmcSeqThenCov adjust norm to "<<1./divideNorm<<" from "<<fNorm<< endl;
+	if(fChainAcceptance==0) exit(0);
+	//	covMat*= divideNorm;
+	ph.reset(new ProposalHelper());
+	ph->SetUniformFraction(0);
+	ph->SetVariables(fSetup->NonConstParsAndYields());
+	ph->SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+	ph->SetCovMatrix(covMat*divideNorm);
+	delete pf;
+	pf = dynamic_cast<RooStats::PdfProposal*>(ph->GetProposalFunction());
+	SetProposalFunction(*pf);
+
+      }
       
       fNumIters = saveN; //switch back to seq Niters for next bin
       fNorm=saveNorm;
