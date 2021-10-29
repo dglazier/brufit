@@ -477,6 +477,35 @@ namespace HS{
     
    }
 
+   void RooMcmcSeqHelper::Run(Setup &setup,RooAbsData &fitdata){
+
+     fSetup=&setup;
+    fData=&fitdata;
+    //initialise MCMCCalculator
+    SetData(fitdata);
+    SetModel(setup.GetModelConfig());
+    SetupBasicUsage();
+     
+    std::unique_ptr<RooStats::SequentialProposal> sp{new RooStats::SequentialProposal(fNorm)};
+    SetProposalFunction(*sp.get());
+    fKeepStart=kTRUE; //start values from previous
+    //MakeChain();
+
+    fMCMCHelp=kTRUE; //turn on help
+    auto adjustedNorm=fNorm;
+    while(MakeChain()==kFALSE){
+      //	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
+      Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
+      
+      // adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
+      adjustedNorm *= (0.234)/(acc);
+
+      cout<<"RooMcmcSeqHelper adjust norm to "<<adjustedNorm<<" from "<<fNorm<< endl;
+      sp.reset(new RooStats::SequentialProposal(adjustedNorm));
+      SetProposalFunction(*sp.get());
+    }
+   }
+
     //////////////////////////////////////////////////
 
     void RooMcmcSeqCov::Run(Setup &setup, RooAbsData &fitdata){
@@ -546,11 +575,30 @@ namespace HS{
 4.Uses the cov mat to generate new prop func and run
       */
       fMCMCHelp=kFALSE; //not for seqential (yet)
-      RooStats::SequentialProposal sp(fNorm);
-      SetProposalFunction(sp);
+      //RooStats::SequentialProposal sp(fNorm);
+      //SetProposalFunction(sp);
+      //fKeepStart=kTRUE; //start values from previous
+      //MakeChain();
+      std::unique_ptr<RooStats::SequentialProposal> sp{new RooStats::SequentialProposal(fNorm)};
+      SetProposalFunction(*sp.get());
       fKeepStart=kTRUE; //start values from previous
-      MakeChain();
+      //MakeChain();
 
+      fMCMCHelp=kTRUE; //turn on help
+      auto adjustedNorm=fNorm;
+      while(MakeChain()==kFALSE){
+	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
+	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
+	
+	// adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
+	//	adjustedNorm *= (0.234)/(acc);
+	adjustedNorm *= (0.1)/(acc);
+	
+	cout<<"RooMcmcSeqHelper from Seq Then Cov adjust norm to "<<adjustedNorm<<" from "<<fNorm<< endl;
+	sp.reset(new RooStats::SequentialProposal(adjustedNorm));
+	SetProposalFunction(*sp.get());
+      }
+      
       auto saveN = fNumIters;
       fNumIters = fNumItersThenCov;
       auto saveNorm=fNorm;
@@ -583,9 +631,10 @@ namespace HS{
       fMCMCHelp=kTRUE; //turn on help
       while(MakeChain()==kFALSE){
 	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
-	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
+	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:1; //in case no event accepted start with correcting for 1%
 	
-	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.234);
+	//	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.234);
+	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.1);
 
 	cout<<"RooMcmcSeqThenCov adjust norm to "<<1./divideNorm<<" from "<<fNorm<< endl;
 	//if(fChainAcceptance==0) exit(0);

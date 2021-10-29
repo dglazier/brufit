@@ -42,6 +42,7 @@
 #pragma link C++ class HS::FIT::RooHSEventsPDF+;
 #pragma link C++ class HS::FIT::RooMcmc+;
 #pragma link C++ class HS::FIT::RooMcmcSeq+;
+#pragma link C++ class HS::FIT::RooMcmcSeqHelper+;
 #pragma link C++ class HS::FIT::RooMcmcUniform2Seq+;
 #pragma link C++ class HS::FIT::RooMcmcGaus+;
 #pragma link C++ class HS::FIT::RooMcmcSeqCov+;

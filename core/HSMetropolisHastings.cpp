@@ -125,7 +125,8 @@ namespace HS{
 	  CheckForBurnIn(chain);
 	  //check acceptance, if too low exit
 	  if(fTryHelp==kTRUE){
-	    if(fAcceptance<0.15||fAcceptance>0.3){
+	    // if(fAcceptance<0.15||fAcceptance>0.3){
+	    if(fAcceptance<0.05||fAcceptance>0.15){
 	      RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
 	      delete chain;
 	      std::cout<<"WARNING HSMetropolisHastings acceptance not optimal exiting..." <<std::endl;
@@ -263,10 +264,11 @@ namespace HS{
       auto vars = chain->Get();
       RooDataSet current("current","current",*vars);
       std::cout<<""<<chain<<" "<<vars<<std::endl;
-      Int_t Ntests=vars->getSize()*10;
+      Int_t Ntests=vars->getSize()*50;
       
       if(Ntests>Nentries){std::cout<<" ntests "<<Ntests<<" "<<Nentries<<std::endl; return kTRUE;}//not enough events Ntests=Nentries/2;
-      
+      if(Ntests>Nentries-fLastEntries){std::cout<<" not enough entries "<<Ntests<<" > "<<Nentries-fLastEntries<<" "<<Nentries<<std::endl; return kTRUE;}
+ 
       for(Int_t i=Nentries-1;i>Nentries-100;--i){
 	if(gRandom->Uniform()<1./chain->Weight(i))current.add(*chain->Get(i));
       }
@@ -293,14 +295,38 @@ namespace HS{
 
 	if(var==(*vars)[vars->getSize()-1]){
 	  std::cout<<"NLL diff "<<mean<<" "<<fMeans[iv]<<" diff "<<mean-fMeans[iv]<<" "<<TMath::Abs((mean-fMeans[iv])/biggestSigma)<<" "<<std::endl;
-	  if(mean-fMeans[iv]>0) ++fNWorse;
+
+	  /*  if(fNBetterThanSave>fNWorseThanSave+5)
+	    {
+	      fNWorse=0;
+	      fNBetter=0;
+	      fNWorseThanSave=0;
+	      fNBetterThanSave=0;
+	      fSaveNLL=0;
+	    }
+	  */
+	  if(mean-fMeans[iv]>0){
+	    ++fNWorse;
+	    if(fSaveNLL==0)
+	      fSaveNLL=mean;
+	  }
+	  
+	  else if(fNWorse>2) ++fNBetter;
+
+	  
+	  if(mean-fSaveNLL>0)
+	    ++fNWorseThanSave;
+	  if(mean-fSaveNLL<0)
+	    ++fNBetterThanSave;
+	  
 	}
 	
 	fMeans[iv]=mean;
 	fSigmas[iv]=sigma;
 	++iv;
       }
-      std::cout<<Npass<<" out of "<<vars->getSize()<<" up to "<<Nentries<<" and Worse "<<fNWorse<<std::endl;
+      std::cout<<Npass<<" out of "<<vars->getSize()<<" up to "<<Nentries<<" and Worse "<<fNWorse<<" and Better "<<fNBetter<<" and Worse than save "<<fNWorseThanSave<<" and Better "<<fNBetterThanSave<<" which is " <<fSaveNLL<<std::endl;
+      fLastEntries=Nentries;
       return kTRUE;
     } 
   }//namespace FIT

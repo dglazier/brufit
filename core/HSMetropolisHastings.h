@@ -38,7 +38,12 @@ namespace HS{
       Bool_t fRandomiseStart=kTRUE;
       Bool_t fTryHelp=kFALSE;
       Int_t fNWorse=0;
+      Int_t fNBetter=0;
+      Int_t fNWorseThanSave=0;
+      Int_t fNBetterThanSave=0;
+      Double_t fSaveNLL=0;
       Double_t fAcceptance=0;
+      Double_t fLastEntries=0;
       std::vector<Double_t> fMeans;
       std::vector<Double_t> fSigmas;
       ClassDefOverride(HS::FIT::HSMetropolisHastings,1);

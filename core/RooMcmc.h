@@ -163,6 +163,23 @@ namespace HS{
       ClassDefOverride(HS::FIT::RooMcmcSeq,1);
    };
 
+    class RooMcmcSeqHelper  : public RooMcmc {
+      
+    public:
+   RooMcmcSeqHelper(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
+	SetNameTitle("HSRooMcmcSeqHelper","RooMcmcSeqHelper minimiser");
+      }
+      RooMcmcSeqHelper(const RooMcmcSeqHelper&)=default;
+      RooMcmcSeqHelper(RooMcmcSeqHelper&&)=default;
+      ~RooMcmcSeqHelper() override =default;
+      RooMcmcSeqHelper& operator=(const RooMcmcSeqHelper& other)=default;
+      RooMcmcSeqHelper& operator=(RooMcmcSeqHelper&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqHelper,1);
+   };
+
  class RooMcmcSeqCov  : public RooMcmc {
       
     public:
