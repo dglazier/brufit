@@ -9,6 +9,7 @@
 #include <TRobustEstimator.h>
 #include <TPrincipal.h>
 #include <TMatrixD.h>
+#include <TH1D.h>
 #include <TMatrixDSym.h>
 
 namespace HS{
@@ -86,7 +87,10 @@ namespace HS{
       std::cout<<"metropolis"<<endl;
       HSMetropolisHastings mh;
       if(fKeepStart) mh.SetKeepStart();
-      if(fMCMCHelp) mh.Help();
+      if(fMCMCHelp){
+	mh.Help();
+	mh.SetAcceptanceRange(fMinAcc,fMaxAcc);
+      }
       
       mh.SetFunction(*nll);
       mh.SetType(MetropolisHastings::kLog);
@@ -154,6 +158,7 @@ namespace HS{
       for(RooAbsArg* ipar : pars)
 	{
 	  if(ipar->isConstant()) continue;
+	  
 	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
 	    pindex++;
 	  }
@@ -187,6 +192,120 @@ namespace HS{
       TMatrixDSym covMatSymNorm=*covMatSym;
      
       
+      tree->ResetBranchAddresses();
+
+      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
+      
+      TFile* saveSeq=new TFile(saveName,"recreate");
+      AddEntryBranch();
+      tree->Write();
+      delete saveSeq;
+      
+      return covMatSymNorm;
+    }
+    ////////////////////////////////////////////////////////
+    
+    TMatrixDSym RooMcmc::MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin){
+          
+      //auto pars = fSetup->NonConstParsAndYields();
+      auto pars = fSetup->Parameters();
+      Int_t Npars = pars.size();
+      auto yields = fSetup->Yields();
+      Int_t Nyields = yields.size();
+
+
+      Int_t Nentries = tree->GetEntries()-burnin;
+      vector<Double_t> params(Npars);
+      vector<Double_t> byields(Nyields);
+      //Int_t NburnC = fNumBurnInStepsCov;
+  
+     
+      //Loop over parameters of the model and set values from the tree
+      //Needed for RobustEstimator
+      //Only needed once
+      int pindex=0;
+      for(RooAbsArg* ipar : pars)
+	{
+	  if(ipar->isConstant()) continue;
+	  
+	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
+	    pindex++;
+	  }
+	}
+      Npars=pindex; //should be = number of branches in tree, protects for constant pars
+      int yindex=0;
+      std::vector<TH1D> yield_hists;
+      for(RooAbsArg* iyield : yields)
+	{
+	  if(iyield->isConstant()) continue;
+	  
+	  auto realvar=dynamic_cast<RooRealVar*>(iyield);
+
+	  if(tree->SetBranchAddress(iyield->GetName(), &byields[yindex])==0){
+	    yield_hists.push_back(std::move(TH1D(iyield->GetName(),iyield->GetName(),1000,realvar->getMax(),realvar->getMin())));
+	    yindex++;
+	  }
+	}
+      Nyields=yindex; //should be = number of branches in tree, protects for constant pars
+      cout<<" MakeMcmcNonYieldCovarianceMatrix "<<Nentries<<" "<<Npars<<" "<<tree->GetEntries()<<" "<<burnin<<endl;
+      //Create instance of TRobustEstimator
+      TRobustEstimator r(Nentries,Npars+Nyields);
+      vector<Double_t> data(Npars+Nyields);
+     
+
+      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
+      // for (int ientry = 0; ientry<Nentries; ientry++)
+      for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
+	{//Loop over entries of the tree
+	  tree->GetEntry(ientry);
+	 
+	  for (int param_index = 0; param_index<Npars; param_index++)
+	    { //Loop over parameters of the model
+	      //And set 'data' element
+	      data[param_index]=params[param_index];
+	    }
+	 
+	  r.AddRow(data.data());//Appends data to RE
+	  
+	  for (int yield_index = 0; yield_index<Nyields; yield_index++)
+	    { //Loop over yields of the model
+	      //And fill histogram to get rms
+	      yield_hists[yield_index].Fill(byields[yield_index]);
+	      data[Npars+yield_index]=0;
+	    }
+
+
+	}
+
+      
+     
+      r.Evaluate(); //Necessary to calculate RE properly
+      const TMatrixDSym* covMatSym=nullptr;
+      covMatSym = r.GetCovariance(); //actually returns pointer to reference so do not delete
+       //covMatSym is the symmetric covariance matrix to be used in the proposal function
+     
+      TMatrixDSym covMatSymNorm=*covMatSym;
+
+      //add final rows with yeilds uncorrelated
+      for(int iy=0;iy<Nyields;++iy){
+	//zero all but last elements of row
+	for(Int_t id=0;id<data.size();++id)
+	  data[id]=0;
+	//add new row for his yield
+
+	cout<<"MakeMcmcNonYieldCovarianceMatrix add yeilds "<<yield_hists[iy].GetName()<<" covariance "<<yield_hists[iy].GetRMS()*yield_hists[iy].GetRMS()<<endl;
+	//data.push_back(yield_hists[iy].GetRMS()*yield_hists[iy].GetRMS());
+	//covMatSymNorm.AddRow(data.data());
+	//	covMatSymNorm.ResizeTo(covMatSymNorm.GetNrows()+1,covMatSymNorm.GetNcols()+1);
+	//	covMatSymNorm.Use(covMatSymNorm.GetNrows()-(Nyields-iy),data.data());
+	auto row=covMatSymNorm.GetNrows()-(Nyields-iy);
+	cout<<"change "<<row<<" row from "<<covMatSymNorm(row,row)<<" to ";
+	covMatSymNorm(row,row)=yield_hists[iy].GetRMS()*yield_hists[iy].GetRMS();
+	cout<<covMatSymNorm(row,row)<<endl;
+	
+      }
+      covMatSymNorm.Print();
+ 
       tree->ResetBranchAddresses();
 
       TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
@@ -498,7 +617,7 @@ namespace HS{
       Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
       
       // adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
-      adjustedNorm *= (0.234)/(acc);
+      adjustedNorm *= (fTargetAcc)/(acc);
 
       cout<<"RooMcmcSeqHelper adjust norm to "<<adjustedNorm<<" from "<<fNorm<< endl;
       sp.reset(new RooStats::SequentialProposal(adjustedNorm));
@@ -592,9 +711,9 @@ namespace HS{
 	
 	// adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
 	//	adjustedNorm *= (0.234)/(acc);
-	adjustedNorm *= (0.1)/(acc);
+	adjustedNorm *= (fTargetAcc)/(acc);
 	
-	cout<<"RooMcmcSeqHelper from Seq Then Cov adjust norm to "<<adjustedNorm<<" from "<<fNorm<< endl;
+	cout<<"RooMcmcSeqHelper from Seq Then Cov adjust norm to "<<adjustedNorm<<" from "<<fNorm<<" for target acceptance "<<fTargetAcc<< endl;
 	sp.reset(new RooStats::SequentialProposal(adjustedNorm));
 	SetProposalFunction(*sp.get());
       }
@@ -608,7 +727,13 @@ namespace HS{
 
       //      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
       //MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
-      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
+      std::unique_ptr<TMatrixDSym> covMat;
+      
+      if(fUncorrelateYields)
+	covMat.reset(new TMatrixDSym(MakeMcmcNonYieldCovarianceMatrix(fTreeMCMC,saveBurn)));
+      else
+	covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn)));
+      
       auto divideNorm = 1./fNorm;
       // covMat*= divideNorm;
  
@@ -622,7 +747,7 @@ namespace HS{
       //nite we reset the cache every proposal as was
       //causing the chain to get stuck
       ph->SetCacheSize(1);
-      ph->SetCovMatrix(covMat*divideNorm);
+      ph->SetCovMatrix((*covMat.get())*divideNorm);
       auto* pf = dynamic_cast<RooStats::PdfProposal*>(ph->GetProposalFunction());
       pf->SetOwnsPdf(kTRUE);
       SetProposalFunction(*pf);
@@ -633,8 +758,8 @@ namespace HS{
 	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
 	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:1; //in case no event accepted start with correcting for 1%
 	
-	//	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.234);
-	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(0.1);
+	//	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(fTargetAcc);
+	divideNorm *= (acc)/(fTargetAcc);
 
 	cout<<"RooMcmcSeqThenCov adjust norm to "<<1./divideNorm<<" from "<<fNorm<< endl;
 	//if(fChainAcceptance==0) exit(0);
@@ -643,7 +768,7 @@ namespace HS{
 	ph->SetUniformFraction(0);
 	ph->SetVariables(fSetup->NonConstParsAndYields());
 	ph->SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
-	ph->SetCovMatrix(covMat*divideNorm);
+	ph->SetCovMatrix((*covMat.get())*divideNorm);
 	delete pf;
 	pf = dynamic_cast<RooStats::PdfProposal*>(ph->GetProposalFunction());
 	SetProposalFunction(*pf);

@@ -31,6 +31,11 @@ namespace HS{
 
       void Help(){fTryHelp=kTRUE;}
       Bool_t CheckForBurnIn(RooStats::MarkovChain* chain);
+
+      void SetAcceptanceRange(Double_t min,Double_t max){
+	fMinAcc=min;
+	fMaxAcc=max;
+      }
       
     protected:
       Bool_t wasEvalErrors();
@@ -44,6 +49,9 @@ namespace HS{
       Double_t fSaveNLL=0;
       Double_t fAcceptance=0;
       Double_t fLastEntries=0;
+      Double_t fMinAcc=0.15;
+      Double_t fMaxAcc=0.3;
+
       std::vector<Double_t> fMeans;
       std::vector<Double_t> fSigmas;
       ClassDefOverride(HS::FIT::HSMetropolisHastings,1);

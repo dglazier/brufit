@@ -107,8 +107,8 @@ namespace HS{
       int snapcount=0;
       
       int havePrinted=0;
-      //      x.Print("v");
-
+      //x.Print("v");
+      
       //Check if we have PDF proposal
       
       RooStats::PdfProposal* pdfProposal=dynamic_cast<RooStats::PdfProposal*>(fPropFunc);
@@ -125,14 +125,17 @@ namespace HS{
 	  CheckForBurnIn(chain);
 	  //check acceptance, if too low exit
 	  if(fTryHelp==kTRUE){
-	    // if(fAcceptance<0.15||fAcceptance>0.3){
-	    if(fAcceptance<0.05||fAcceptance>0.15){
+	    if(fAcceptance<fMinAcc||fAcceptance>fMaxAcc){
 	      RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
 	      delete chain;
 	      std::cout<<"WARNING HSMetropolisHastings acceptance not optimal exiting..." <<std::endl;
 
 	      return nullptr;
 	    }
+	    // std::cout<<"x "<<std::endl;
+	    //x.Print("v");
+	    //std::cout<<"xprime "<<std::endl;
+	    //xPrime.Print("v");
 	  }
 
 	}
@@ -142,7 +145,7 @@ namespace HS{
 	}
 	if (icount%100 == 1) havePrinted=0;
 	//	std::cout<<"********************************************X' "<<std::endl;
-	//	xPrime.Print("v");
+	//xPrime.Print("v");
 	//std::cout<<"********************************************X "<<std::endl;
 	//x.Print("v");
 

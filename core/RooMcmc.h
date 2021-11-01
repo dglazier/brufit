@@ -42,6 +42,7 @@ namespace HS{
       Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
       TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin);
       TMatrixDSym MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
@@ -102,7 +103,17 @@ namespace HS{
       void SetKeepStart(Bool_t keep=kTRUE){fKeepStart=keep;}
 
       virtual Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
- 
+
+      void SetDesiredAcceptance(Double_t min,Double_t max,Double_t target=0){
+	fMinAcc=min;
+	fMaxAcc=max;
+	if(target)
+	  fTargetAcc=target;
+	else
+	  fTargetAcc = (max-min)/2;
+      }
+      void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
+      
     protected :
       void AddEntryBranch();
       void CleanMakeChain();
@@ -139,7 +150,10 @@ namespace HS{
       vector<TBranch*> _formBranches;//(formulas.getSize(),nullptr);
 
       Double_t fChainAcceptance=0;//!
-  
+      Double_t fMinAcc=0.15;
+      Double_t fMaxAcc=0.3;
+      Double_t fTargetAcc=0.234;
+      Int_t  fUncorrelateYields=0;
       
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
