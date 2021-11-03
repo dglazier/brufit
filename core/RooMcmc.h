@@ -113,6 +113,7 @@ namespace HS{
 	  fTargetAcc = (max-min)/2;
       }
       void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
+      void SetParVals(RooArgSet* toThesePars);
       
     protected :
       void AddEntryBranch();

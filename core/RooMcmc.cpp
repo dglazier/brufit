@@ -580,7 +580,14 @@ namespace HS{
     }
      //////////////////////////////////////////////////////////////
 
-    
+    void RooMcmc::SetParVals(RooArgSet* toThesePars){
+      for( auto &pory: fSetup->ParsAndYields()){
+	if( dynamic_cast<RooRealVar*>(pory)){
+	  dynamic_cast<RooRealVar*>(pory)->setVal(dynamic_cast<RooRealVar*>(toThesePars->find(pory->GetName()))->getVal());
+	}
+      }
+    }
+ 
    void RooMcmcSeq::Run(Setup &setup,RooAbsData &fitdata){
      fSetup=&setup;
     fData=&fitdata;
@@ -604,7 +611,10 @@ namespace HS{
     SetData(fitdata);
     SetModel(setup.GetModelConfig());
     SetupBasicUsage();
-     
+    //store initial value to use if we get screwed up
+    std::unique_ptr<RooArgSet> initialPars{fSetup->ParsAndYields().snapshot()};
+      
+
     std::unique_ptr<RooStats::SequentialProposal> sp{new RooStats::SequentialProposal(fNorm)};
     SetProposalFunction(*sp.get());
     fKeepStart=kTRUE; //start values from previous
@@ -613,12 +623,12 @@ namespace HS{
     fMCMCHelp=kTRUE; //turn on help
     auto adjustedNorm=fNorm;
     while(MakeChain()==kFALSE){
-      //	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
-      Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
-      
-      // adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
-      adjustedNorm *= (fTargetAcc)/(acc);
-
+      if(fChainAcceptance) adjustedNorm *= (fTargetAcc)/(fChainAcceptance);
+      else {//probably stuck some where start again!
+	SetParVals(initialPars.get());
+	adjustedNorm *= 5; //and decrease step size to increas acceptance
+      }
+	
       cout<<"RooMcmcSeqHelper adjust norm to "<<adjustedNorm<<" from "<<fNorm<< endl;
       sp.reset(new RooStats::SequentialProposal(adjustedNorm));
       SetProposalFunction(*sp.get());
@@ -673,8 +683,7 @@ namespace HS{
 
 
     }
-
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
  void RooMcmcSeqThenCov::Run(Setup &setup, RooAbsData &fitdata){
 
@@ -687,7 +696,7 @@ namespace HS{
       SetupBasicUsage();
 
       //store initial value to use if we get screwed up
-      auto initialPars = fSetup->ParsAndYields().snapshot();
+      std::unique_ptr<RooArgSet> initialPars{fSetup->ParsAndYields().snapshot()};
       /*
       //A class that 
 1.Runs through a number of burn in events
@@ -709,17 +718,13 @@ namespace HS{
       auto adjustedNorm=fNorm;
       while(MakeChain()==kFALSE){
 	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
-	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:0.9; //in case no event accepted start with correcting for 1%
+	//Double_t acc = fChainAcceptance; //in case no event accepted start with correcting for 1%
 	
 	// adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
 	//	adjustedNorm *= (0.234)/(acc);
-	if(fChainAcceptance) adjustedNorm *= (fTargetAcc)/(acc);
-	else {
-	  for( auto &pory: fSetup->ParsAndYields()){
-	    if( dynamic_cast<RooRealVar*>(pory)){
-	      dynamic_cast<RooRealVar*>(pory)->setVal(dynamic_cast<RooRealVar*>(initialPars->find(pory->GetName()))->getVal());
-	    }
-	  }
+	if(fChainAcceptance) adjustedNorm *= (fTargetAcc)/(fChainAcceptance);
+	else {//probably stuck some where start again!
+	  SetParVals(initialPars.get());
 	  adjustedNorm *= 5;
 	}
 	
@@ -764,16 +769,23 @@ namespace HS{
      	
       fKeepStart=kTRUE; //start values from previous
       fMCMCHelp=kTRUE; //turn on help
+
+      //update inital pars to vals at end of sequential chain
+      initialPars.reset(fSetup->ParsAndYields().snapshot());
+      
       while(MakeChain()==kFALSE){
 	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
 	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:1; //in case no event accepted start with correcting for 1%
 	
 	//	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(fTargetAcc);
-	divideNorm *= (acc)/(fTargetAcc);
 
+	if(fChainAcceptance)
+	  divideNorm *= (fChainAcceptance)/(fTargetAcc);
+	else{//zero accpetance, probably stuck, move bac to inital vals
+	  SetParVals(initialPars.get());
+	  divideNorm /= 5;
+	}
 	cout<<"RooMcmcSeqThenCov adjust norm to "<<1./divideNorm<<" from "<<fNorm<< endl;
-	//if(fChainAcceptance==0) exit(0);
-	//	covMat*= divideNorm;
 	ph.reset(new ProposalHelper());
 	ph->SetUniformFraction(0);
 	ph->SetVariables(fSetup->NonConstParsAndYields());
