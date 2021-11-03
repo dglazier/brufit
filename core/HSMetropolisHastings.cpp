@@ -128,8 +128,9 @@ namespace HS{
 	    if(fAcceptance<fMinAcc||fAcceptance>fMaxAcc){
 	      RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
 	      delete chain;
-	      std::cout<<"WARNING HSMetropolisHastings acceptance not optimal exiting..." <<std::endl;
+	      std::cout<<"WARNING HSMetropolisHastings acceptance not optimal exiting..." <<" current Likelihood "<<CalcNLL(xL)<<std::endl;
 
+	      // x.Print("v");	
 	      return nullptr;
 	    }
 	    // std::cout<<"x "<<std::endl;

@@ -686,6 +686,8 @@ namespace HS{
       SetModel(setup.GetModelConfig());
       SetupBasicUsage();
 
+      //store initial value to use if we get screwed up
+      auto initialPars = fSetup->ParsAndYields().snapshot();
       /*
       //A class that 
 1.Runs through a number of burn in events
@@ -711,9 +713,17 @@ namespace HS{
 	
 	// adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
 	//	adjustedNorm *= (0.234)/(acc);
-	adjustedNorm *= (fTargetAcc)/(acc);
+	if(fChainAcceptance) adjustedNorm *= (fTargetAcc)/(acc);
+	else {
+	  for( auto &pory: fSetup->ParsAndYields()){
+	    if( dynamic_cast<RooRealVar*>(pory)){
+	      dynamic_cast<RooRealVar*>(pory)->setVal(dynamic_cast<RooRealVar*>(initialPars->find(pory->GetName()))->getVal());
+	    }
+	  }
+	  adjustedNorm *= 5;
+	}
 	
-	cout<<"RooMcmcSeqHelper from Seq Then Cov adjust norm to "<<adjustedNorm<<" from "<<fNorm<<" for target acceptance "<<fTargetAcc<< endl;
+	cout<<"RooMcmcSeqHelper from Seq The n Cov adjust norm to "<<adjustedNorm<<" from "<<fNorm<<" for target acceptance "<<fTargetAcc<< " chain accept "<<fChainAcceptance<<endl;
 	sp.reset(new RooStats::SequentialProposal(adjustedNorm));
 	SetProposalFunction(*sp.get());
       }
