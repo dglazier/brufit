@@ -436,7 +436,6 @@ namespace HS{
 	if(fLast[i]!=(*(fParSet[i-1]))) hasChanged=true;
       if(hasChanged){
 	for(Int_t i=1;i<fNpars+1;i++){
-	  std::cout<<"RooHSEventsPDF check change "<<fParSet[i-1]->GetName()<<" "<<fLast[i]<<" "<<*(fParSet[i-1])<<std::endl;
 	  fLast[i]=*(fParSet[i-1]);
 	 
 	}
