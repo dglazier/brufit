@@ -44,10 +44,7 @@ namespace HS{
 
        CreateWeights();
        
-       // PlotDataModel();
-
-       //delete dataset;
-
+ 
        return kTRUE;
    }
     

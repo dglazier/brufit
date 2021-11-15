@@ -45,6 +45,7 @@ namespace HS{
       //    if(other.fInWeights) fInWeights=other.fInWeights; //probably need to clone this
       fNInt=other.fNInt;
       fGeni=other.fGeni;
+      fTruthPrefix=other.fTruthPrefix;
       //if(other.fEntryList)fEntryList=(TEntryList*)other.fEntryList->Clone();
       fForceConstInt=other.fForceConstInt;
       fForceNumInt=other.fForceNumInt;
@@ -189,7 +190,9 @@ namespace HS{
 	while(fGeni<fNTreeEntries){
 	  //fParent->SetGeni(fGeni);
 	  //fEvTree->GetEntry(fGeni++);
-	  fTreeEntry=fGeni++;
+	  //fTreeEntry=fGeni;
+	  fTreeEntry=IncrementGeni();
+	  fGeni++;
 	  value=evaluateMC(&fvecRealGen,&fvecCatGen); //evaluate true values
 	  if(value>fMaxValue*RooRandom::uniform()){//accept
 	    for(Int_t i=0;i<fNvars;i++)
@@ -222,7 +225,7 @@ namespace HS{
 	  return;
 	}
       }
-      Error("RooHSEventsPDF::generateEvent","Ran out of events at %lld",fGeni);
+      Fatal("RooHSEventsPDF::generateEvent","Ran out of events at %lld",fGeni);
       //Used up all the events in the tree!
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
@@ -491,11 +494,11 @@ namespace HS{
 	if(fEvTree->GetBranch(fProxSet[i]->GetName())){
 	  fEvTree->SetBranchStatus(fProxSet[i]->GetName(),true);
 	  fEvTree->SetBranchAddress(fProxSet[i]->GetName(),&MCVar[i]);
-	  if(fEvTree->GetBranch(TString("gen")+fProxSet[i]->GetName())){
-	    fEvTree->SetBranchStatus(TString("gen")+fProxSet[i]->GetName(),true);
-	    fEvTree->SetBranchAddress(TString("gen")+fProxSet[i]->GetName(),&GenVar[i]);
+	  if(fEvTree->GetBranch(fTruthPrefix+fProxSet[i]->GetName())){
+	    fEvTree->SetBranchStatus(fTruthPrefix+fProxSet[i]->GetName(),true);
+	    fEvTree->SetBranchAddress(fTruthPrefix+fProxSet[i]->GetName(),&GenVar[i]);
 	    fGotGenVar[i]=1;
-	    cout<<"Using Generated branch "<<TString("gen")+fProxSet[i]->GetName()<<endl;
+	    cout<<"Using Generated branch "<<fTruthPrefix+fProxSet[i]->GetName()<<endl;
 	  }
 	}
 	else{
@@ -529,11 +532,11 @@ namespace HS{
 	if(fEvTree->GetBranch(fCatSet[i]->GetName())){
 	  fEvTree->SetBranchStatus(fCatSet[i]->GetName(),true);
 	  fEvTree->SetBranchAddress(fCatSet[i]->GetName(),&MCCat[i]);
-	  if(fEvTree->GetBranch(TString("gen")+fCatSet[i]->GetName())){
-	    fEvTree->SetBranchStatus(TString("gen")+fCatSet[i]->GetName(),true);
-	    fEvTree->SetBranchAddress(TString("gen")+fCatSet[i]->GetName(),&GenCat[i]);
+	  if(fEvTree->GetBranch(fTruthPrefix+fCatSet[i]->GetName())){
+	    fEvTree->SetBranchStatus(fTruthPrefix+fCatSet[i]->GetName(),true);
+	    fEvTree->SetBranchAddress(fTruthPrefix+fCatSet[i]->GetName(),&GenCat[i]);
 	    fGotGenCat[i]=1;
-	    cout<<"Using Generated branch "<<TString("gen")+fCatSet[i]->GetName()<<endl;
+	    cout<<"Using Generated branch "<<fTruthPrefix+fCatSet[i]->GetName()<<endl;
 	  }	
 	}
 	else{

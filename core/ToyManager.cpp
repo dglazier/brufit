@@ -47,8 +47,7 @@ namespace HS{
       RooRandom::randomGenerator()->SetSeed(0);//random seed
 
       // Long64_t nexp=RooRandom::randomGenerator()->Poisson(model->expectedEvents(fitpars));
-      Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
-
+ 
  
       //fitvars.Print("v");
       auto iter=fitvars.iterator();
@@ -59,6 +58,8 @@ namespace HS{
       }
 
       while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
+	Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
+
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
 	SaveResults();

@@ -124,7 +124,8 @@ namespace HS{
       TTree* fTreeMCMC=nullptr;//!
       Bool_t fCorrectForWeights=kTRUE;
       RooArgSet* fParams=nullptr;//!
-
+      std::shared_ptr<TFile> fTempFile;//!
+      
       Bool_t fKeepStart=kFALSE; //randomise starting values
       Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.
       //MCMCCalculator

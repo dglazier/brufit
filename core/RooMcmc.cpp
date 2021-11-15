@@ -1,6 +1,7 @@
 #include "RooMcmc.h"
 #include "HSMetropolisHastings.h"
 #include <TIterator.h>
+#include <TDirectory.h>
 #include <TLeaf.h>
 #include <TTreeIndex.h>
 #include <RooStats/UniformProposal.h>
@@ -118,9 +119,14 @@ namespace HS{
 
       if(fChainData){
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
-	
- 	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
-	delete fChainData; fChainData=nullptr;
+	cout<<"Get tree from chains "<<(*gDirectory).GetName()<<endl;
+	if((*gDirectory).IsWritable()==false){
+	  TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCTemp.root";
+	  fTempFile=std::make_shared<TFile>(saveName,"recreate");
+	}
+	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
+	cout<<"Got tree from chains "<<endl;
+ 	delete fChainData; fChainData=nullptr;
       }  
       if(fChain->Size()>fNumBurnInSteps)
 	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
@@ -197,9 +203,16 @@ namespace HS{
       TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
       
       TFile* saveSeq=new TFile(saveName,"recreate");
+
+      cout<<"Set tree file "<<tree->GetDirectory()<<endl;
+      // auto saveDir=tree->GetDirectory();
+      //tree->SetDirectory(saveSeq);
       AddEntryBranch();
-      tree->Write();
+      //tree->Write();
+      saveSeq->WriteObject(tree,tree->GetName());
+      // tree->SetDirectory(saveDir);
       delete saveSeq;
+      //      tree->SetDirectory(nullptr);
       
       return covMatSymNorm;
     }
@@ -557,6 +570,8 @@ namespace HS{
     file_uptr RooMcmc::SaveInfo(){
       
       TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
+      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
+
       file_uptr file(TFile::Open(fileName,"recreate"));
       Result();
       
