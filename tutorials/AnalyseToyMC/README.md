@@ -4,7 +4,7 @@ on the resulting parameters and fit those to check the pull distributions for bi
  model function = 1 + A*Pol*PolState*cos(2Phi) + B*Pol*PolState*sin(2Phi)
 
 
-root  'Model1.C( "Data.root",1 )'
+root  'Model1.C( "DataSignal.root",2 )' 
 
 root 'Model1.C( "MC.root",0 )'
 

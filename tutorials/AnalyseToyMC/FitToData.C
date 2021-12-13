@@ -21,10 +21,8 @@
   RF.Bins().LoadBinVar("Eg",10,3,4);
 
   ///////////////////////////Load Data
-  //RF.ReloadData("DataSignal.root");
-  //RF.ReloadSimulated("MC100k.root","SigAsym");
   RF.LoadData("MyModel","DataSignal.root");
-  RF.LoadSimulated("MyModel","MC1k.root","SigAsym");
+  RF.LoadSimulated("MyModel","MC.root","SigAsym");
 
   /* //if want to use MCMC
     auto mcmc=new RooMcmcSeqThenCov(2000,1500,1,2000,1000,1);
@@ -34,7 +32,7 @@
   */
   
   //Do the fit
-  //Here::Go(&RF);
-  Proof::Go(&RF,10);
+  Here::Go(&RF);
+  //  Proof::Go(&RF,4); //4 workers, make sure you have enough CPUs
   RF.WriteThis();
 }

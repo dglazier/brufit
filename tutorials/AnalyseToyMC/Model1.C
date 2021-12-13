@@ -19,8 +19,8 @@ void Model1(TString filename,Int_t IsData=1){
   tree->Branch("fgID",&fgID,"fgID/D");
   tree->Branch("Sig",&Sig,"Sig/D");
   if(IsData){
-  tree->Branch("PolState",&PolState,"PolState/I");
-  tree->Branch("Pol",&Pol,"Pol/D");
+    tree->Branch("PolState",&PolState,"PolState/I");
+    tree->Branch("Pol",&Pol,"Pol/D");
   }
   //signal
   TF1* fM1s=new TF1("m1s","gaus(0)+gaus(3)+[6]",0,10);
