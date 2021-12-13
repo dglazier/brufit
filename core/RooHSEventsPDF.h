@@ -100,7 +100,7 @@ namespace HS{
     
       Double_t fMaxValue=0; //max value of function for accept/reject
       Long64_t fGeni=0; //index for tree generation
-      TString fgenStr="gen";
+      TString fTruthPrefix="gen";
       mutable Int_t fIntCounter=0;
       Bool_t fIsPlotting=kFALSE;
       
@@ -112,7 +112,9 @@ namespace HS{
       virtual void initIntegrator();
 
     public:
- 
+
+      void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
+      
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
       Double_t unnormalisedIntegral(Int_t code,const char* rangeName) const;
@@ -178,6 +180,7 @@ namespace HS{
       Bool_t UseWeightsGen(){return fUseWeightsGen;}
       Weights* GetWeights(){return fWeights;}
       void SetGeni(Long64_t gi){fGeni=gi;if(fParent)fParent->SetGeni(gi);};
+      Long64_t  IncrementGeni(){if(fParent)fParent->SetGeni(fGeni);return ++fGeni;};
       Long64_t GetGeni(){return fGeni;}
       
       void SetConstInt(Bool_t force=kTRUE){fForceConstInt=force;}
@@ -200,6 +203,7 @@ namespace HS{
       Bool_t HasMCGenTree(){return fHasMCGenTree;}
       void Plotting(Bool_t plotting=kTRUE){fIsPlotting=plotting;}
       void SetHistIntegrals(vector<TH1F> &hists){fHistIntegrals=hists;}
+      void ResetHistIntegrals(){fHistIntegrals.clear();}
 
       
       ClassDefOverride(HS::FIT::RooHSEventsPDF,1); // Yor description goes here...

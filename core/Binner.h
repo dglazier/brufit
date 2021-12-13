@@ -41,6 +41,8 @@ namespace HS{
       TString GetCut(){return fSelection;}
       void RemoveAllCuts(){fSelection=TString();}
       
+      void KeepBranch(TString name){fKeepBranches.push_back(name);}
+
       void LoadSetup(Setup &setup);
 
       const TString TreeName(const TString& name="Data") const {
@@ -75,7 +77,8 @@ namespace HS{
       strings_t fVarNames;
       std::map<TString, strings_t> fNameToFiles;
       std::map<TString, TString> fNameToTree;
-  
+      std::vector<TString> fKeepBranches;
+
       TString fOutDir;
       TString fSelection;
       

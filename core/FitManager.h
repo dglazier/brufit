@@ -43,11 +43,12 @@ namespace HS{
       FitManager(FitManager&&)=default;
       ~FitManager() override =default;
       FitManager& operator=(const FitManager& other);
-      FitManager& operator=(FitManager&& other) = default;
+      FitManager& operator=(FitManager&& other) = delete;
 
       Setup *PointerSetUp() {return &fSetup;};
       Setup &SetUp() {return fSetup;};
       const Setup &ConstSetUp() {return fSetup;};
+      Setup *CurrSetUp()  {return fCurrSetup.get();};
 
       //Note the default name and title are given by the bin and bootstrap
       //combination, Data GetGroup and GetItemName are BootStrap related
@@ -92,7 +93,8 @@ namespace HS{
       
       void InitPrevResult(const TString& resultDir="",const TString& resultMinimiser="");
       void LoadPrevResult(const TString& resultDir,const TString& resultMinimiser);
-
+      void IgnorePrevResult(){fUsePrevResult=kFALSE;}
+      
       void LoadData(const TString& tname,const strings_t& fnames){
 	 fData.Load(fSetup,tname,fnames);
       }
@@ -145,17 +147,18 @@ namespace HS{
       void SetMinimiserType(TString mtype){fMinimiserType=std::move(mtype);}
       TString GetMinimiserType() const {return fMinimiserType;}
       //    Minimiser* GetMinimiser() const {return fMinimiser;}
-      
+      TString MinimiserFileName(){return TString("Results")+fMinimiserType+".root";}
+
       virtual void FillEventsPDFs();
 
       void PlotDataModel()
       {
 	if(dynamic_cast<RooMcmc*>(fMinimiser.get()))
 	  { 
-	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get())})));
+	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get()),fPlotOptions})));
 	  }
 	else
-	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
+	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),fPlotOptions})));
       }
       
       void RedirectOutput(const TString& log="");
@@ -165,6 +168,9 @@ namespace HS{
 	fCompiledMacros=std::move(macs);
       }
       strings_t GetCompiledMacros(){return fCompiledMacros;}
+
+      void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
+      void SetYieldMaxFactor(Double_t factor){fYldMaxFactor=factor;}
       
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
@@ -192,11 +198,14 @@ namespace HS{
       Bool_t fRedirect=kFALSE;
 
       UInt_t fFiti=0;
+      Double_t fYldMaxFactor=2.;
 
+      
       Bool_t fUsePrevResult=kFALSE;
       TString fPrevResultDir;
       TString fPrevResultMini;
       
+      TString fPlotOptions;
 	
       ClassDefOverride(HS::FIT::FitManager,1);
      };

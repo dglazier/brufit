@@ -15,14 +15,23 @@ namespace HS{
       fSetup=other.fSetup;
       fBinner=other.fBinner;
       //LoadData(other.GetDataTreeName(),other.GetDataFileNames());
-  
+      fPlotOptions=other.fPlotOptions;
+      fUsePrevResult=other.fUsePrevResult;
+      fPrevResultDir=other.fPrevResultDir;
+      fPrevResultMini=other.fPrevResultMini;
+      fYldMaxFactor=other.fYldMaxFactor;
     }
 
     FitManager&  FitManager::operator=(const FitManager& other){
       cout<<"=============FitManager"<<endl;
       fSetup=other.fSetup;
       fBinner=other.fBinner;
-      //LoadData(other.fData.ParentTreeName(),other.fData.FileNames());
+      fPlotOptions=other.fPlotOptions;
+      fUsePrevResult=other.fUsePrevResult;
+      fPrevResultDir=other.fPrevResultDir;
+      fPrevResultMini=other.fPrevResultMini;
+      fYldMaxFactor=other.fYldMaxFactor;
+       //LoadData(other.fData.ParentTreeName(),other.fData.FileNames());
       return *this;
     }
     
@@ -52,11 +61,14 @@ namespace HS{
       if(fCurrSetup->Yields().getSize()==1){//special case only 1 yield)
 	Double_t yld=fCurrDataSet->sumEntries();
 	SetAllValLimits(fCurrSetup->Yields(),
-			yld,0,1.2*yld);
+			yld,0,fYldMaxFactor*yld);
       }
-      else
+      else{
 	SetAllValLimits(fCurrSetup->Yields(),
-			fCurrDataSet->sumEntries()/2,0,fCurrDataSet->sumEntries()*1.2);
+			fCurrDataSet->sumEntries()/2,0,
+			fCurrDataSet->sumEntries()*fYldMaxFactor);
+      }
+      
       //create extended max likelihood pdf
       //fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
@@ -191,9 +203,10 @@ namespace HS{
     }
     
     void FitManager::LoadPrevResult(const TString& resultDir,const TString& resultMinimiser){
-      TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+resultMinimiser+".root";
+      //TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+resultMinimiser+".root";
+      TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+resultMinimiser+".root";
 
-     
+      cout<<" FitManager::LoadPrevResult open file "<<resultFile<<endl;
       std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
       std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};
       //fitFile.reset();

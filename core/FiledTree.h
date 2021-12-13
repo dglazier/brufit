@@ -94,6 +94,7 @@ namespace HS{
   
     using filed_ptr=std::shared_ptr<HS::FIT::FiledTree>;
     using filed_uptr=std::unique_ptr<HS::FIT::FiledTree>;
+    using filed_shptr=std::shared_ptr<HS::FIT::FiledTree>;
 
   }
 }

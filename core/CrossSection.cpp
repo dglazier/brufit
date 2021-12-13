@@ -47,7 +47,7 @@ namespace FIT{
 		cout << "Save to " << fileName << endl;
 		auto outfile=std::unique_ptr<TFile> (new TFile{fileName,"recreate"});
 		SetName("cs");
-		if(fSampleAcceptance) fAcceptanceTree.Write();
+		if(fSampleAcceptance) fAcceptanceTree->Write();
 		Write();
 	}
 
@@ -165,9 +165,10 @@ namespace FIT{
 					mcmcDS.Print("v");
 
 					Int_t numentries = mcmcDS.numEntries();
-					fAcceptanceTree.SetNameTitle("acc","acceptance"); //output tree
-					fAcceptanceTree.Branch("acc",&acceptance);
-
+					//fAcceptanceTree->SetNameTitle("acc","acceptance"); //output tree
+					//fAcceptanceTree->Branch("acc",&acceptance);
+					fAcceptanceTree.reset(new TTree("acc","acceptance"));//changed to shared pointer for copy constructor
+					fAcceptanceTree->Branch("acc",&acceptance);
 					for(Int_t i=0; i<numentries; i++){
 						auto* resAll = mcmcDS.get(i); //get all result info
 						newPars.assignFast(*resAll); //set values to results
@@ -177,10 +178,10 @@ namespace FIT{
 						Double_t integralGenerated=pdf->unnormalisedIntegral(2,"");
 						cout << "CrossSection::CalcAcceptanceCorrection() accepted=" << integralAccepted << " generated=" << integralGenerated << " ratio=" << integralAccepted/integralGenerated << endl;
 						acceptance = (integralAccepted/integralGenerated);
-						fAcceptanceTree.Fill();
+						fAcceptanceTree->Fill();
 					}
 					TH1F hacc("h","h",1,0,1); //dummy for easy mean and stddev calculation
-					fAcceptanceTree.Draw("acc>>h","","goff");
+					fAcceptanceTree->Draw("acc>>h","","goff");
 					acceptance = hacc.GetMean();
 					acceptance_err = hacc.GetStdDev();
 				}

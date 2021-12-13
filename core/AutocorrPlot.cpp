@@ -16,7 +16,8 @@ namespace HS{
     AutocorrPlot::AutocorrPlot(Setup *setup, RooMcmc* mcmc, TList* canvases)
     {
     
-      auto tree = mcmc->GetTree();
+      auto tree =mcmc->GetTree()->CopyTree("",""); //make a copy
+      RemoveNegativeInNames(tree);
       Int_t burnIn  = mcmc->GetNumBurnInSteps();
   
       auto& pars = setup->ParsAndYields();
@@ -38,12 +39,13 @@ namespace HS{
 
       for (RooAbsArg* ipar : pars)
 	{//Loop over parameters
-	  
+	  if(ipar->isConstant()==kTRUE) continue;
+
 	  Double_t entryTree[Nentries];
 	  Double_t lag[Nentries]; 
 	  Double_t autocorr[Nentries];	
 	
-	  tree->SetBranchAddress(ipar->GetName(), &param[param_iter]);
+	  tree->SetBranchAddress(CheckForNegatives(ipar->GetName()), &param[param_iter]);
 	  Double_t time = 0;
 	  Double_t timePar = 0;
 	  Double_t chain_total=0;
@@ -106,6 +108,9 @@ namespace HS{
       mg->GetYaxis()->SetTitle("autocorrelation");
       leg->Draw("same");
 
+
+      delete tree;
+      
       canvas->Modified();
       canvas->Update();
       canvas->Draw("");		 

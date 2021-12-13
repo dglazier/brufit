@@ -1,7 +1,7 @@
 # Background subtraction then observable fit
 
 //////////////////////////////////////////////////////////////////
-In my model I have now generated a signal and background with differet mass sitributions. Also I have constructed an angle Phi which in the case of the signal has a polarisation depedent cos(2Phi) distribution. It is necessary to save the polarisation state as in integer PolState for use in the fit PDF, in general this should be -1,0,1, as well as the magnitude of polarisation as a seperate double. Note the polarisation is Egamma dependent and so must be handled event by event.
+In my model I have now generated a signal and background with different mass sitributions. Also I have constructed an angle Phi which in the case of the signal has a polarisation depedent cos(2Phi) distribution. It is necessary to save the polarisation state as in integer PolState for use in the fit PDF, in general this should be -1,0,1, as well as the magnitude of polarisation as a seperate double. Note the polarisation is Egamma dependent and so must be handled event by event.
 
 ////////////////////////////////////////////////////////////////////
 To generate data

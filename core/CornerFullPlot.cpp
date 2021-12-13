@@ -34,14 +34,13 @@ namespace HS{
  
       auto vars=setup->FitVars();
 
-      auto tree = mcmc->GetTree();
-
-      auto& pars = setup->ParsAndYields();
-      std::cout<<"The Parameters are: "<<std::endl;
-      Int_t Npars = pars.size();
-      std::cout<<"The number of parameters is: "<<Npars<<std::endl;
+      auto tree =mcmc->GetTree()->CopyTree("",""); //make a copy
+      RemoveNegativeInNames(tree);
       
-  
+      auto& pars = setup->ParsAndYields();
+      //  std::cout<<"The Parameters are: "<<std::endl;
+      Int_t Npars = pars.size();
+      //std::cout<<"The number of parameters is: "<<Npars<<std::endl;
       auto canName = "Corner Full Plot";
       auto canvas = new TCanvas(canName, canName);
       
@@ -65,23 +64,26 @@ namespace HS{
 		  auto can = canvas->cd(Npars*counter+int_counter); 
 		  can->SetBorderSize(0);
 		  can->SetTopMargin(0.0);
-		  can->SetBottomMargin(0.1);
-		  can->SetLeftMargin(0.19);
-		  can->SetRightMargin(0.01);
+		  can->SetBottomMargin(0.);
+		  can->SetLeftMargin(0.);
+		  can->SetRightMargin(0.0);
 
-		  TString DrawParInd1 = ipar->GetName();
-		  TString histname= TString("cornerf_")+ipar->GetName();
-		  DrawParInd1+=">>";
-		  DrawParInd1+=histname;
+		  if(ipar->isConstant()==kFALSE){
+		    TString DrawParInd1 = CheckForNegatives(ipar->GetName());
+		    TString histname= TString("cornerf_")+ipar->GetName();
+		    DrawParInd1+=">>";
+		    DrawParInd1+=histname;
 
-		  tree->Draw(DrawParInd1);
-		  auto htemp=dynamic_cast<TH1*>(gDirectory->FindObject(histname));
-		  Double_t mean = htemp->GetMean();
+		    tree->Draw(DrawParInd1);
+		    auto htemp=dynamic_cast<TH1*>(gDirectory->FindObject(histname));
+		    if(htemp!=nullptr){
+		      Double_t mean = htemp->GetMean();
 
-		  TLine *line = new TLine(mean,0,mean, htemp->GetMaximum());
-		  line->SetLineColor(kRed);
-		  line->Draw(); 
-
+		      TLine *line = new TLine(mean,0,mean, htemp->GetMaximum());
+		      line->SetLineColor(kRed);
+		      line->Draw(); 
+		    }
+		  }
 		  counter++;
 		  
 		  break;
@@ -92,40 +94,41 @@ namespace HS{
 		  auto can = canvas->cd(Npars*counter+int_counter);
 		  can->SetBorderSize(0);
 		  can->SetTopMargin(0);
-		  can->SetBottomMargin(0.1);
-		  can->SetLeftMargin(0.19);
-		  can->SetRightMargin(0.01);
+		  can->SetBottomMargin(0.);
+		  can->SetLeftMargin(0.);
+		  can->SetRightMargin(0.0);
 		      
-		  TString DrawPar = ipar->GetName();
-		  TString DrawPar2 = ipar2->GetName();
+		  if(ipar->isConstant()==kFALSE&&ipar2->isConstant()==kFALSE){
+		    TString DrawPar = CheckForNegatives(ipar->GetName());
+		    TString DrawPar2 = CheckForNegatives(ipar2->GetName());
 
-		  Double_t maxY =  tree->GetMaximum(DrawPar);		 
-		  Double_t minY =  tree->GetMinimum(DrawPar);
-		  Double_t maxX =  tree->GetMaximum(DrawPar2);		 
-		  Double_t minX =  tree->GetMinimum(DrawPar2);
+		    Double_t maxY =  tree->GetMaximum(DrawPar);		 
+		    Double_t minY =  tree->GetMinimum(DrawPar);
+		    Double_t maxX =  tree->GetMaximum(DrawPar2);		 
+		    Double_t minX =  tree->GetMinimum(DrawPar2);
 
-		  TString histname="cornerf2_";
-		  histname+=ipar->GetName();
-		  histname+=ipar2->GetName();
+		    TString histname="cornerf2_";
+		    histname+=ipar->GetName();
+		    histname+=ipar2->GetName();
 
-		  auto hist =  new TH2F{histname,histname, 50,minX, maxX,50, minY,maxY };
-		  TString Draw2D = DrawPar + ":" + DrawPar2;
-		  TString Draw2D1 = DrawPar + ":" + DrawPar2 + ">>"+histname;
+		    auto hist =  new TH2F{histname,histname, 50,minX, maxX,50, minY,maxY };
+		    // TString Draw2D = DrawPar + ":" + DrawPar2;
+		    TString Draw2D1 = DrawPar + ":" + DrawPar2 + ">>"+histname;
 		      
-		  tree->Draw(Draw2D1,"","col");
-		  //tree->Draw(Draw2D, "", "col");
+		    tree->Draw(Draw2D1,"","col");
+		    //tree->Draw(Draw2D, "", "col");
 
-		  Double_t meanX = hist->GetMean(1);
-		  Double_t meanY = hist->GetMean(2);
+		    Double_t meanX = hist->GetMean(1);
+		    Double_t meanY = hist->GetMean(2);
 	          
-		  TLine* lineV = new TLine(meanX,minY, meanX, maxY);
-		  TLine* lineH = new TLine(minX, meanY, maxX, meanY);
-		  lineV->SetLineColor(kRed);
-		  lineH->SetLineColor(kRed);
-		  lineV->Draw();
-		  lineH->Draw();
+		    TLine* lineV = new TLine(meanX,minY, meanX, maxY);
+		    TLine* lineH = new TLine(minX, meanY, maxX, meanY);
+		    lineV->SetLineColor(kRed);
+		    lineH->SetLineColor(kRed);
+		    lineV->Draw();
+		    lineH->Draw();
 		  
-	
+		  }
 		  int_counter++;
 		  can->Modified();
 		  can->Update();
@@ -139,13 +142,15 @@ namespace HS{
       canvas->Update();
       canvas->Draw();
 
-     
-      
-
+      delete tree;
+ 
       //change style back
       gStyle=defStyle;
 
     }//CornerFullPlot
+
+
+
   }//FIT
 }//HS
 

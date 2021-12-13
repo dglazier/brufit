@@ -94,6 +94,8 @@ namespace HS{
      if(!fInWeights.get()&&fInWeightName!=TString()){ //if Data object read from root file
        LoadWeights();
      }
+
+     const char* useWeightName=nullptr;
      if(fInWeights.get()){//if weights add branches and vars
        //create a copy in a new file to append the weights to
        //Keep it in file as large trees can use too much memory
@@ -108,14 +110,16 @@ namespace HS{
       //fInWeights->AddToTreeDisc(rawtree,fSetup->GetOutDir()+"DataInWeights.root");	
        fWeightVar = std::unique_ptr<RooRealVar>(new RooRealVar{fInWeightName,fInWeightName,0});
        vars.add(*fWeightVar.get());
+       useWeightName=fInWeightName.Data(); //get char*
      }
+     
      //only let datset clone active branches
      TIter iter=vars.createIterator();
      rawtree->SetBranchStatus("*",false);
      while(auto* arg=dynamic_cast<RooAbsArg*>(iter()))	
        rawtree->SetBranchStatus(arg->GetName(),true);	
 
-     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(),fInWeightName});
+     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(),useWeightName});
 
      fFiledTrees[iset].reset(); //delete rawtree 
      if(fInWeights.get()){

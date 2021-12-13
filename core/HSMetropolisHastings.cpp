@@ -1,6 +1,8 @@
 #include "HSMetropolisHastings.h"
-#include "RooStats/RooStatsUtils.h"
+#include <RooStats/RooStatsUtils.h>
 #include <RooStats/MarkovChain.h>
+#include <RooStats/PdfProposal.h>
+#include <TRandom.h>
 
 namespace HS{
   namespace FIT{
@@ -105,17 +107,37 @@ namespace HS{
       int snapcount=0;
       
       int havePrinted=0;
-      x.Print("v");
+      //x.Print("v");
       
-   
+      //Check if we have PDF proposal
+      
+      RooStats::PdfProposal* pdfProposal=dynamic_cast<RooStats::PdfProposal*>(fPropFunc);
+      
       while (icount <fNumIters) {
 	totcount++;
-	//	cout<<"        METHAST "<<totcount<<std::endl;
+	//std::cout<<"        METHAST "<<totcount<<std::endl;
 	// reset error handling flag
 	hadEvalError = false;
 	// print a dot every 1% of the chain construction
-	if (totcount%100 == 0){
-	  std::cout<<"snap "<<snapcount<<" "<<totcount<<std::endl;
+	if (totcount%1000 == 0){
+	  fAcceptance = ((Double_t)snapcount)/totcount;
+	  std::cout<<"  HSMetropolisHastings accepted "<<snapcount<<" out of "<<totcount<<" for acceptance "<<fAcceptance<<std::endl;
+	  CheckForBurnIn(chain);
+	  //check acceptance, if too low exit
+	  if(fTryHelp==kTRUE){
+	    if(fAcceptance<fMinAcc||fAcceptance>fMaxAcc){
+	      RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
+	      delete chain;
+	      std::cout<<"WARNING HSMetropolisHastings acceptance not optimal exiting..." <<" current Likelihood "<<CalcNLL(xL)<<std::endl;
+
+	      // x.Print("v");	
+	      return nullptr;
+	    }
+	    // std::cout<<"x "<<std::endl;
+	    //x.Print("v");
+	    //std::cout<<"xprime "<<std::endl;
+	    //xPrime.Print("v");
+	  }
 
 	}
 	if (icount%100 == 0&&havePrinted==0){
@@ -123,21 +145,33 @@ namespace HS{
 	  havePrinted=1;
 	}
 	if (icount%100 == 1) havePrinted=0;
+	//	std::cout<<"********************************************X' "<<std::endl;
+	//xPrime.Print("v");
+	//std::cout<<"********************************************X "<<std::endl;
+	//x.Print("v");
+
+	//PdfProposal uses a cache, but it samples from
+	//the wrong Pdf parameters so best to reset every proposal
+	if(pdfProposal){
+	  //  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->GetPdf()->getVariables()->Print("v");
+	   pdfProposal->Reset();
+	}
+	//std::cout<<"***************************PROPOSE "<<fPropFunc->GetProposalDensity(xPrime, fParameters)<<" "<<((RooStats::PdfProposal*)fPropFunc)->GetPdf()->getVal()<<std::endl;
+	//std::cout<<"***************************PROPOSE "<<std::endl;
 	
 	fPropFunc->Propose(xPrime, x);
 	RooStats::SetParameters(&xPrime, &fParameters);
+	//std::cout<<"********************************************X'2 "<<std::endl;	xPrime.Print("v");
+
+	//std::cout<<"***************************PROPOSED"<<std::endl;
 
 
-	// cout<<"********************************************MSMC "<<endl;
+	//	std::cout<<"********************************************MSMC "<<std::endl;
 
-	// fParameters.Print("v");
-	// cout<<"********************************************X' "<<endl;
-	// xPrime.Print("v");
-	// cout<<"********************************************X "<<endl;
-	// x.Print("v");
+	//fParameters.Print("v");
 
 	xPrimeL = fFunction->getVal();
-	//	cout<<"********************************************L"<<xPrimeL<<endl;
+	//std::cout<<"********************************************L"<<xPrimeL<<std::endl;
 
 
 	// check if log-likelihood for xprime had an error status
@@ -173,7 +207,7 @@ namespace HS{
             a += TMath::Log(xPrimePD) - TMath::Log(xPD);
 	}
 	
-	//	cout<<"a "<<a<<" xPL "<<xPrimeL<<" "<<"xL "<<" "<<xL<<endl;
+	//	std::cout<<"a "<<a<<" xPL "<<xPrimeL<<" "<<"xL "<<" "<<xL<< " "<<(fType == kLog)<<" "<<hadEvalError<<" "<<std::endl;
 	//	x.Print("v");xPrime.Print("v");
 	if (!hadEvalError && ShouldTakeStep(a)) {
 	  // go to the proposed point xPrime
@@ -208,6 +242,12 @@ namespace HS{
       coutI(Eval) << "Proposal acceptance rate: " <<
 	((float)icount)/totcount * 100 << "%" << std::endl;
       coutI(Eval) << "Number of steps in chain: " << numAccepted << std::endl;
+
+      //clear burnin checker
+      fMeans.clear();
+      fSigmas.clear();
+      fNWorse=0;
+ 
       return chain;
     }
 
@@ -217,10 +257,82 @@ namespace HS{
 	RooAbsReal::clearEvalErrorLog();
 	return kTRUE;
       }
-	
       return kFALSE;
 	    
     }
+
+    Bool_t HSMetropolisHastings::CheckForBurnIn(RooStats::MarkovChain* chain){
+      
+      //      Check RMS and mean for last 100 events
+      auto Nentries=chain->Size();
+      auto vars = chain->Get();
+      RooDataSet current("current","current",*vars);
+      std::cout<<""<<chain<<" "<<vars<<std::endl;
+      Int_t Ntests=vars->getSize()*50;
+      
+      if(Ntests>Nentries){std::cout<<" ntests "<<Ntests<<" "<<Nentries<<std::endl; return kTRUE;}//not enough events Ntests=Nentries/2;
+      if(Ntests>Nentries-fLastEntries){std::cout<<" not enough entries "<<Ntests<<" > "<<Nentries-fLastEntries<<" "<<Nentries<<std::endl; return kTRUE;}
+ 
+      for(Int_t i=Nentries-1;i>Nentries-100;--i){
+	if(gRandom->Uniform()<1./chain->Weight(i))current.add(*chain->Get(i));
+      }
+
+      if(fMeans.empty()==true){
+	fMeans.resize(vars->getSize());
+	fSigmas.resize(vars->getSize());
+      }
+      //loop over variables and get current mean and rms
+      Int_t iv=0;
+      Int_t Npass=0;
+      for(auto& var: *vars){
+	RooRealVar* rvar=static_cast<RooRealVar*>(var);
+	Double_t mean=current.mean(*rvar);
+	Double_t sigma=current.sigma(*rvar);
+	//std::cout<<"HSMetropolisHastings CheckForBurnIn "<<var->GetName()<<" mean "<<mean<<" "<<sigma<<" out of "<<current.numEntries()<<" diff "<< (mean-fMeans[iv])/TMath::Sqrt(fSigmas[iv]*fSigmas[iv]+sigma*sigma)<<std::endl;
+
+	auto biggestSigma=fSigmas[iv]>sigma? fSigmas[iv]:sigma;
+	if(biggestSigma==0)biggestSigma=1;
+	//std::cout<<"sigma "<<biggestSigma<<" "<<fSigmas[iv]<<" "<<fMeans[iv]<<" "<<TMath::Abs((mean-fMeans[iv])/biggestSigma)<<std::endl;
+	
+	if(TMath::Abs((mean-fMeans[iv])/biggestSigma)<3)++Npass;
+	
+
+	if(var==(*vars)[vars->getSize()-1]){
+	  std::cout<<"NLL diff "<<mean<<" "<<fMeans[iv]<<" diff "<<mean-fMeans[iv]<<" "<<TMath::Abs((mean-fMeans[iv])/biggestSigma)<<" "<<std::endl;
+
+	  /*  if(fNBetterThanSave>fNWorseThanSave+5)
+	    {
+	      fNWorse=0;
+	      fNBetter=0;
+	      fNWorseThanSave=0;
+	      fNBetterThanSave=0;
+	      fSaveNLL=0;
+	    }
+	  */
+	  if(mean-fMeans[iv]>0){
+	    ++fNWorse;
+	    if(fSaveNLL==0)
+	      fSaveNLL=mean;
+	  }
+	  
+	  else if(fNWorse>2) ++fNBetter;
+
+	  
+	  if(mean-fSaveNLL>0)
+	    ++fNWorseThanSave;
+	  if(mean-fSaveNLL<0)
+	    ++fNBetterThanSave;
+	  
+	}
+	
+	fMeans[iv]=mean;
+	fSigmas[iv]=sigma;
+	++iv;
+      }
+      std::cout<<Npass<<" out of "<<vars->getSize()<<" up to "<<Nentries<<" and Worse "<<fNWorse<<" and Better "<<fNBetter<<" and Worse than save "<<fNWorseThanSave<<" and Better "<<fNBetterThanSave<<" which is " <<fSaveNLL<<std::endl;
+      fLastEntries=Nentries;
+      return kTRUE;
+    } 
   }//namespace FIT
 
 }//namespace HS

@@ -49,13 +49,10 @@ namespace HS{
 	if(!fname.BeginsWith("/"))
 	  fname = TString(gSystem->Getenv("PWD"))+"/"+fname;
 
-	std::cout<<"Binner::SplitData  adding "<<name<<" "<<fname<<endl; 
 	fNameToFiles[name]={{fname}};
 	fNameToTree[name]=tname;
 	fBinNames={{""}};
 
-	std::cout<<"Binner::SplitData  adding "<<name<<" "<<fname<<  " "<<fNameToFiles.size()<<endl; 
-	
 	return;
       }
       if(!fIsSetup) {
@@ -73,7 +70,10 @@ namespace HS{
       for(auto &vname : fVarNames) {//only copy variable branches for speed
 	tree->SetBranchStatus(vname,true);
       }
-      cout<<"SplitData "<<fOutDir<<" "<<fBins.GetN()<<endl;
+      for(auto &vname : fKeepBranches) {//plus any others 
+	if(tree->GetBranch(vname))tree->SetBranchStatus(vname,1);
+      }
+       cout<<"SplitData "<<fOutDir<<" "<<fBins.GetN()<<endl;
       //now split the tree into bins and save in subdirs of fOutDir
       fBins.SetOutDir(fOutDir);
       fBins.SetDataName(name);

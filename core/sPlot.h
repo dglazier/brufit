@@ -16,9 +16,11 @@ namespace HS{
   namespace FIT{
 
     using splot_uptr = std::unique_ptr<RooStats::SPlot>;
+    using splot_shptr = std::shared_ptr<RooStats::SPlot>;
     using weights_ptr =std::shared_ptr<Weights>;
     using weights_uptr =std::unique_ptr<Weights>;
     using tree_uptr =std::unique_ptr<TTree>;
+    using tree_shptr =std::shared_ptr<TTree>;
     
     class sPlot  : public FitManager{
       
@@ -28,7 +30,7 @@ namespace HS{
       sPlot(sPlot&&)=default;
       ~sPlot() override =default;
       sPlot& operator=(const sPlot& other) = default;
-      sPlot& operator=(sPlot&& other) = default;
+      sPlot& operator=(sPlot&& other) = delete;
       
       Bool_t Run() override;
  
@@ -49,13 +51,17 @@ namespace HS{
     protected:
       
       void WeightedTree();
+      Bool_t ZeroYieldCheck();
       
     private:
-      splot_uptr fSPlot; //!sPlot object
+      splot_shptr fSPlot; //!sPlot object
       weights_ptr fWeights;//!
-      tree_uptr fWeightedTree;//!
-      filed_uptr fWeightedFiledTree;//!
+      tree_shptr fWeightedTree;//!
+      filed_shptr fWeightedFiledTree;//!
 
+      TString fSingleYield;//!
+      std::vector<TString> fZeroYields;//!
+      
       ClassDefOverride(HS::FIT::sPlot,1);
     };
     

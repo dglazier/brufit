@@ -23,7 +23,7 @@ namespace HS{
       
     public:
 
-    RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm){
+      RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm){
 	SetNameTitle("HSRooMcmc","RooMcmc minimiser");
       }
       RooMcmc(const RooMcmc&)=default;
@@ -39,7 +39,11 @@ namespace HS{
       file_uptr SaveInfo() override;
       void AddFormulaToMCMCTree();
       
-      void MakeChain();
+      Bool_t MakeChain();
+      TMatrixDSym MakeMinuitCovarianceMatrix();
+      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -98,18 +102,32 @@ namespace HS{
       void SetupBasicUsage();
       void SetKeepStart(Bool_t keep=kTRUE){fKeepStart=keep;}
 
-      Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
- 
+      virtual Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
+
+      void SetDesiredAcceptance(Double_t min,Double_t max,Double_t target=0){
+	fMinAcc=min;
+	fMaxAcc=max;
+	if(target)
+	  fTargetAcc=target;
+	else
+	  fTargetAcc = (max-min)/2;
+      }
+      void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
+      void SetParVals(RooArgSet* toThesePars);
+      
     protected :
-  
+      void AddEntryBranch();
+      void CleanMakeChain();
+      
       RooStats::MarkovChain* fChain =nullptr; //!
       RooDataSet* fChainData=nullptr;//!
       TTree* fTreeMCMC=nullptr;//!
       Bool_t fCorrectForWeights=kTRUE;
       RooArgSet* fParams=nullptr;//!
-
-      Bool_t fKeepStart=kFALSE; //randomise starting values
+      std::shared_ptr<TFile> fTempFile;//!
       
+      Bool_t fKeepStart=kFALSE; //randomise starting values
+      Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.
       //MCMCCalculator
       RooStats::ModelConfig *fModelConfig=nullptr;
       
@@ -124,9 +142,21 @@ namespace HS{
       //RooAbsData * fData=nullptr;     //! pointer to the data (owned by the workspace)
       Int_t fNumIters; // number of iterations to run metropolis algorithm
       Int_t fNumBurnInSteps; // number of iterations to discard as burn-in, starting from the first
+
       Int_t fNumBins{}; // set the number of bins to create for each
       Int_t fWarmup{}; //ignore these events
       Float_t fNorm=1;
+      Int_t fNumBurnInStepsCov; //Number of steps to remove from chain to make covariance matrix for proposal function
+
+      vector<Double_t> _formVals;//(formulas.getSize(),0);
+      vector<TBranch*> _formBranches;//(formulas.getSize(),nullptr);
+
+      Double_t fChainAcceptance=0;//!
+      Double_t fMinAcc=0.15;
+      Double_t fMaxAcc=0.3;
+      Double_t fTargetAcc=0.234;
+      Int_t  fUncorrelateYields=0;
+      
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
      };
@@ -148,6 +178,71 @@ namespace HS{
 
       ClassDefOverride(HS::FIT::RooMcmcSeq,1);
    };
+
+    class RooMcmcSeqHelper  : public RooMcmc {
+      
+    public:
+   RooMcmcSeqHelper(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
+	SetNameTitle("HSRooMcmcSeqHelper","RooMcmcSeqHelper minimiser");
+      }
+      RooMcmcSeqHelper(const RooMcmcSeqHelper&)=default;
+      RooMcmcSeqHelper(RooMcmcSeqHelper&&)=default;
+      ~RooMcmcSeqHelper() override =default;
+      RooMcmcSeqHelper& operator=(const RooMcmcSeqHelper& other)=default;
+      RooMcmcSeqHelper& operator=(RooMcmcSeqHelper&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqHelper,1);
+   };
+
+ class RooMcmcSeqCov  : public RooMcmc {
+      
+    public:
+
+   RooMcmcSeqCov(Int_t Nburn=10,Int_t Niter=100,Int_t NburnCov=10, Float_t norm=0.1):RooMcmc(Niter,NburnCov,norm),fNumBurnInStepsForCov(Nburn){
+	SetNameTitle("HSRooMcmcSeqCov","RooMcmcSeqCov minimiser");
+      }
+      RooMcmcSeqCov(const RooMcmcSeqCov&)=default;
+      RooMcmcSeqCov(RooMcmcSeqCov&&)=default;
+      ~RooMcmcSeqCov() override =default;
+      RooMcmcSeqCov& operator=(const RooMcmcSeqCov& other)=default;
+      RooMcmcSeqCov& operator=(RooMcmcSeqCov&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+   Int_t fNumBurnInStepsForCov=50; //Number of burn in steps to discard from the chain to make covariance matrix
+
+   ClassDefOverride(HS::FIT::RooMcmcSeqCov,1);
+   };
+
+ class RooMcmcSeqThenCov  : public RooMcmc {
+      
+ public:
+   
+   RooMcmcSeqThenCov(Int_t Niter=100,Int_t Nburn=10,  Float_t norm=0.1,Int_t NiterThenCov=100,Int_t NburnCov=10,Float_t normThenCov=1):RooMcmc(Niter,Nburn,norm ),fNumItersThenCov(NiterThenCov),fNumBurnInStepsThenCov(NburnCov),fNormThenCov(normThenCov){
+	SetNameTitle("HSRooMcmcSeqThenCov","RooMcmcSeqThenCov minimiser");
+      }
+      RooMcmcSeqThenCov(const RooMcmcSeqThenCov&)=default;
+      RooMcmcSeqThenCov(RooMcmcSeqThenCov&&)=default;
+      ~RooMcmcSeqThenCov() override =default;
+      RooMcmcSeqThenCov& operator=(const RooMcmcSeqThenCov& other)=default;
+      RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+      Int_t GetNumBurnInSteps()const final{return fNumBurnInStepsThenCov;}
+
+ private:
+   
+   Int_t fNumItersThenCov=100; //number of iterations to run second metropolis algorithm with covariance proposal
+   Int_t fNumBurnInStepsThenCov=50; //Number of burn in steps to discard from the chain to make covariance matrix
+   Float_t fNormThenCov=1;
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqThenCov,1);
+   };
+
+
+
      class RooMcmcUniform2Seq  : public RooMcmc {
       
     public:

@@ -67,6 +67,14 @@ namespace HS{
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicRe","RooHSSphHarmonicRe");
       TClassTable::AddAlternate("HS::FIT::RelBreitWigner","RelBreitWigner");
       TClassTable::AddAlternate("HS::FIT::RooHSComplexSumSqdTerm","RooHSComplexSumSqdTerm");
+
+      TClassTable::AddAlternate("HS::FIT::RooHSDWigner","RooHSDWigner");
+      TClassTable::AddAlternate("HS::FIT::RooHSDWignerIm","RooHSDWignerIm");
+      TClassTable::AddAlternate("HS::FIT::RooHSDWignerRe","RooHSDWignerRe");
+       TClassTable::AddAlternate("HS::FIT::RooHSDWignerProduct","RooHSDWignerProduct");
+      TClassTable::AddAlternate("HS::FIT::RooHSDWignerProductIm","RooHSDWignerProductIm");
+      TClassTable::AddAlternate("HS::FIT::RooHSDWignerProductRe","RooHSDWignerProductRe");
+  
       // TClassTable::AddAlternate("HS::FIT::","");
 
       TString option = GetOption();

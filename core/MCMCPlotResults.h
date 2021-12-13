@@ -16,7 +16,7 @@ namespace HS{
     class MCMCPlotResults : public PlotResults {
 
     public:
-      MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc);
+      MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc,const TString& opt);
       MCMCPlotResults()=default;
       MCMCPlotResults(const MCMCPlotResults&)=default;
       MCMCPlotResults(MCMCPlotResults&&)=default;

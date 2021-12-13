@@ -47,18 +47,19 @@ namespace HS{
       RooRandom::randomGenerator()->SetSeed(0);//random seed
 
       // Long64_t nexp=RooRandom::randomGenerator()->Poisson(model->expectedEvents(fitpars));
-      Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
-
+ 
  
       //fitvars.Print("v");
       auto iter=fitvars.iterator();
       const RooAbsArg *tmp=nullptr;
       while ((tmp = dynamic_cast<RooAbsArg*>(iter.Next()))){
 	auto arg=fitvars.find(tmp->GetName());
-	cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
+	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
 
       while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
+	Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
+
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
 	SaveResults();
@@ -112,6 +113,7 @@ namespace HS{
       for(auto* pdf:PDFs){
 	if(auto evPdf=dynamic_cast<RooHSEventsPDF*> (pdf) ) {
 	  TFile entryFile(TString("entryFile_")+evPdf->GetName()+".root");
+	  if(entryFile.IsOpen()==kFALSE) continue; //no events tree or entry list, will just have used Accept or Reject
 	  auto entryList=dynamic_cast<TEntryList*>(entryFile.Get("GenEvents"));
 
 	  auto idata=GetDataBin(GetFiti()); //bin for this generation

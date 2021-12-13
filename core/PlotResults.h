@@ -20,7 +20,7 @@ namespace HS{
     class PlotResults  {
       
     public:
-      PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag);
+      PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag,const TString& opt);
       PlotResults()=default;
       PlotResults(const PlotResults&)=default;
       PlotResults(PlotResults&&)=default;
@@ -31,9 +31,14 @@ namespace HS{
       void Write();
       
     protected:
-      std::unique_ptr<TList> fCanvases{new TList()};
+      std::shared_ptr<TList> fCanvases{new TList()};
       std::vector<roohist_uptr> fRooHists;
+      
+      void RemoveNegativeInNames(TTree* tree);
+      TString CheckForNegatives(TString name);
 
+      TString fPlotOptions;
+      
     private:
 
      };

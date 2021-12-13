@@ -33,13 +33,15 @@ namespace HS{
   
       auto vars=setup->FitVars();
 
-      auto tree = mcmc->GetTree();
+      auto tree =mcmc->GetTree()->CopyTree("",""); //make a copy
+      RemoveNegativeInNames(tree);
+
       auto burnIn=mcmc->GetNumBurnInSteps();
 
       auto& pars = setup->ParsAndYields();
-      std::cout<<"The Parameters are: "<<std::endl;
+      // std::cout<<"The Parameters are: "<<std::endl;
       Int_t Npars = pars.size();
-      std::cout<<"The number of parameters is: "<<Npars<<std::endl;
+      //std::cout<<"The number of parameters is: "<<Npars<<std::endl;
       
       //Don't need canvas for each var
       auto canName = "Corner Plot";
@@ -69,32 +71,35 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 		      
-		  TString DrawParInd1 = ipar->GetName();
-		  TString DrawParInd = DrawParInd1 + ">>";
-		  TString histname= "corner_";
-		  histname+=ipar->GetName();
-		  DrawParInd+=histname;
+		  if(ipar->isConstant()==kFALSE && setup->IsParSetConst(ipar->GetName())==kFALSE){
+		    TString DrawParInd1 = CheckForNegatives(ipar->GetName());
+		    TString DrawParInd = DrawParInd1 + ">>";
+		    TString histname= "corner_";
+		    histname+=ipar->GetName();
+		    DrawParInd+=histname;
 		      
-		  tree->Draw(DrawParInd,"","",tree->GetEntries()-burnIn,burnIn);
-		  auto hist=dynamic_cast<TH1*>(gDirectory->FindObject(histname));
+		    tree->Draw(DrawParInd,"","",tree->GetEntries()-burnIn,burnIn);
+		    auto hist=dynamic_cast<TH1*>(gDirectory->FindObject(histname));
+		    if(hist!=nullptr){
 
-		  Double_t mean = hist->GetMean();
-		  Double_t sigma = hist->GetRMS();
-		  auto hist2 = TH1F{histname+"range", ipar->GetName(), 100, mean-3*sigma, mean+3*sigma};
+		      Double_t mean = hist->GetMean();
+		      Double_t sigma = hist->GetRMS();
+		      auto hist2 = TH1F{histname+"range", ipar->GetName(), 100, mean-3*sigma, mean+3*sigma};
 		   
-		  TString DrawParFin = DrawParInd1 + ">>"+histname+"range";
-		  tree->Draw(DrawParFin,"","",tree->GetEntries()-burnIn,burnIn); 
-		  hist2.DrawCopy();
+		      TString DrawParFin = DrawParInd1 + ">>"+histname+"range";
+		      tree->Draw(DrawParFin,"","",tree->GetEntries()-burnIn,burnIn); 
+		      hist2.DrawCopy();
 
-		  //need to let ROOT delete line
-		  auto* line = new TLine{mean,0,mean, hist->GetMaximum()};
-		  line->SetLineColor(kRed);
-		  line->Draw();
-
+		      //need to let ROOT delete line
+		      auto* line = new TLine{mean,0,mean, hist->GetMaximum()};
+		      line->SetLineColor(kRed);
+		      line->Draw();
+		    }
+		  }
 		  counter++;		  
 		  break;
 		}
-
+	      
 	      else if(ipar!=ipar2)
 		{
   		  auto can = canvas->cd(Npars*counter+int_counter);
@@ -104,38 +109,42 @@ namespace HS{
 		  can->SetLeftMargin(0.19);
 		  can->SetRightMargin(0.01);
 		  
-		  TString DrawPar = ipar->GetName();
-		  TString DrawPar2 = ipar2->GetName();
-		  TString title = DrawPar + ":" + DrawPar2;
-		  TString Draw2D = DrawPar + ":" + DrawPar2 + ">>";
-		  TString histname="corner2_";
-		  histname+=ipar->GetName();
-		  histname+="_";
-		  histname+=ipar2->GetName();
-		  Draw2D +=histname;
+		  if(ipar->isConstant()==kFALSE && ipar2->isConstant()==kFALSE
+		     && setup->IsParSetConst(ipar->GetName())==kFALSE && setup->IsParSetConst(ipar2->GetName())==kFALSE){
+		    
+		    TString DrawPar = CheckForNegatives(ipar->GetName());
+		    TString DrawPar2 = CheckForNegatives(ipar2->GetName());
+		    TString title = DrawPar + ":" + DrawPar2;
+		    TString Draw2D = DrawPar + ":" + DrawPar2 + ">>";
+		    TString histname="corner2_";
+		    histname+=ipar->GetName();
+		    histname+="_";
+		    histname+=ipar2->GetName();
+		    Draw2D +=histname;
 	
-		  tree->Draw(Draw2D, "", "goff",tree->GetEntries()-burnIn,burnIn);
-		  auto hist=dynamic_cast<TH2*>(gDirectory->FindObject(histname));
-		  Double_t meanX = hist->GetMean(1);
-		  Double_t meanY = hist->GetMean(2);
-		  Double_t rmsX = hist->GetRMS(1);
-		  Double_t rmsY = hist->GetRMS(2);
-		  delete hist;
+		    tree->Draw(Draw2D, "", "goff",tree->GetEntries()-burnIn,burnIn);
+		    auto hist=dynamic_cast<TH2*>(gDirectory->FindObject(histname));
+		    Double_t meanX = hist->GetMean(1);
+		    Double_t meanY = hist->GetMean(2);
+		    Double_t rmsX = hist->GetRMS(1);
+		    Double_t rmsY = hist->GetRMS(2);
+		    delete hist;
 		
-		  auto hist2 = new TH2F{histname,histname, 50, meanX-3*rmsX, meanX+3*rmsX, 50, meanY-3*rmsY, meanY+3*rmsY};
-		  hist2->SetTitle(title);
+		    auto hist2 = new TH2F{histname,histname, 50, meanX-3*rmsX, meanX+3*rmsX, 50, meanY-3*rmsY, meanY+3*rmsY};
+		    hist2->SetTitle(title);
 
-		  TString Draw2DFin = DrawPar + ":" + DrawPar2 + ">>"+histname;
-		  tree->Draw(Draw2DFin,"", "col",tree->GetEntries()-burnIn,burnIn);
+		    TString Draw2DFin = DrawPar + ":" + DrawPar2 + ">>"+histname;
+		    tree->Draw(Draw2DFin,"", "col",tree->GetEntries()-burnIn,burnIn);
 		  
-		  //need to let ROOT delete line
-		  auto lineV = new TLine{meanX,meanY-3*rmsY, meanX, meanY+3*rmsY};
-		  auto lineH = new TLine{meanX-3*rmsX, meanY, meanX+3*rmsX, meanY};
-		  lineV->SetLineColor(kRed);
-		  lineH->SetLineColor(kRed);
-		  lineV->Draw();
-		  lineH->Draw();
+		    //need to let ROOT delete line
+		    auto lineV = new TLine{meanX,meanY-3*rmsY, meanX, meanY+3*rmsY};
+		    auto lineH = new TLine{meanX-3*rmsX, meanY, meanX+3*rmsX, meanY};
+		    lineV->SetLineColor(kRed);
+		    lineH->SetLineColor(kRed);
+		    lineV->Draw();
+		    lineH->Draw();
 		  
+		  }
 		  can->Modified();
 		  can->Update();
 
@@ -150,7 +159,8 @@ namespace HS{
       canvas->Update();
       canvas->Draw();
     
-      
+      delete tree;
+ 
       
       //change style back
       gStyle=defStyle;
