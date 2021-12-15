@@ -62,6 +62,7 @@
 #pragma link C++ class HS::FIT::RooHSDWignerProduct+;
 #pragma link C++ class HS::FIT::RooHSDWignerProductIm+;
 #pragma link C++ class HS::FIT::RooHSDWignerProductRe+;
+#pragma link C++ class HS::FIT::GaussianConstraint+;
 #pragma link C++ defined_in "PredefinedParsers.h";
 //#pragma link C++ class HS::FIT::+;
 

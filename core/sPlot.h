@@ -27,7 +27,7 @@ namespace HS{
     public:
       sPlot()=default;
       sPlot(const sPlot&)=default;
-      sPlot(sPlot&&)=default;
+      sPlot(sPlot&&)=delete;
       ~sPlot() override =default;
       sPlot& operator=(const sPlot& other) = default;
       sPlot& operator=(sPlot&& other) = delete;

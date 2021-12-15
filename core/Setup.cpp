@@ -16,15 +16,20 @@ namespace HS{
     Setup::Setup():TNamed(){
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
       DefaultFitOptions();
+
+      //to flush anything which is not owned elsewhere
+      fNeedToDeleteThis.SetOwner();
     }
     Setup::Setup(const TString& name):TNamed(name,name){
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
       DefaultFitOptions();
+      fNeedToDeleteThis.SetOwner();
     }
     
     Setup::Setup(const Setup& other):TNamed(other.fName,other.fName){
       //   cout<<"****************************COPY "<<fIDBranchName<<" "<<fVars.getSize()<< " "<< other.fFormString.size()<<endl;
       //       fWS={"HSWS"};
+      fNeedToDeleteThis.SetOwner();
        fFitOptions=other.fFitOptions;
        fConstraints=other.fConstraints;   
        fAddCut=other.fAddCut;
@@ -59,9 +64,10 @@ namespace HS{
        for(const auto& par:other.fConstPars)
 	 SetConstPar(par.first,par.second);
       
-    }
+   }
 
     Setup& Setup::operator=(const Setup& other){
+      fNeedToDeleteThis.SetOwner();
       fFitOptions=other.fFitOptions;
       fConstraints=other.fConstraints;
       fAddCut=other.fAddCut;
@@ -96,6 +102,7 @@ namespace HS{
 	SetConstPDFPars(pdf.first,pdf.second);
       for(const auto& par:other.fConstPars)
 	SetConstPar(par.first,par.second);
+
   
       return *this;
     }
@@ -133,7 +140,7 @@ namespace HS{
       if( ArgListContainsName(fConstants,parName) )
 	return; //already loaded
       
-        cout<<"LoadParameterOnTheFly   "<<opt<<endl;
+      //cout<<"LoadParameterOnTheFly   "<<opt<<endl;
        //replaceAll -ve signs in name with "neg"
       TString varname = opt;
 
@@ -369,12 +376,12 @@ namespace HS{
     void Setup::LoadSpeciesPDF(TString opt,Float_t Scale0){
       //take a copy of the pdf from the workspace, so no ownership issues
       auto* pdf=reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
-      fPDFs.add(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
+      fPDFs.addOwned(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
 
       //extra parameters
       // get parameters not in fit variables
       auto dataVarsPdf=*(fPDFs.find(opt)->getParameters(DataVars()));
-      dataVarsPdf.Print("v");
+      //dataVarsPdf.Print("v");
       for(auto& extra:dataVarsPdf){
 	if(fParameters.find(extra->GetName()))
 	  continue;
@@ -474,6 +481,8 @@ namespace HS{
       delete compStrings;
       //create pdf and import to workspace
       auto pdf=new RooComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
+      fNeedToDeleteThis.Add(pdf);
+      
       fWS.import(*pdf);
       return pdf;
     }
@@ -527,6 +536,7 @@ namespace HS{
       return fVarsAndCats;
     }
    RooArgSet& Setup::ParsAndYields(){
+     fParsAndYields.clear();//DEBUG
       if(fParsAndYields.getSize())
 	return fParsAndYields;
       fParsAndYields.add(fParameters);

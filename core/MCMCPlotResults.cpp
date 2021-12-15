@@ -21,7 +21,8 @@ namespace HS{
 //I think this fileName will need to be constructed in the  void FitManager::PlotDataModel() function and passed to the MCMCPlotResults :
     MCMCPlotResults::MCMCPlotResults(Setup *setup, const RooDataSet* data, const TString& tag, RooMcmc* mcmc,const TString& opt) : PlotResults(setup,data,tag,opt)
     {
-     RooHSEventsPDF::SetIsPlotting(kTRUE);
+      if(fPlotOptions.Contains("MCMC")==kFALSE) return;
+      RooHSEventsPDF::SetIsPlotting(kTRUE);
 
     fCanvases->SetName(TString("RFPlots")+setup->GetName());
 

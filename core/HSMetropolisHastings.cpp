@@ -21,14 +21,21 @@ namespace HS{
       }
 
       if (fChainParams.getSize() == 0) fChainParams.add(fParameters);
-     
+      
+      RooRealVar NSinceIntChanged("NSinceIntChanged","NSinceIntChanged",0,0,1E12);
+      fChainParams.add(NSinceIntChanged);
+      
       RooArgSet x;
+      //RooArgSet xChain;
       RooArgSet xPrime;
       x.addClone(fParameters);
       if(fRandomiseStart)RooStats::RandomizeCollection(x);
       xPrime.addClone(fParameters);
       RooStats::RandomizeCollection(xPrime);
 
+      //      xChain.add(x);
+      //      xChain.add(NSinceIntChanged);
+      
       
       auto* chain = new RooStats::MarkovChain();
       // only the POI will be added to the chain
@@ -105,21 +112,39 @@ namespace HS{
       int icount=0;
       int totcount=0;
       int snapcount=0;
-      
+      int NsinceIntegralChanged=0;
       int havePrinted=0;
       //x.Print("v");
       
       //Check if we have PDF proposal
       
       RooStats::PdfProposal* pdfProposal=dynamic_cast<RooStats::PdfProposal*>(fPropFunc);
-      
+
       while (icount <fNumIters) {
 	totcount++;
 	//std::cout<<"        METHAST "<<totcount<<std::endl;
 	// reset error handling flag
 	hadEvalError = false;
+
+	//recalc XL with sampled integral
+	/*	auto xLtest = fFunction->getVal();//DEBUGGING
+	Double_t newBalance = fBalancePDF==nullptr?1: fBalancePDF->getVal();
+	if(TMath::Abs(newBalance-fOldBalance)>1E-8){
+	  xL=xLtest;
+	  NSinceIntChanged.setVal(0);
+	  //std::cout<<"Changed integral for CHAIN "<<newBalance <<" "<<fOldBalance<<std::endl;
+	}
+	else{
+	  NSinceIntChanged.setVal(NSinceIntChanged.getVal()+1);
+	  //std::cout<<"Increment for CHAIN"<<newBalance <<" "<<fOldBalance<<std::endl;
+
+	}
+	*/
+	
 	// print a dot every 1% of the chain construction
 	if (totcount%1000 == 0){
+
+	  
 	  fAcceptance = ((Double_t)snapcount)/totcount;
 	  std::cout<<"  HSMetropolisHastings accepted "<<snapcount<<" out of "<<totcount<<" for acceptance "<<fAcceptance<<std::endl;
 	  CheckForBurnIn(chain);
@@ -145,34 +170,18 @@ namespace HS{
 	  havePrinted=1;
 	}
 	if (icount%100 == 1) havePrinted=0;
-	//	std::cout<<"********************************************X' "<<std::endl;
-	//xPrime.Print("v");
-	//std::cout<<"********************************************X "<<std::endl;
-	//x.Print("v");
 
 	//PdfProposal uses a cache, but it samples from
 	//the wrong Pdf parameters so best to reset every proposal
 	if(pdfProposal){
-	  //  dynamic_cast<RooStats::PdfProposal*>(fPropFunc)->GetPdf()->getVariables()->Print("v");
 	   pdfProposal->Reset();
 	}
-	//std::cout<<"***************************PROPOSE "<<fPropFunc->GetProposalDensity(xPrime, fParameters)<<" "<<((RooStats::PdfProposal*)fPropFunc)->GetPdf()->getVal()<<std::endl;
-	//std::cout<<"***************************PROPOSE "<<std::endl;
 	
 	fPropFunc->Propose(xPrime, x);
 	RooStats::SetParameters(&xPrime, &fParameters);
-	//std::cout<<"********************************************X'2 "<<std::endl;	xPrime.Print("v");
-
-	//std::cout<<"***************************PROPOSED"<<std::endl;
-
-
-	//	std::cout<<"********************************************MSMC "<<std::endl;
-
-	//fParameters.Print("v");
 
 	xPrimeL = fFunction->getVal();
-	//std::cout<<"********************************************L"<<xPrimeL<<std::endl;
-
+	//	std::cout<<"********************************************L"<<xPrimeL<<" "<<xL<<std::endl;
 
 	// check if log-likelihood for xprime had an error status
 	if (wasEvalErrors() && fType == kLog) {
@@ -194,7 +203,6 @@ namespace HS{
 	}
 	else
 	  a = xPrimeL / xL;
-	//a = xL / xPrimeL;
 
 
 	if (!hadEvalError && !fPropFunc->IsSymmetric(xPrime, x)) {
@@ -206,24 +214,23 @@ namespace HS{
 	  else
             a += TMath::Log(xPrimePD) - TMath::Log(xPD);
 	}
-	
-	//	std::cout<<"a "<<a<<" xPL "<<xPrimeL<<" "<<"xL "<<" "<<xL<< " "<<(fType == kLog)<<" "<<hadEvalError<<" "<<std::endl;
-	//	x.Print("v");xPrime.Print("v");
 	if (!hadEvalError && ShouldTakeStep(a)) {
 	  // go to the proposed point xPrime
-	  //cout<<"TOOK STEP "<<endl;
 	  // add the current point with the current weight
 	  // ? dglazier should this not have xPrimeL the current val
-	  if (weight != 0.0)
-            chain->Add(x, CalcNLL(xPrimeL), (Double_t)weight);
-	  //chain->Add(x, CalcNLL(xL), (Double_t)weight);
-	    
+	  if (weight != 0.0){
+	    chain->Add(xPrime, CalcNLL(xPrimeL),(Double_t)weight);
+	    //	    chain->Add(xChain, CalcNLL(xPrimeL),(Double_t)weight);
+	    //      fOldBalance=newBalance;
+	    icount++;
+	    snapcount++;
+	  }
+	  
 	  // reset the weight and go to xPrime
 	  weight = 1;
 	  RooStats::SetParameters(&xPrime, &x);
 	  xL = xPrimeL;
-	  icount++;
-	  snapcount++;
+	  
 
 	} else {
 	  // stay at the current point
@@ -233,7 +240,8 @@ namespace HS{
 
       // make sure to add the last point
       if (weight != 0.0)
-	chain->Add(x, CalcNLL(xL), (Double_t)weight);
+	chain->Add(x, CalcNLL(xPrimeL), (Double_t)weight);
+      //chain->Add(xChain, CalcNLL(xPrimeL), (Double_t)weight);
       ooccoutP((TObject *)nullptr, Generation) << std::endl;
 
       RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
@@ -267,10 +275,12 @@ namespace HS{
       auto Nentries=chain->Size();
       auto vars = chain->Get();
       RooDataSet current("current","current",*vars);
-      std::cout<<""<<chain<<" "<<vars<<std::endl;
+     
       Int_t Ntests=vars->getSize()*50;
       
-      if(Ntests>Nentries){std::cout<<" ntests "<<Ntests<<" "<<Nentries<<std::endl; return kTRUE;}//not enough events Ntests=Nentries/2;
+      if(Ntests>Nentries){
+	//	std::cout<<" ntests "<<Ntests<<" "<<Nentries<<std::endl; return kTRUE;
+      }//not enough events Ntests=Nentries/2;
       if(Ntests>Nentries-fLastEntries){std::cout<<" not enough entries "<<Ntests<<" > "<<Nentries-fLastEntries<<" "<<Nentries<<std::endl; return kTRUE;}
  
       for(Int_t i=Nentries-1;i>Nentries-100;--i){
@@ -315,7 +325,7 @@ namespace HS{
 	      fSaveNLL=mean;
 	  }
 	  
-	  else if(fNWorse>2) ++fNBetter;
+	  else if(fNWorse>0) ++fNBetter;
 
 	  
 	  if(mean-fSaveNLL>0)

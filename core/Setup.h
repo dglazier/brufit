@@ -58,8 +58,11 @@ namespace HS{
       Setup(const TString& name);
       Setup();
       Setup(const Setup& other);
-      Setup(Setup&&)=default;
-      ~Setup() override{if(fModel) delete fModel;fModel=nullptr;}
+      Setup(Setup&&)=delete;
+      ~Setup() override{
+	if(fModel) delete fModel;
+	fModel=nullptr;
+      }
       Setup& operator=(const Setup& other);
       Setup& operator=(Setup&& other) = delete;//because RooWorkSpace
 
@@ -229,7 +232,8 @@ namespace HS{
       TString fIDBranchName="UID";
       TString fOutDir;
       TString fDataOnlyCut;
-
+      TList fNeedToDeleteThis;
+      
       strings_t fVarString;
       strings_t fCatString;
       strings_t fParString;
@@ -250,7 +254,7 @@ namespace HS{
     };
     
     class RandomConstrained {
-
+      //For randoming parameter values, which are constrained
     public:
 
       RandomConstrained(RooAbsPdf* con,RooRealVar* par,Int_t N):

@@ -31,9 +31,10 @@ namespace HS{
 
     RooHSEventsPDF::RooHSEventsPDF(const RooHSEventsPDF& other, const char* name) :  RooAbsPdf(other,name) 
     {
-      // cout<<"RooHSEventsPDF::RooHSEventsPDF "<<GetName()<<other.fNTreeEntries<< " "<<other.fvecReal.size()<<endl;
+      // cout<<"RooHSEventsPDF::RooHSEventsPDF "<<GetName()<<other.fNTreeEntries<< " "<<other.fvecReal.size()<<" is cloen "<<other.fIsClone<<" "<<&other<<endl;
       fIsClone=kTRUE;
       fParent=const_cast<RooHSEventsPDF*>(&other);
+
       fvecReal=other.fvecReal;
       fvecCat=other.fvecCat;
       fvecRealGen=other.fvecRealGen;
@@ -41,8 +42,7 @@ namespace HS{
       fNTreeEntries=other.fNTreeEntries;
       fTreeEntryNumber=other.fTreeEntryNumber;
     
-      if(other.fEvTree)fEvTree=other.fEvTree->CopyTree("");
-      //    if(other.fInWeights) fInWeights=other.fInWeights; //probably need to clone this
+      if(other.fEvTree)fEvTree=other.fEvTree;
       fNInt=other.fNInt;
       fGeni=other.fGeni;
       fTruthPrefix=other.fTruthPrefix;
@@ -56,25 +56,25 @@ namespace HS{
       fInWeightCut=other.fInWeightCut;
       fIsValid=other.fIsValid;
       fUseEvWeights=other.fUseEvWeights;
-    
+      if(other.fUseSamplingIntegral){
+	fUseSamplingIntegral=other.fUseSamplingIntegral;
+	fIntegralPDF=other.fIntegralPDF;
+      }
       fWgtsConf=other.fWgtsConf;
 									     
       fEvWeights=other.fEvWeights;
       fHistIntegrals=other.fHistIntegrals;
-      //fWgtSpecies=other.fWgtSpecies;
-      //fWgtsFile=other.fWgtsFile;
-      //fWgtsName=other.fWgtsName;
       fMaxValue=other.fMaxValue;
       fIntRangeLow=other.fIntRangeLow;
       fIntRangeHigh=other.fIntRangeHigh;
     }
     RooHSEventsPDF::~RooHSEventsPDF(){
 
-      /*   std::cout<<"delete RooHSEventsPDF::~RooHSEventsPDF() "
+      /*   std::cout<<"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"<<"delete RooHSEventsPDF::~RooHSEventsPDF() "
 	<<fIsClone<<" "<<fParent<<" "<<fEntryList<<" "
 	<<fMaxValue<<" "
 	<< endl;
-      */   
+      */
       //If I made a generator entry list save it
       //so it can be used to filter the original tree
       //object the entrylist if I want to use it!
@@ -84,10 +84,9 @@ namespace HS{
 	  fEntryList->Write();
 	}
       }
-      
       if(fEntryList) delete fEntryList;
       if(fLast) delete fLast;
-      if(fEvTree) delete fEvTree;
+      
    
       if(fWeights){
 	fWeights->Save();
@@ -98,18 +97,17 @@ namespace HS{
       }
       for(auto & i : fVarSet)
 	delete i;
- 
       fVarSet.clear();
-    }
+      }
 
     void RooHSEventsPDF::InitSets(){
       fNpars=fParSet.size();
       fNvars=fProxSet.size();
       fNcats=fCatSet.size();
       fLastLength=fNpars+1;
-      fLast=new Float_t[fNpars+1]; //Number of fit parameters
+      fLast=new Double_t[fNpars+1]; //Number of fit parameters
       for(Int_t i=0;i<fNpars+1;i++)
-	fLast[i]=100;
+	fLast[i]=100.;
     }
     RooArgSet RooHSEventsPDF::VarSet(Int_t iset) const{
       RooArgSet aset(Form("VarSet_%d",iset));
@@ -133,7 +131,6 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const
     {
-      cout<<"!!!!!!!!!!!!!!!!!!!!!!!!!!RooHSEventsPDF::getGenerator "<<fEvTree<<" "<<fvecReal.size()<<endl;
       Info("RooHSEventsPDF::getGenerator","Looking for generator");
       if(!fEvTree) return 0; //no MC events to generate from
       //case generate all variables
@@ -143,11 +140,11 @@ namespace HS{
     }
     void RooHSEventsPDF::initIntegrator()
     {
-  
+
     }
     void RooHSEventsPDF::initGenerator(Int_t code)
     {
-      Info("RooHSEventsPDF::initGenerator","Going to generate starting from %lld with weights %d",fGeni,(Int_t)fUseWeightsGen);
+       Info("RooHSEventsPDF::initGenerator","Going to generate starting from %lld with weights %d",fGeni,(Int_t)fUseWeightsGen);
       //Calculate the max value for accept reject purposes
       //Note we use parent to make sure this is only done once
       //RooFit creates a clone PDF instance each time it wants to generate
@@ -180,19 +177,16 @@ namespace HS{
 	fWeights->SetSpecies(GetName());
 	fWeights->SetFile(TString(GetName())+"Weights.root");
       }
+
+        
       Info("RooHSEventsPDF::initGenerator","Max value %lf",fMaxValue);
     }
     void RooHSEventsPDF::generateEvent(Int_t code){
       // Info("RooHSEventsPDF::generateEvent","Going to generate starting from %lld with ",fGeni);
-  
-      Double_t value=0;
+        Double_t value=0;
       if(!fUseWeightsGen){
 	while(fGeni<fNTreeEntries){
-	  //fParent->SetGeni(fGeni);
-	  //fEvTree->GetEntry(fGeni++);
-	  //fTreeEntry=fGeni;
 	  fTreeEntry=IncrementGeni();
-	  fGeni++;
 	  value=evaluateMC(&fvecRealGen,&fvecCatGen); //evaluate true values
 	  if(value>fMaxValue*RooRandom::uniform()){//accept
 	    for(Int_t i=0;i<fNvars;i++)
@@ -200,7 +194,7 @@ namespace HS{
 	    for(Int_t i=0;i<fNcats;i++)
 	      (*(fCatSet[i]))=fvecCat[fTreeEntry*fNcats+i];
 
-											    //Add actual entry number from original tree
+	    //Add actual entry number from original tree
 	    //this can then be used to filter original tree
 	    //with all branches
 	    fEntryList->Enter(fTreeEntryNumber[fTreeEntry]);
@@ -230,20 +224,13 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
     {
-      // cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fEvTree<<" "<<fvecReal.size()<<" "<<fProxSet.size()<<endl;
-      // for(auto& prox:fProxSet)
-      //cout<<prox->GetName()<<endl;
-  
+    
       if(fForceNumInt) return 0; //might be good to check numerical integral sometimes
       if(!fEvTree&&!fForceConstInt) return 0; //no MC events to integrate over
 
-      // cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fProxSet.size()<<" "<<RooHSEventsPDF_IsPlotting<<endl;
       if(fProxSet.size()==1&&fCatSet.size()==0){//special case 1 variable
-	//if(RooHSEventsPDF_IsPlotting) {return 0;}
+
 	if (matchArgs(allVars,analVars,VarSet(0))){
-	  // allVars.Print();analVars.Print();
-	  // if(RooHSEventsPDF_IsPlotting) {return 1;}
-	  //else return 1 ;
 	  //if now plotting create histograms
 	  if(RooHSEventsPDF_IsPlotting&&fHistIntegrals.size()==0)
 	    HistIntegrals(rangeName);
@@ -252,7 +239,6 @@ namespace HS{
 	}
       }
       else{//For variables
-	//    for(UInt_t i=0;i<1+fProxSet.size();i++){
 	for(UInt_t i=0;i<1+fProxSet.size();i++){
 	  if(!fEvTree&&fForceConstInt&&i==0) {return 1;} //no tree, but const int
 	  else if(!fEvTree) return 0; //no const integral for projections
@@ -262,37 +248,90 @@ namespace HS{
       //Note not implemented for cats
       return 0;
     }
-
-    Double_t RooHSEventsPDF::analyticalIntegral(Int_t code,const char* rangeName) const
+    //new function for uncertainty on MC integral
+    //Need to copy from ComponentsPDF which has been optimised
+    /*******************************************/
+    Double_t RooHSEventsPDF::analyticalIntegralForSampling(const char* rangeName) const
     {
-      // cout<<"Analystic "<<fIntCounter++<<" "<<fEvTree<<" "<<code<<endl;
-      if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
-      //sort number of events first in case forced
-      Long64_t NEv=0;
-  
- 
-      // Info("RooHSEventsPDF::analyticalIntegral","calcing my own integral");
-      // return 1;
-      //In case changed for generation
-  
       Double_t integral=0;
+      Long64_t accepted=0;
+      Long64_t all=0;
       Long64_t ilow=0;
       Long64_t ihigh=0;
+
+      //Set range of events to integrate over
       SetLowHighVals(ilow,ihigh); 
-      //only recalculate if a par changes when all variables included (ie code=1)
+      //Loop over events and add to integral
+      if(CheckChange()){
+	std::vector<double> values(ihigh-ilow);
+	
+	for(Long64_t ie=ilow;ie<ihigh;ie++){
+	  fTreeEntry=ie;
+	  if(!CheckRange(rangeName)){
+	    values[all]=0;
+	    ++all;
+	    continue;
+	  }
+	  values[all]=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
+	  integral+=values[all];
+	  ++accepted; //actual entries to count
+	  ++all; //just for array sizing
+	}
+		
+	//normalise integral by number of events accepted
+	integral/=accepted;
+	
+	double sum_of_diffs = 0.;
+	//variance of MC integral/Volume =  variance(Sum(f(x)-<f>))^2 / N
+	//https://en.wikipedia.org/wiki/Monte_Carlo_integration
+	std::for_each(values.begin(), values.end(),
+		      [&sum_of_diffs,&integral] (double n) {
+			double term = (n-integral);
+			sum_of_diffs += term*term;});
+	fSigmaIntegral = TMath::Sqrt(sum_of_diffs/accepted);
+	
+	fLast[0]= integral;
+      }      
+
+      return sampleIntegral(fLast[0],fSigmaIntegral);
+    }
+    
+    Double_t RooHSEventsPDF::analyticalIntegral(Int_t code,const char* rangeName) const
+    {
+       if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
+       Long64_t NEv=0;
+  
+      //In case changed for generation
+  
+      Double_t integral=0.;
+ 
+      //only recalculate if a par changes when all variables included(ie code=1)
       if(code==1)
 	if(!CheckChange()) return fLast[0];
  
       if(code==1){
-	Long64_t accepted=0;
-	for(Long64_t ie=ilow;ie<ihigh;ie++){
-	  fTreeEntry=ie;
-	  // fEvTree->GetEntry(ie);
-	  if(!CheckRange(TString(rangeName).Data())) continue;
-	  accepted++;
-	  integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
+	if(fUseSamplingIntegral==kFALSE){
+	  Long64_t accepted=0;
+	  Long64_t ilow=0;
+	  Long64_t ihigh=0;
+
+	  //Set range of events to integrate over
+	  SetLowHighVals(ilow,ihigh); 
+	  //Loop over events and add to integral
+	  for(Long64_t ie=ilow;ie<ihigh;ie++){
+	    fTreeEntry=ie;
+	    if(!CheckRange(rangeName)) continue;
+	    accepted++;
+	    integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
+	  }
+	
+	  //normalise integral by number of events accepted
+	  integral/=accepted;
 	}
-	integral/=accepted;
+	//Needs fixed to componentsPDF method
+	//else{//use sampled method
+	  //	  integral = analyticalIntegralForSampling(rangeName);
+	//}
       }
       else{
 	if(fHistIntegrals.size()==0)
@@ -302,38 +341,6 @@ namespace HS{
 	Double_t vval=*(fProxSet[vindex]);
 	integral=fHistIntegrals[vindex].Interpolate(vval);
       }
-      // else {
-      //   //inegrate over other variables for one variable fixed
-      //   //index given by code -2 (defintion of code in getAnalyticalIntegral
-      //   //This is used for plotting data and PDFS
-      //   Int_t vindex=code-2;
-      //   if(vindex<0)vindex=0;
-      //   Double_t rmax=fProxSet[vindex]->max();
-      //   Double_t rmin=fProxSet[vindex]->min();
-      //   Double_t vval=*(fProxSet[vindex]);
-      //   Double_t vrange=rmax-rmin;
-      //   //  fProxSet[code-2]->Print();
-      //   Int_t nbins=((RooRealVar*)(&(fProxSet[vindex]->arg())))->getBins();
-      //   Double_t delta=vrange/nbins/2;
-      //   //Double_t delta=vrange/nbins;
-      //   for(Int_t ie=ilow;ie<ihigh;ie++){
-      //     fTreeEntry=ie;
-      //     // fEvTree->GetEntry(ie);
-      //     if(!CheckRange(TString(rangeName).Data())) continue;
-      //   //only inlcude events within same bin as vval in integral
-      //     if(TMath::Abs(fvecReal[fTreeEntry*fNvars+vindex]-vval)>delta)continue;
-      //     integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
-      //   }
-      //   //correct for delta integration width
-      //   //first 2 case near range limits 
-      //   if((rmax-vval)<delta) delta=delta+rmax-vval;
-      //   else if((vval-rmin)<delta) delta=delta+vval-rmin;
-      //   else delta=delta*2;
-      //   integral=integral/delta;
-      //   cout<<"Integral "<<integral<<" "<<delta<<" "<<nbins<<" "<<vval<<endl;
-
-      // }
-      //else return 1;
       // Set Last[0] so we can just return that if no parameter changes
       fLast[0]=integral;
 
@@ -341,31 +348,30 @@ namespace HS{
     }
 
     Double_t RooHSEventsPDF::unnormalisedIntegral(Int_t code,const char* rangeName) const{
-		Double_t integral=0;
-		Double_t nev=0;
-		Double_t nMC=0;
-		if(code==1){
-			for(Long64_t ie=0;ie<fNTreeEntries;ie++){
-				fTreeEntry=ie;
-				// fEvTree->GetEntry(ie);
-				if(!CheckRange(TString(rangeName).Data())) continue;
-				integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
-				nev++;
-			}
-			cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << endl;
-		}
-		else if(code==2 && fHasMCGenTree){
-			for(Long64_t ie=0;ie<fNMCGenTreeEntries;ie++){
-				fTreeEntry=ie;
-				integral+=evaluateMC(&fvecRealMCGen,&fvecCatMCGen);
-				nMC++;
-			}
-		cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << endl;
-		}
-		else{
-		  return 0;
-		}
-		return integral;
+      Double_t integral=0;
+      Double_t nev=0;
+      Double_t nMC=0;
+      if(code==1){
+	for(Long64_t ie=0;ie<fNTreeEntries;ie++){
+	  fTreeEntry=ie;
+	  if(!CheckRange(TString(rangeName).Data())) continue;
+	  integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
+	  nev++;
+	}
+	cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << endl;
+      }
+      else if(code==2 && fHasMCGenTree){
+	for(Long64_t ie=0;ie<fNMCGenTreeEntries;ie++){
+	  fTreeEntry=ie;
+	  integral+=evaluateMC(&fvecRealMCGen,&fvecCatMCGen);
+	  nMC++;
+	}
+	cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << endl;
+      }
+      else{
+	return 0;
+      }
+      return integral;
     }
     
     void RooHSEventsPDF::HistIntegrals(const char* rangeName) const{
@@ -445,14 +451,11 @@ namespace HS{
       }
       return hasChanged;
     }
-    // Bool_t RooHSEventsPDF::SetEvTree(TChain* tree,TString cut,Long64_t ngen){
-    //   if(!tree->GetEntries()) return kFALSE;
-    //   return SetEvTree(tree,cut,ngen);
-    // }
+ 
     Bool_t RooHSEventsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
       if(!tree->GetEntries())return kFALSE;
       Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s",tree->GetName(),cut.Data());
-      //      cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<endl;
+      cout<<"RooHSEventsPDF::SetEvTree "<<this<<endl;
       //Set the cut
       //Note weight cut can be set with WEIGHT@expr in factory constructor
       if(cut==TString())
@@ -462,23 +465,24 @@ namespace HS{
       else
 	fCut=cut+"&&"+fInWeightCut;
 
-      ProcInfo_t info;
+      //      ProcInfo_t info;
       fEvTree=tree;
-      if(MCGenTree){ // generated events used for acceptance correction, do only if tree is available
+      if(MCGenTree!=nullptr){ // generated events used for acceptance correction, do only if tree is available
 	fMCGenTree=MCGenTree;
 	fHasMCGenTree=kTRUE;
-	//cout<<"RooHSEventsPDF::SetEvTree set MC generated tree with " << fMCGenTree->GetEntries() << " entries." <<endl;
-      }
+     }
       
-      
-      
-      fConstInt=fEvTree->GetEntries();
+     
+      fConstInt=fEvTree->GetEntries();//use if constant integral requested
       fEvTree->ResetBranchAddresses();
       //fEvTree->SetBranchStatus("*",0);
-      if(MCGenTree) // generated events used for acceptance correction, do only if tree is available
+      if(MCGenTree){ // generated events used for acceptance correction, do only if tree is available
 	fMCGenTree->ResetBranchAddresses();
-      fBranchStatus=kTRUE;
+      }
       
+      fBranchStatus=kTRUE;
+
+      //create arrays to connect to tree branches
       TVectorD MCVar(fProxSet.size());
       TVectorD GenVar(fProxSet.size());
       TVectorD MCGenVar(fProxSet.size()); // generated events used for acceptance correction
@@ -487,7 +491,8 @@ namespace HS{
       vector<Int_t> MCGenCat(fCatSet.size()); // generated events used for acceptance correction
       fGotGenVar.resize(fProxSet.size());
       fGotGenCat.resize(fProxSet.size());
-  
+
+      //Set branch addresses of tree to data arrays
       for(UInt_t i=0;i<fProxSet.size();i++){
 	fGotGenVar[i]=0;
     
@@ -516,7 +521,7 @@ namespace HS{
 	  }
 	  fBranchStatus=kFALSE;
 	}
-    
+
 	if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
 	  if(fMCGenTree->GetBranch(fProxSet[i]->GetName())){
 	    fMCGenTree->SetBranchStatus(fProxSet[i]->GetName(),true);
@@ -577,9 +582,12 @@ namespace HS{
 	  }
 	}
       }
-      fEvTree->GetEntry(0);
-      
-      //Loop over tree, extracting values into vector
+
+
+      //Branches are set now can loop over and extract values
+      //fEvTree->GetEntry(0);
+ 
+      //Create arrays to store data
       UInt_t ProxSize=fNvars;
       UInt_t CatSize=fNcats;
       fNTreeEntries=fEvTree->GetEntries();
@@ -591,8 +599,8 @@ namespace HS{
 	fNMCGenTreeEntries=fMCGenTree->GetEntries();
 	fvecRealMCGen.resize(fNMCGenTreeEntries*ProxSize);
 	fvecCatMCGen.resize(fNMCGenTreeEntries*CatSize);
-      }
-
+       }
+      
       Double_t idVal=0;
       Int_t spId=-1;
       if(fWgtsConf.IsValid()){ //add in ID branch for weighted sim data
@@ -619,7 +627,7 @@ namespace HS{
       Long64_t localEntry=0;
       fNTreeEntries=elist->GetN();
 	  
-      TEntryList* elistMCGen;
+      TEntryList* elistMCGen=nullptr;
       if(MCGenTree){// generated events used for acceptance correction, do only if tree is available
 	MCGenTree->Draw(">>elistMCGen", "", "entrylistMCGen"); // TODO include fCut???
 	elistMCGen = dynamic_cast<TEntryList*>(gDirectory->Get("elistMCGen"));
@@ -627,13 +635,13 @@ namespace HS{
 	fNMCGenTreeEntries=elistMCGen->GetN();
       }
       
-      cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<" "<<fNTreeEntries<<endl;
-      if(MCGenTree) cout<<"RooHSEventsPDF::SetEvTree "<<GetName()<<"__MCGEN "<<fNMCGenTreeEntries<<endl;
-
+  
       //Read weights into fEvWeights
       TBranch* idBranch=nullptr;
       vector<Long64_t> idEntries;
-      
+
+
+      //Now ready to loop over events and store data
       Long64_t corrEvent=0;
       for(Long64_t iEvent=0;iEvent<fNTreeEntries;iEvent++){
 	entryNumber = fEvTree->GetEntryNumber(iEvent);
@@ -677,6 +685,8 @@ namespace HS{
 	corrEvent++;
       }
       //finished data loop
+
+      
       if(fNTreeEntries!=corrEvent){
 	cout<<"RooHSEventsPDF::SetEvTree note only accepted "<<corrEvent<<" out of "<<fNTreeEntries<<" original events"<<endl;
 	fNTreeEntries=corrEvent;
@@ -708,40 +718,16 @@ namespace HS{
 	delete elistMCGen;elistMCGen=nullptr;
       }
       
-      /* 
-      //Read weights into fEvWeights
-      if(fWgtsConf.IsValid()){
-    
-	fEvWeights.clear();
-	LoadInWeights();
-    
-	if(fEvTree->GetBranch(fInWeights->GetIDName())){ //the weight ID branch is in fEvTree
-	  fUseEvWeights=kTRUE;
-	  fEvTree->SetBranchStatus(fInWeights->GetIDName(),true);
-	  TLeaf* idleaf=dynamic_cast<TLeaf*>(fEvTree->GetBranch(fInWeights->GetIDName())->GetListOfLeaves()->First());
-	  if(!idleaf) { cout<<"ERROR RooHSEventsPDF::SetEvTree weights id branch "<<fInWeights->GetIDName()<<" is not part of event tree "<<endl; fEvTree->Print();exit(1);}
-	  auto idbranch=fEvTree->GetBranch(fInWeights->GetIDName());
-	  auto spId=fInWeights->GetSpeciesID(fWgtsConf.Species());
-	  fEvWeights.resize(fNTreeEntries);
-	  for(Long64_t iw=0;iw<fNTreeEntries;iw++){
-	    idbranch->GetEntry(iw);
-	    fInWeights->GetEntryBinarySearch(static_cast<Long64_t>(idleaf->GetValue()));
-	    fEvWeights[iw]=fInWeights->GetWeight(spId);
-	  }
-	}
-	else cout<<"WARNING RooHSEventsPDF::SetEvTree InWeights ID : "<<fInWeights->GetIDName()<<" does not exist in event tree"<<endl;
-	delete fInWeights;fInWeights=nullptr;
-      }
-      */
-   
-      if(dynamic_cast<TChain*>(fEvTree)){
-	TTree* coptree=fEvTree->CloneTree(0);//convert chain to tree
-	fEvTree=coptree;
-      }
+      //reset everything so we don't screw up memory
+      fEvTree->ResetBranchAddresses();  
       fEvTree->Reset();  //empty tree to save memory
-      if(MCGenTree)
-	fMCGenTree->Reset();
-      return fBranchStatus;
+
+      if(fMCGenTree){
+	fMCGenTree->ResetBranchAddresses();
+  	fMCGenTree->Reset();
+      }
+
+       return fBranchStatus;
     }
     
     void  RooHSEventsPDF::LoadInWeights(){

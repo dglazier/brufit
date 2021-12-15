@@ -40,7 +40,7 @@ namespace HS{
     public:
       FitManager()=default;
       FitManager(const FitManager& other);
-      FitManager(FitManager&&)=default;
+      FitManager(FitManager&&)=delete;
       ~FitManager() override =default;
       FitManager& operator=(const FitManager& other);
       FitManager& operator=(FitManager&& other) = delete;
@@ -86,7 +86,13 @@ namespace HS{
       
       virtual void Reset(){
 	//	fData.Reset(fFiti);
+	cout<<"REMOVE FILEDTREE "<<fFiledTrees.size()<<endl;
+	// for(auto& ft:fFiledTrees){
+	//   ft.reset();
+	// }
 	fFiledTrees.clear();
+	
+	cout<<"REMOVED FILEDTREE "<<endl;
 	fCurrSetup.reset();
 	fCurrDataSet.reset();
       }
@@ -144,7 +150,7 @@ namespace HS{
 	fMinimiser.reset(mi);
 	SetMinimiserType(fMinimiser->GetName());
       }
-      void SetMinimiserType(TString mtype){fMinimiserType=std::move(mtype);}
+      void SetMinimiserType(const TString& mtype){fMinimiserType=(mtype);}
       TString GetMinimiserType() const {return fMinimiserType;}
       //    Minimiser* GetMinimiser() const {return fMinimiser;}
       TString MinimiserFileName(){return TString("Results")+fMinimiserType+".root";}
@@ -171,6 +177,7 @@ namespace HS{
 
       void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
       void SetYieldMaxFactor(Double_t factor){fYldMaxFactor=factor;}
+      void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
       
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
@@ -206,7 +213,9 @@ namespace HS{
       TString fPrevResultMini;
       
       TString fPlotOptions;
-	
+
+      Bool_t fIsSamplingIntegrals=kFALSE;
+      
       ClassDefOverride(HS::FIT::FitManager,1);
      };
 
