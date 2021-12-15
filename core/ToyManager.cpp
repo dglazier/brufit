@@ -37,7 +37,7 @@ namespace HS{
     }
     
     void  ToyManager::Generate(){
-
+      cout<<"ToyManager::Generate()"<<endl;
       Long64_t geni=0;
 
       auto *model=fCurrSetup->Model();
@@ -56,22 +56,24 @@ namespace HS{
 	auto arg=fitvars.find(tmp->GetName());
 	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
+      cout<<"ToyManager::Generate() "<<fNToys<<endl;
 
       while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
 	Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
 
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
+	cout<<"ToyManager::Generate() Save"<<fToyi<<endl;
 	SaveResults();
 	fToyi++;
+	cout<<"ToyManager::Generate() done "<<fToyi<<endl;
       }
       fToyi=0;
       
     }
     void ToyManager::SaveResults(){
       if(!fGenData) return;
-
-      TString fileName=Form("%s%s/%s.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data(),GetCurrTitle().Data());
+       TString fileName=Form("%s%s/%s.root",fCurrSetup->GetOutDir().Data(),GetCurrName().Data(),GetCurrTitle().Data());
       
       fToyFileNames.push_back(fileName);
       
@@ -103,12 +105,12 @@ namespace HS{
 	}
       }
       tree->Write();
-      // for(auto& branch: branches){
+       // for(auto& branch: branches){
       // 	delete branch;
       // }
 
       //Use generated entry list to save full tree variables
-      //Note just those used in generation
+      //Not just those used in generation
       auto PDFs = SetUp().PDFs();
       for(auto* pdf:PDFs){
 	if(auto evPdf=dynamic_cast<RooHSEventsPDF*> (pdf) ) {
@@ -158,30 +160,38 @@ namespace HS{
       Bins().GetBins().MakeDirectories();
     }
     ////////////////////////////////////////////////////////////////
-    std::shared_ptr<FitManager> ToyManager::Fitter(){
-      std::shared_ptr<FitManager> fit{new FitManager(*this)};      
+    std::unique_ptr<FitManager> ToyManager::Fitter(){
+      std::unique_ptr<FitManager> fit{new FitManager(*this)};      
       fit->LoadData("ToyData",fToyFileNames);
       fit->Data().Toys(fNToys);
-      
-      return std::move(fit);
+      return fit;
+      //      return std::move(fit);
     }
+    //  std::shared_ptr<FitManager> ToyManager::Fitter(){
+    //   std::shared_ptr<FitManager> fit{new FitManager(*this)};      
+    //   fit->LoadData("ToyData",fToyFileNames);
+    //   fit->Data().Toys(fNToys);
+      
+    //   return std::move(fit);
+    // }
   
     ///////////////////////////////////////////////////////////////
-    std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,const TString& filename,TString resultFile){
+    std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,const TString& filename,const TString& resultFile){
        std::unique_ptr<TFile> fitFile{TFile::Open(filename)};
        // auto fit=dynamic_cast<FitManager*>( fitFile->Get("HSFit") );
        std::unique_ptr<FitManager> fit{dynamic_cast<FitManager*>( fitFile->Get("HSFit"))};
-       return GetFromFit(N,*fit.get(),std::move(resultFile));
+       return GetFromFit(N,*fit.get(),(resultFile));
        //       return GetFromFit(*fit,result);
      }
     ///////////////////////////////////////////////////////////////
-    std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,TString resultFile){
-      return GetFromFit(N,*fit.get(),std::move(resultFile));
+    std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,const TString& resultFile){
+      return GetFromFit(N,*fit.get(),(resultFile));
     }
     ////////////////////////////////////////////////////////////////
-    std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,FitManager& fit,TString resultFile){
+    std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,FitManager& fit,const TString& resultFile){
+
       
-      std::shared_ptr<ToyManager> toy{new ToyManager(N,fit,fit.SetUp().GetOutDir(),std::move(resultFile))};
+      std::shared_ptr<ToyManager> toy{new ToyManager(N,fit,fit.SetUp().GetOutDir(),(resultFile))};
 
       return std::move(toy);
     }
@@ -189,7 +199,7 @@ namespace HS{
     void ToyManager::LoadResult(){
       if(fResultFileName==TString())
 	return;
-      // cout<<"LOAD  "<<fResultFileName<<endl;
+      cout<<"ToyManager::LoadResult()  "<<fResultFileName<<endl;
       TString resultFile=fResultOutDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
       std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
       std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};

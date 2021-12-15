@@ -36,10 +36,14 @@ namespace HS{
 	fMinAcc=min;
 	fMaxAcc=max;
       }
+
+      void SetBalance(RooAbsPdf* bal){fBalancePDF=bal;}
       
     protected:
       Bool_t wasEvalErrors();
     private:
+      RooAbsPdf* fBalancePDF=nullptr;
+      
       Bool_t fRandomiseStart=kTRUE;
       Bool_t fTryHelp=kFALSE;
       Int_t fNWorse=0;
@@ -51,7 +55,8 @@ namespace HS{
       Double_t fLastEntries=0;
       Double_t fMinAcc=0.15;
       Double_t fMaxAcc=0.3;
-
+      Double_t fOldBalance=1.;
+      
       std::vector<Double_t> fMeans;
       std::vector<Double_t> fSigmas;
       ClassDefOverride(HS::FIT::HSMetropolisHastings,1);

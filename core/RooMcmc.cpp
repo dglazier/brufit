@@ -27,8 +27,6 @@ namespace HS{
       }
       if(fChain!=nullptr){delete fChain;fChain =nullptr;}
       if(fChainData!=nullptr) {delete fChainData;fChainData=nullptr;}
-      if(fTreeMCMC!=nullptr){delete fTreeMCMC;fTreeMCMC=nullptr;}
- 
     }
     
     void RooMcmc::Run(Setup &setup,RooAbsData &fitdata){
@@ -56,7 +54,7 @@ namespace HS{
       bool useDefaultPropFunc = (fPropFunc == nullptr);
       bool usePriorPdf = (fPriorPdf != nullptr);
       if (useDefaultPropFunc) fPropFunc = new UniformProposal();
-
+   
       // if prior is given create product
       RooAbsPdf * prodPdf = fPdf;
       if (usePriorPdf) {
@@ -65,10 +63,12 @@ namespace HS{
       }
  
       RooArgSet* constrainedParams = prodPdf->getParameters(*fData);
+
       RooAbsReal* nll = prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs));
       //RooAbsReal* nll = prodPdf->createNLL(*fData); 
       delete constrainedParams;
 
+      
       nll->constOptimizeTestStatistic(RooAbsArg::Activate,false) ;
       
       // add in sumw/sumw2 term
@@ -82,10 +82,16 @@ namespace HS{
       	RooFormulaVar *alphanll=new RooFormulaVar("alphanll",Form("%lf*%s",SumW/SumW2,nll->GetName()),RooArgSet(*nll));
       	nll=alphanll;
       }
-    
+ 
       fParams = nll->getParameters(*fData);
       RemoveConstantParameters(fParams);
-      std::cout<<"metropolis"<<endl;
+
+      //if using smapling integral need to add params ?
+      //probably do not need this now, as just ampling in EVentsPDF class
+      //auto* sampPDF= dynamic_cast<RooAbsPdf*>(fSetup->Constraints().at(0));    
+      //if(sampPDF)fParams->add(*(sampPDF->getParameters(*fData)));
+      //RemoveConstantParameters(fParams);
+
       HSMetropolisHastings mh;
       if(fKeepStart) mh.SetKeepStart();
       if(fMCMCHelp){
@@ -101,10 +107,15 @@ namespace HS{
       mh.SetProposalFunction(*fPropFunc);
       mh.SetNumIters(fNumIters);
 
+
+      //cout<<"number of constraints "<<sampPDF->GetName()<<endl;
+      //try balancing integral sampling
+       // mh.SetBalance(sampPDF);
+      
       if(fChain){ delete fChain; fChain=nullptr;}
       
       fChain= mh.ConstructChain(); //mh is still owner and will delete
-
+  
       if(fChain==nullptr){
 	if (useDefaultPropFunc) delete fPropFunc;
 	if (usePriorPdf) delete prodPdf;
@@ -114,21 +125,24 @@ namespace HS{
 	delete nll;
 	return kFALSE; //unsuccessful
       }
+      
       if(fChainData){ delete fChainData; fChainData=nullptr;}
+      
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
 
       if(fChainData){
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
-	cout<<"Get tree from chains "<<(*gDirectory).GetName()<<endl;
-	if((*gDirectory).IsWritable()==false){
-	  TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCTemp.root";
-	  fTempFile=std::make_shared<TFile>(saveName,"recreate");
-	}
+	//	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
+	// if((*gDirectory).IsWritable()==false){
+	//   TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCTemp.root";
+	//   fTempFile=std::make_shared<TFile>(saveName,"recreate");
+	// }
+	//	fChainData->Print("v");
 	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
-	cout<<"Got tree from chains "<<endl;
+	
  	delete fChainData; fChainData=nullptr;
       }  
-      if(fChain->Size()>fNumBurnInSteps)
+     if(fChain->Size()>fNumBurnInSteps)
 	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
 
  
@@ -425,7 +439,7 @@ namespace HS{
       for(Int_t i=0;i<fParams->getSize();i++){
 
 	auto* var=dynamic_cast<RooRealVar*>(saveFloatFinalList.at(i));
-      	cout<<var->GetName()<<" "<<var->getVal()<<" "<<fChainData->mean(*var)<<" +- "<<fChainData->sigma(*var)<<endl;
+      	cout<<var->GetName()<<" "<<fChainData->mean(*var)<<" +- "<<fChainData->sigma(*var)<<endl;
 	auto var2=dynamic_cast<RooRealVar*>(fParams->find(var->GetName()));
 	var2->setVal(fChainData->mean(*var));
 	var2->setError(fChainData->sigma(*var));
@@ -574,8 +588,8 @@ namespace HS{
 
       file_uptr file(TFile::Open(fileName,"recreate"));
       Result();
-      
       fTreeMCMC->Write();
+      delete fTreeMCMC; fTreeMCMC=nullptr;//or else crashes in destructor
       //save paramters and chi2s in  dataset (for easy merging)
       //RooArgSet saveArgs(*fParams);
       RooArgSet saveArgs(fSetup->Parameters());

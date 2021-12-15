@@ -26,7 +26,7 @@ namespace FIT{
 		CrossSection()=default;
 		CrossSection(const CrossSection&)=default;
 		CrossSection(const FitManager& fm,TString outDir="",TString resultFile=""):FitManager(fm),fResultDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
-		CrossSection(CrossSection&&)=default;
+		CrossSection(CrossSection&&)=delete;
 		~CrossSection() override =default;
 		CrossSection& operator=(const CrossSection& other) = default;
 		CrossSection& operator=(CrossSection&& other) = delete;
