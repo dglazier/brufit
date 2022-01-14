@@ -28,8 +28,8 @@ namespace HS{
       RooComponentsPDF(const char *name, const char *title,Double_t base,const RooArgList& obsList,const vector<RooArgList> compList);
       RooComponentsPDF(const RooComponentsPDF& other, const char* name=nullptr) ;
       TObject* clone(const char* newname) const override { return new RooComponentsPDF(*this,newname); }
-      inline ~RooComponentsPDF() override =default;
-
+       inline ~RooComponentsPDF() override =default;
+ 
       
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
       Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const override;
@@ -51,7 +51,13 @@ namespace HS{
       Double_t componentIntegral(Int_t icomp) const;
       void initIntegrator() override;
  
-    private:
+       void RecalcComponentIntegralsSampling(Int_t code,const char* rangeName) const;
+       Double_t componentVariance(Int_t icomp) const;
+       void DoFirstIntegrations(const char* rangeName="") const;
+
+       Double_t sampleIntegral() const;
+       
+     private:
 
       RooListProxy fActualObs;
       RooListProxy fActualCats;
@@ -71,6 +77,7 @@ namespace HS{
       RooArgSet fIntegrateSet;
       
       mutable vector<Double_t> fCacheCompDepIntegral;
+      mutable vector<Double_t> fCacheCompDepSigmaIntegral;
       mutable vector<vector<Double_t>> fPrevParVals;
       mutable vector<UInt_t> fRecalcComponent;
       
@@ -78,9 +85,12 @@ namespace HS{
  
       Double_t fBaseLine=0;
       mutable Double_t fWeightedBaseLine=0;
+      mutable Double_t fNUsedForIntegral=0;
       UInt_t fNObs=0;
       UInt_t fNCats=0;
       UInt_t fNComps=0;
+      mutable Bool_t fFirstCalculation=kTRUE;
+       
       ClassDefOverride(HS::FIT::RooComponentsPDF,1);
     };
 

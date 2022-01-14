@@ -1,5 +1,6 @@
 #include "Binner.h"
 #include "FiledTree.h"
+#include <TROOT.h> 
 #include <algorithm> 
 #include <utility>
 
@@ -49,21 +50,22 @@ namespace HS{
 	if(!fname.BeginsWith("/"))
 	  fname = TString(gSystem->Getenv("PWD"))+"/"+fname;
 
-	std::cout<<"Binner::SplitData  adding "<<name<<" "<<fname<<endl; 
 	fNameToFiles[name]={{fname}};
 	fNameToTree[name]=tname;
 	fBinNames={{""}};
 
-	std::cout<<"Binner::SplitData  adding "<<name<<" "<<fname<<  " "<<fNameToFiles.size()<<endl; 
-	
 	return;
       }
       if(!fIsSetup) {
 	cout<<"Binner::SplitData ERROR not setup yet!"<<endl;
 	exit(0);
       }
+      cout<<"Binner "<<tname<<" "<<fname<<" "<<gDirectory->GetName()<<endl;
+      
       auto filetree=FiledTree::Read(tname,fname);
+   
       SplitData(filetree->Tree().get(), name);
+      cout<<"Binner "<<tname<<" "<<fname<<" done "<<gDirectory->GetName()<<endl;
     }
 
     void Binner::SplitData(TTree* tree,const TString& name){

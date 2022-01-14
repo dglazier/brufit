@@ -98,9 +98,12 @@ namespace HS{
       
       initIntegrator();
 
-        //get the original cached integrals      
+      //get the original cached integrals      
       fCacheCompDepIntegral=other.fCacheCompDepIntegral;
+      fCacheCompDepSigmaIntegral=other.fCacheCompDepSigmaIntegral;
 
+      // fRecalcComponent=other.fRecalcComponent;
+      // fFirstCalculation=other.fFirstCalculation;
     } 
     void RooComponentsPDF::MakeSets(){
       //roorealvars
@@ -162,10 +165,10 @@ namespace HS{
 	//	cout<<"product "<<product<<endl;
 	val+=product; //add them to total
       }
-     
-      return val;
-    }
 
+       return val;
+    }
+    
     void RooComponentsPDF::RedirectServersToPdf(){
       cout<<"                 RooComponentsPDF::RedirectServersToPdf()"<<endl;
       //point the terms to the integral events rather than data events
@@ -233,6 +236,7 @@ namespace HS{
     }
     void RooComponentsPDF::initIntegrator()
     {
+      RooHSEventsPDF::initIntegrator();
       //Each Component is arranged in terms which are
       //  Observable independent
       //        Can just use current value without looping over events
@@ -249,6 +253,7 @@ namespace HS{
       fDependentTermParams.resize(fNComps);
       fPrevParVals.resize(fNComps);
       fCacheCompDepIntegral.resize(fNComps);
+      fCacheCompDepSigmaIntegral.resize(fNComps);
       
       //fIndependentTerm.resize(fNComps);
       fIndependentTermProxy.resize(fNComps);
@@ -256,6 +261,7 @@ namespace HS{
       UInt_t icomp=0;
       for(auto &comp: fComponents){
 	fCacheCompDepIntegral[icomp]=1;
+	fCacheCompDepSigmaIntegral[icomp]=0;
 	UInt_t iterm=0;
 	Double_t product=1;
 	for(auto &term: comp){
@@ -264,12 +270,12 @@ namespace HS{
 	  auto deps=arg->getDependents(VarSet(0));
 	
 	  if(deps->getSize()){
-	   
+
 	    fDependentTermProxy[icomp].push_back(term.get());
 	    //Identify which terms are dependent on fit parameters (ParSet)
 	    auto parDeps=arg->getDependents(fParameters);
 	    if(parDeps->getSize()){
-	     
+	   
 	      TIter iter=parDeps->createIterator();
 	      while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
 		auto *rarg=dynamic_cast<RooRealVar*>(arg);	    
@@ -294,18 +300,33 @@ namespace HS{
 	
 	icomp++;
 	
-      }	  
-     }
+      }
+
+      }
+
     
-    
-    
-    
+    void RooComponentsPDF::DoFirstIntegrations(const char* rangeName) const{
+    	 //Initialise all components to need calculation
+	 for(UInt_t icomp=0;icomp<fNComps;icomp++)
+	   fRecalcComponent.push_back(icomp);
+	 
+	 RecalcComponentIntegrals(0,rangeName);
+
+	 if(fUseSamplingIntegral==kTRUE)
+	   RecalcComponentIntegralsSampling(0,rangeName);
+	 
+	 fFirstCalculation=kFALSE;
+    }
     
     Double_t RooComponentsPDF::analyticalIntegral(Int_t code,const char* rangeName) const
     {
        if(code!=1) return RooHSEventsPDF::analyticalIntegral(code,rangeName);
-		if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
-      //Check baseline caclulated
+       if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
+
+       //make sure all components calculated
+       if(fFirstCalculation==kTRUE) DoFirstIntegrations();
+       
+       //Check baseline caclulated
       if(fWeightedBaseLine==0&&fBaseLine!=0&&fUseEvWeights)
 	CalcWeightedBaseLine(rangeName);
       else
@@ -316,9 +337,11 @@ namespace HS{
       //           2) one or more of the parameters have changed
       Bool_t needRecalc=kFALSE;
       fRecalcComponent.clear();
+
       for(UInt_t icomp=0;icomp<fNComps;icomp++){
 	  if(fDependentTermProxy[icomp].size()) {
-	    
+	   
+ 	    
 	    UInt_t ipar=0;
 	    for(auto par:fDependentTermParams[icomp]){
 	      Double_t previous=fPrevParVals[icomp][ipar];
@@ -326,7 +349,6 @@ namespace HS{
 	     
 	      if(pval!=previous){ //trigger recalc
 		needRecalc=kTRUE;
-		fPrevParVals[icomp][ipar]=pval;
 		if(!vecContains(icomp,fRecalcComponent)) fRecalcComponent.push_back(icomp);
 	      }
 	      //Store parameter values to check for a change
@@ -335,6 +357,7 @@ namespace HS{
 	  }
 	  
       }
+     
       ///////////////////////////////
       if(needRecalc)RecalcComponentIntegrals(code,rangeName);
 
@@ -342,11 +365,16 @@ namespace HS{
     
       for(UInt_t icomp=0;icomp<fNComps;icomp++)
 	integral+=componentIntegral(icomp);
-      // cout<<"                   INTEGRAL "<<integral<<endl;
-      //   exit(0);
-      return integral;
+      /*// Don't need above integral if doing sampling....
+      if(fUseSamplingIntegral==kTRUE){
+	RecalcComponentIntegralsSampling(code,rangeName);
+	Double_t integral2=sampleIntegral(); 
+ 	integral=integral2;
+      }
+      */
+       return integral;
     }
-    
+     
     void RooComponentsPDF::CalcWeightedBaseLine(const char* rangeName) const{
      Long64_t ilow,ihigh=0;
       SetLowHighVals(ilow,ihigh);
@@ -370,6 +398,8 @@ namespace HS{
       fWeightedBaseLine/=accepted;//normalise to number of events to prevent huge integrals
       cout<<"RooComponentsPDF::CalcWeightedBaseLine "<<fWeightedBaseLine<<endl;
     }
+
+    //////////////////////////////////////////////////////////////////
     void RooComponentsPDF::RecalcComponentIntegrals(Int_t code,const char* rangeName) const{
       Long64_t ilow,ihigh=0;
       SetLowHighVals(ilow,ihigh);
@@ -384,7 +414,7 @@ namespace HS{
       //Loop over events and recalcaulte partial integrals
       //that depend on parameters that have changed
       Long64_t accepted=0;
-        for(Long64_t ie=ilow;ie<ihigh;ie++){
+      for(Long64_t ie=ilow;ie<ihigh;ie++){
 	fTreeEntry=ie;
 	if(!CheckRange(TString(rangeName).Data())) continue;
 	accepted++;
@@ -395,7 +425,7 @@ namespace HS{
 	  fIntegrateCats[ii]->setIndex(fvecCat[fTreeEntry*fNcats+ii]);
 	//calculate the partial integrals
 	for(const auto& icomp:fRecalcComponent){
-	  Double_t product=1;
+	  Double_t product=1.;
 	  for(const auto &term:fDependentTermProxy[icomp]){
 	    product*= *term;
 	  }
@@ -404,7 +434,7 @@ namespace HS{
 	  fCacheCompDepIntegral[icomp]+=product;
 	}
       }
-   
+       
       //Normalise to number of events
       for(const auto& icomp:fRecalcComponent){
 	fCacheCompDepIntegral[icomp]=fCacheCompDepIntegral[icomp]/accepted;
@@ -419,25 +449,128 @@ namespace HS{
 
       
     }
+    
+    void RooComponentsPDF::RecalcComponentIntegralsSampling(Int_t code,const char* rangeName) const{
+   
+      if(fRecalcComponent.empty()==kTRUE) return;
+      
+      cout<<"RooComponentsPDF::RecalcComponentIntegralsSampling "<<fRecalcComponent.size()<<endl;
+      Long64_t ilow,ihigh=0;
+      SetLowHighVals(ilow,ihigh);
+         //point the terms to the integral events rather than data events
+      for(const auto& icomp:fRecalcComponent){
+	for(const auto &term:fDependentTermProxy[icomp]){
+	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
+	  unconstTerm->recursiveRedirectServers(fIntegrateSet);
+	}
+      }
+
+      //Loop over events and recalcaulte partial integrals
+      //that depend on parameters that have changed
+      Long64_t accepted=0;
+      Long64_t all=0;
+ 
+      std::vector<Double_t> sumSquares(fRecalcComponent.size());
+      for(Long64_t ie=ilow;ie<ihigh;ie++){
+	fTreeEntry=ie;
+	if(!CheckRange(rangeName)){
+	  ++all;
+	  continue;
+	}
+	//read in observable value for this event
+	for(Int_t ii=0;ii<fNvars;ii++)
+	  fIntegrateObs[ii]->setVal(fvecReal[fTreeEntry*fNvars+ii]);
+	for(Int_t ii=0;ii<fNcats;ii++)
+	  fIntegrateCats[ii]->setIndex(fvecCat[fTreeEntry*fNcats+ii]);
+	//calculate the partial integrals
+	for(const auto& icomp:fRecalcComponent){
+	  Double_t product=1;
+	  for(const auto &term:fDependentTermProxy[icomp]){
+	    product*= *term;
+	  }
+	  product*=GetIntegralWeight(ie);
+	  
+	  fCacheCompDepIntegral[icomp]+=product;
+	  sumSquares[icomp]+=product*product;
+	}
+	++accepted;
+	++all;
+      }
+      cout<<"Done RooComponentsPDF::RecalcComponentIntegralsSampling all "<<all <<" accpeted "<<accepted<<" dif "<<ihigh-ilow<<" "<<fTreeEntry<<endl;
+     //Normalise to number of events
+      for(const auto& icomp:fRecalcComponent){
+	fCacheCompDepIntegral[icomp]=fCacheCompDepIntegral[icomp]/(accepted-1);
+	//Calculate sigma_integral for components
+	fCacheCompDepSigmaIntegral[icomp]=sumSquares[icomp]/accepted;
+     }
+        
+ 
+      fNUsedForIntegral=accepted;
+      
+      //point the terms back to the data events rather than integral events
+      for(const auto& icomp:fRecalcComponent){
+	for(const auto &term:fDependentTermProxy[icomp]){
+	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
+	  unconstTerm->recursiveRedirectServers(fActualObs);
+	}
+      }
+
+      
+    }
     Double_t RooComponentsPDF::componentIntegral(Int_t icomp) const{
       //calculate integral of this component
-      //First take product of terms independent of observables;
+      //First take product of terms dependent of observables;
       Double_t product=1;
       product*=fCacheCompDepIntegral[icomp];
       int counter=0;
-      for(auto& term:fIndependentTermProxy[icomp]){
+      //now take product of terms independent of observables;
+     for(auto& term:fIndependentTermProxy[icomp]){
 	product*= *term;
       }
        return product; 
     }
+    Double_t RooComponentsPDF::componentVariance(Int_t icomp) const{
+      //calculate sigma integral of this component
+      //i.e. scale by independent terms
+      //First take product of terms dependent of observables;
+      Double_t product=1;
+      product*=fCacheCompDepSigmaIntegral[icomp];
+      //now take product of terms independent of observables;
+      for(auto& term:fIndependentTermProxy[icomp]){
+	product*= (*term)*(*term);
+      }
+      return product; 
+    }
+  Double_t RooComponentsPDF::sampleIntegral() const{
 
-    Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+    //Note fWeightedBaseLine has 0 variance, so does not contribute to sigma
+    Double_t sumVariance=0.;
+    Double_t sumIntegral=0;
+   
+    for(UInt_t icomp=0;icomp<fNComps;++icomp){
+
+      auto integral = componentIntegral(icomp);
+      sumIntegral+=integral;
+      sumVariance+=(componentVariance(icomp));
+    
+    }
+
+    auto sigma = TMath::Sqrt((sumVariance-sumIntegral*sumIntegral)/fNUsedForIntegral);
+ 
+    fIntegralPDF->setMeanSigma(sumIntegral+fWeightedBaseLine,sigma);
+    auto result= fIntegralPDF->sample();
+    return result;
+  }
+
+    
+  Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
       auto val = RooHSEventsPDF::SetEvTree(tree,cut,MCGenTree);
 
+    //Cant do this here as need to call ProtoVars first !
       //Caclulate current value of component integrals
-      for(UInt_t icomp=0;icomp<fNComps;icomp++)
-	fRecalcComponent.push_back(icomp);
-      RecalcComponentIntegrals(0,"");
+      // for(UInt_t icomp=0;icomp<fNComps;icomp++)
+      // 	fRecalcComponent.push_back(icomp);
+      //     RecalcComponentIntegrals(0,"");
       return val;
     }
   }

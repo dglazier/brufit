@@ -9,17 +9,17 @@
 namespace HS{
   namespace FIT{
     
-    PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag){
+    PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag,const TString& opt):fPlotOptions{opt}{
 
       using namespace RooFit;
-      cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
+      //cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
       //fCanvases->SetOwner();
       fCanvases->SetName(TString("RFPlots")+setup->GetName());
 
   	
       auto vars=setup->FitVars();
       auto *model=setup->Model();
-      cout<<"model "<<model<<endl;
+      // cout<<"model "<<model<<endl;
       //For RooHSEventsPDF flag plotting so can calc partial integrals
       //for 1 observable case;
       RooHSEventsPDF::SetIsPlotting(kTRUE);
@@ -37,7 +37,7 @@ namespace HS{
 	RooPlot* frame = var->frame();
        	data->plotOn(frame, DataError(RooAbsData::SumW2) ) ; 
 
-	const auto& pdfs = setup->PDFs();
+	const auto& pdfs = setup->constPDFs();
 
 	for(Int_t ic=0;ic<pdfs.getSize();ic++)
 	  model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(1E-2));
@@ -94,6 +94,26 @@ namespace HS{
 
     void PlotResults::Write(){
       fCanvases->Write();
+    }
+
+    TString PlotResults::CheckForNegatives(TString name){
+      if(name.Contains('-')){
+	name.ReplaceAll("-","neg");
+      }
+      return name;
+    }
+    
+    void PlotResults::RemoveNegativeInNames(TTree* tree){
+      
+      auto branches=tree->GetListOfBranches();
+      for(auto br:*branches){
+	TString name=br->GetName();
+	if(name.Contains('-')){
+	  name.ReplaceAll("-","neg");
+	  dynamic_cast<TBranch*>(br)->SetName(name);
+	}
+      }
+      
     }
   }//namespace FIT
 

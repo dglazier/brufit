@@ -62,6 +62,8 @@ namespace HS{
     file_uptr Minuit::SaveInfo(){
       
       TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
+      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
+
       file_uptr file(TFile::Open(fileName,"recreate"));
       
       fSetup->Parameters().Print();

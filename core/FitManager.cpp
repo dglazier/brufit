@@ -15,14 +15,25 @@ namespace HS{
       fSetup=other.fSetup;
       fBinner=other.fBinner;
       //LoadData(other.GetDataTreeName(),other.GetDataFileNames());
-  
+      fPlotOptions=other.fPlotOptions;
+      fUsePrevResult=other.fUsePrevResult;
+      fPrevResultDir=other.fPrevResultDir;
+      fPrevResultMini=other.fPrevResultMini;
+      fYldMaxFactor=other.fYldMaxFactor;
+      fIsSamplingIntegrals=other.fIsSamplingIntegrals;
     }
 
     FitManager&  FitManager::operator=(const FitManager& other){
       cout<<"=============FitManager"<<endl;
       fSetup=other.fSetup;
       fBinner=other.fBinner;
-      //LoadData(other.fData.ParentTreeName(),other.fData.FileNames());
+      fPlotOptions=other.fPlotOptions;
+      fUsePrevResult=other.fUsePrevResult;
+      fPrevResultDir=other.fPrevResultDir;
+      fPrevResultMini=other.fPrevResultMini;
+      fYldMaxFactor=other.fYldMaxFactor;
+      fIsSamplingIntegrals=other.fIsSamplingIntegrals;
+  
       return *this;
     }
     
@@ -44,23 +55,27 @@ namespace HS{
  
       //Look for Special case of RooHSEventsPDFs
       FillEventsPDFs();
-   
+ 
       //Add fit constraints
       fCurrSetup->AddFitOption(RooFit::ExternalConstraints
-			       (fCurrSetup->Constraints()));
+      			       (fCurrSetup->Constraints()));
+      
       //initialise yields
       if(fCurrSetup->Yields().getSize()==1){//special case only 1 yield)
 	Double_t yld=fCurrDataSet->sumEntries();
 	SetAllValLimits(fCurrSetup->Yields(),
-			yld,0,1.2*yld);
+			yld,0,fYldMaxFactor*yld);
       }
-      else
+      else{
 	SetAllValLimits(fCurrSetup->Yields(),
-			fCurrDataSet->sumEntries()/2,0,fCurrDataSet->sumEntries()*1.2);
+			fCurrDataSet->sumEntries()/2,0,
+			fCurrDataSet->sumEntries()*fYldMaxFactor);
+      }
+      
       //create extended max likelihood pdf
       //fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
-      FitTo();
+      FitTo(); 
 
       return kTRUE;
     }
@@ -111,18 +126,18 @@ namespace HS{
     
     void FitManager::FillEventsPDFs(){
       UInt_t idata=GetDataBin(fFiti);
-
-      auto pdfs=fCurrSetup->PDFs();
-
+      auto& pdfs=fCurrSetup->PDFs();
+ 
       auto savedir=gDirectory;
       
       for(Int_t ip=0;ip<pdfs.getSize();ip++){
 	auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
 
-	if(pdf){
-	  //  pdf->SetConstInt();
+	if(pdf!=nullptr){
+	
 	  if(fBinner.FileNames(pdf->GetName()).size()==0)
 	    continue;
+	  //Open tree files for getting events
 	  auto filetree=FiledTree::
 	    Read(fBinner.TreeName(pdf->GetName()),
 		 fBinner.FileNames(pdf->GetName())[idata]);
@@ -139,6 +154,8 @@ namespace HS{
 	  }
 	  //if too few events remove this PDF
 	  if(!tree->GetEntries()||!pdf->IsValid()){
+	    cout<<"WARNING FitManager::FillEventsPDFs :"<<
+	      "    too few events for for EventPDF "<<pdf->GetName()<<endl;
 	    fCurrSetup->Yields().remove(fCurrSetup->Yields()[ip]);
 	    pdfs.remove(*pdf);
 	    ip--;
@@ -159,11 +176,17 @@ namespace HS{
 	      fCurrSetup->AddGausConstraint(histspdf->OffConstraint());
 	      fCurrSetup->AddGausConstraint(histspdf->ScaleConstraint());
 	    }
+	    cout<<"FitManager IsSamplingIntegrals "<<fIsSamplingIntegrals<<" "<<endl;
+	    //if sampling PDF create constraint for fit
+	    if(fIsSamplingIntegrals==kTRUE){
+	      pdf->SetIsSamplingIntegral();
+	      /////fCurrSetup->AddGausConstraint(pdf->GetIntegralPDF()->getPDF());
+	    }
 	  }
 	  //keep the simulated tree alive until Reset()
 	  fFiledTrees.push_back(std::move(filetree));	
 	  if(mcgenfiletree)
-		fFiledTrees.push_back(std::move(mcgenfiletree));	  
+	    fFiledTrees.push_back(std::move(mcgenfiletree));	  
 	}
       }
       savedir->cd();
@@ -181,7 +204,8 @@ namespace HS{
     //Read in paarameters from previous fit
     void FitManager::InitPrevResult(const TString& resultDir,const TString& resultMinimiser){
       fUsePrevResult=kTRUE;
-      
+      fMinimiserType=resultMinimiser;
+
       if(resultDir==TString()) fPrevResultDir=fSetup.GetOutDir(); //use current
       else fPrevResultDir=resultDir;
 
@@ -191,9 +215,10 @@ namespace HS{
     }
     
     void FitManager::LoadPrevResult(const TString& resultDir,const TString& resultMinimiser){
-      TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+resultMinimiser+".root";
+      //TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+fCurrSetup->GetTitle()+resultMinimiser+".root";
+      TString resultFile=resultDir+"/"+fCurrSetup->GetName()+"/Results"+resultMinimiser+".root";
 
-     
+      cout<<" FitManager::LoadPrevResult open file "<<resultFile<<endl;
       std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
       std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};
       //fitFile.reset();

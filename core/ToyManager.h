@@ -25,11 +25,12 @@ namespace HS{
       ToyManager()=default;
     ToyManager(Int_t n):fNToys(n){};
       ToyManager(const ToyManager&)=default;
-    ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
-      ToyManager(ToyManager&&)=default;
+      // ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
+      ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(outDir),fResultFileName(resultFile){cout<<"ToyManager() "<<fResultFileName<<endl;};
+      ToyManager(ToyManager&&)=delete;
       ~ToyManager() override =default;
       ToyManager& operator=(const ToyManager& other) = default;
-      ToyManager& operator=(ToyManager&& other) = default;
+      ToyManager& operator=(ToyManager&& other) = delete;
       
       Bool_t Run() override;
       void SaveResults() override;
@@ -54,11 +55,11 @@ namespace HS{
       
       void  Generate();
 
-      std::shared_ptr<FitManager> Fitter();
+      std::unique_ptr<FitManager> Fitter();
  
-      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const TString& filename,TString result="");
-      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,FitManager& fit,TString result="");
-      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,TString result="");
+      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const TString& filename,const TString& result="");
+      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,FitManager& fit,const TString& result="");
+      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,const TString& result="");
 
       void Summarise();
       void Summarise(Int_t ib);

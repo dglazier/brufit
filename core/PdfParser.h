@@ -45,16 +45,19 @@ namespace HS{
       
       //Parameter,Functions, Formulas...
       void AddParameter(string par);
+      void AddConstant(const string& constant);
       void AddFunction(string fun);
       void AddFormula(const string& form);
       bool CheckFormulaList(const string& fun);
       bool CheckFunctionList(const string& fun);
       bool CheckParameterList(const string& par);
+      bool CheckConstantsList(const string& par);
 
       void AddFunctionTemplate(string func,string temp);
       void AddComplexFunctionTemplate(const string& func,string temp);
 
       const strings_std GetParameters() const {return _parList;}
+      const strings_std GetConstants() const {return _constList;}
       const strings_std GetFunctions() const {return _funList;}
       const strings_std GetFormulas() const {return _formList;}
 
@@ -68,6 +71,7 @@ namespace HS{
     protected :
 
       strings_std _parList;
+      strings_std _constList;
       strings_std _funList;
       strings_std _formList;
       strings_std _complexArgs;
@@ -95,7 +99,6 @@ namespace HS{
 
       int _entry=-1;
       bool next(){
-	std::cout<<_label <<" "<<_entry<<" "<<std::endl;
 	if(_entry+1==(int)_vals.size()){
 	  _entry=-1;
 	  _currval=_vals[0];

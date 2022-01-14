@@ -17,6 +17,7 @@ namespace HS{
 namespace FIT{
 
 	using tree_uptr =std::unique_ptr<TTree>;
+	using tree_shptr =std::shared_ptr<TTree>;
 	using strings_t = std::vector<TString>;
 
 	class CrossSection  : public FitManager{
@@ -25,10 +26,10 @@ namespace FIT{
 		CrossSection()=default;
 		CrossSection(const CrossSection&)=default;
 		CrossSection(const FitManager& fm,TString outDir="",TString resultFile=""):FitManager(fm),fResultDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
-		CrossSection(CrossSection&&)=default;
+		CrossSection(CrossSection&&)=delete;
 		~CrossSection() override =default;
 		CrossSection& operator=(const CrossSection& other) = default;
-		CrossSection& operator=(CrossSection&& other) = default;
+		CrossSection& operator=(CrossSection&& other) = delete;
 
 		Bool_t Run() override;
 		void SaveResults() override;
@@ -89,7 +90,7 @@ namespace FIT{
 		Double_t fBeamEnergyValue = 0.;
 
 		Bool_t fSampleAcceptance = kFALSE;
-		TTree fAcceptanceTree;
+		tree_shptr fAcceptanceTree;
 
 	ClassDefOverride(HS::FIT::CrossSection,1);
 	}; //class CrossSection

@@ -16,6 +16,7 @@
 #include <RooStats/ModelConfig.h>
 #include <RooGaussian.h>
 #include <RooFormulaVar.h>
+#include <RooDataSet.h>
 #include <TNamed.h>
 #include <TString.h>
 #include <TSystem.h>
@@ -47,18 +48,23 @@ namespace HS{
     RooArgSet MakeArgSet(catvars_t cats);
     void SetAllValLimits(RooArgList&,Double_t val,Double_t low=0,Double_t high=0);
     void ReadFormula(TString forma, strings_t& svars,strings_t& sranges);
+    Bool_t ArgListContainsName(RooArgList& items,TString name);
+
+    class RandomConstrained;
     
-      
     class Setup : public TNamed {
       
     public:
       Setup(const TString& name);
       Setup();
       Setup(const Setup& other);
-      Setup(Setup&&)=default;
-      ~Setup() override{if(fModel) delete fModel;fModel=nullptr;}
+      Setup(Setup&&)=delete;
+      ~Setup() override{
+	if(fModel) delete fModel;
+	fModel=nullptr;
+      }
       Setup& operator=(const Setup& other);
-      Setup& operator=(Setup&& other) = default;
+      Setup& operator=(Setup&& other) = delete;//because RooWorkSpace
 
 
       void FactoryPDF(TString opt);
@@ -79,6 +85,7 @@ namespace HS{
       RooArgSet& Cats();
       RooArgSet& FitVarsAndCats();
       RooArgSet& ParsAndYields();
+      RooArgSet& NonConstParsAndYields();
       const realvars_t& AuxVars()const {return fAuxVars;}
 	
       RooAbsPdf* Model()  const {return fModel;}
@@ -129,7 +136,8 @@ namespace HS{
       RooArgList& Constants() {return fConstants;}
       RooArgList& Formulas() {return fFormulas;}
       RooArgList& ParameterFormulas() {return fParameterFormulas;}
-      const RooArgList& PDFs() const  {return fPDFs;}
+      RooArgList& PDFs()   {return fPDFs;}
+      const RooArgList& constPDFs()   const {return fPDFs;}
       RooArgList& Constraints(){return fConstraints;}
 
       Double_t SumOfYields();
@@ -141,6 +149,10 @@ namespace HS{
       void AddFormulaConstraint(RooFormulaVar *formu){
 	if(!formu) return;
 	fConstraints.add(*(dynamic_cast<RooAbsArg*>(formu)));
+      }
+      void AddPdfConstraint(RooAbsPdf *pdf){
+	if(!pdf) return;
+	fConstraints.add(*pdf);
       }
       
       void AddFitOption(const RooCmdArg& cmd){fFitOptions.Add(dynamic_cast<RooCmdArg*>(cmd.Clone()));}
@@ -155,7 +167,8 @@ namespace HS{
 	//AddFitOption(RooFit::Minimizer("Minuit2"));
       }
       void RandomisePars();
-
+      void OrganiseConstraints();
+      
       void SetParVal(const TString& par,Double_t val,Bool_t co=kFALSE){
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setVal(val);
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
@@ -173,7 +186,10 @@ namespace HS{
 	(dynamic_cast<RooAbsPdf*>(fPDFs.find(pdf)))->getParameters(DataVars())->setAttribAll("Constant",co);
 	fConstPDFPars[pdf]=co;
       }
-
+      Bool_t IsParSetConst(const TString& name) const{
+	//std::cout<<"IsParSetConst "<<name <<" "<<(fConstPars.find(name) != fConstPars.end())<<" "<< fConstPars.at(name) <<endl;
+	return fConstPars.find(name) != fConstPars.end()? fConstPars.at(name) : kFALSE;}
+      
       void SaveSnapShot(const TString& name){fWS.saveSnapshot(name,RooArgSet(fYields,fParameters),kTRUE);};
       void LoadSnapShot(const TString& name){fWS.loadSnapshot(name);}
 
@@ -199,13 +215,15 @@ namespace HS{
       RooArgList fParameterFormulas;//! CANT WRITE formulas ArgSet!
       RooArgSet fVarsAndCats;
       RooArgSet fParsAndYields;
+      RooArgSet fNCParsAndYields; //Non constant parameters and yields
       RooArgList fYields;//species yields
       RooArgList fPDFs;//species pdfs
       RooArgList fParameters;//model parameters
       RooArgList fConstants;//model constants
       RooArgList fConstraints;//constraints on  parameters
       RooLinkedList fFitOptions;//
-
+      vector< std::unique_ptr<RandomConstrained> >_parConstraints;//! pdf constraints on parameters
+      
       RooAbsPdf* fModel=nullptr; //!owned by workspace
  
       RooWorkspace fWS;
@@ -214,7 +232,8 @@ namespace HS{
       TString fIDBranchName="UID";
       TString fOutDir;
       TString fDataOnlyCut;
-
+      TList fNeedToDeleteThis;
+      
       strings_t fVarString;
       strings_t fCatString;
       strings_t fParString;
@@ -234,7 +253,40 @@ namespace HS{
       ClassDefOverride(HS::FIT::Setup,1);
     };
     
+    class RandomConstrained {
+      //For randoming parameter values, which are constrained
+    public:
+
+      RandomConstrained(RooAbsPdf* con,RooRealVar* par,Int_t N):
+	_constraint{con},_par{*par},_nCache{N},_entry{N},_parName{par->GetName()}
+      {
+
+      }
+      
+     Double_t get(){
+	if(_entry>=_nCache){
+	  _entry=0;
+	  if(_cache){
+	    _cache->reset();
+	    delete _cache;
+	  }
+	  _cache = _constraint->generate(_par,_nCache);
+	}
+	return _cache->get(_entry++)->getRealValue(_parName);
+      }
+      
+    private:
+      RooDataSet *_cache=nullptr;
+      RooAbsPdf* _constraint=nullptr;
+      RooArgSet _par; //make an argset from this 1 par as needed for..
+      TString _parName;
+      
+      Int_t _nCache=1;
+      Int_t _entry=1;
+
  
+    };
+    
   }//namespace FIT
 }//namespace HS
 

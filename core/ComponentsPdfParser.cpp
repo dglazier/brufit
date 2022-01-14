@@ -30,7 +30,7 @@ namespace HS{
       while(!term.empty()){
 	term=NextComponentsTerm(str,pos,tpos);
 
-
+	//std::cout<<"term "<<term<<endl;
 	//case predefined
 	if(CheckParameterList(term))
 	  continue;
@@ -57,12 +57,12 @@ namespace HS{
       }
       //Change full function string to just name
       for (auto const& fun : _funNames){
-	cout<<"REPLACE NAME "<< fun.first<<" "<<fun.second<<" "<<StringContainsString(str,fun.first)<<endl;
+	//	cout<<"REPLACE NAME "<< fun.first<<" "<<fun.second<<" "<<StringContainsString(str,fun.first)<<endl;
 	str=StringReplaceAll(str,fun.first,fun.second);
       }
 
       _pdfString="RooComponentsPDF::"+_name+"(0,"+_varsString+",="+str+")";
-      cout<<_pdfString<<endl;
+      //cout<<_pdfString<<endl;
       return _pdfString;
     }
 

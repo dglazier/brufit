@@ -1,10 +1,14 @@
 #pragma once
 
+#include "GaussianConstraint.h"
+#include "Weights.h"
+
 #include <RooAbsPdf.h>
 #include <RooArgSet.h>
 #include <RooRealProxy.h>
 #include <RooCategoryProxy.h>
-#include "Weights.h"
+#include <RooRandom.h>
+#include <TString.h>
 #include <TTree.h>
 #include <TH1F.h>
 #include <TVector.h>
@@ -46,8 +50,10 @@ namespace HS{
       Weights* fWeights=nullptr;//!  //weights for event generator
       Weights* fInWeights=nullptr; //weights for shaping the events tree
       Double_t fConstInt=1;
-      Int_t fLastLength{};
-      Float_t *fLast=nullptr; //[fLastLength]
+
+ 
+      mutable Double_t fSigmaIntegral=0;
+      Double_t *fLast=nullptr;//! //[fLastLength]
       mutable vector<TH1F> fHistIntegrals;
       vector<Float_t> fEvWeights; //read in weights saved in vector
       vector<Float_t> fvecReal;
@@ -59,6 +65,7 @@ namespace HS{
       vector<Int_t> fvecCatMCGen;
       vector<Int_t> fGotGenVar; //for generating events
       vector<Int_t> fGotGenCat; //for generating events
+      Int_t fLastLength{0};
       Long64_t fNInt=-1;
       Long64_t fNMCGen=0; //Number of generated MC events
       Long64_t fNTreeEntries=0;
@@ -79,7 +86,7 @@ namespace HS{
       Bool_t fUseWeightsGen=kFALSE;
       Bool_t fUseEvWeights=kFALSE;
       Bool_t fIsValid=kTRUE;
-	  Bool_t fHasMCGenTree=kFALSE;
+      Bool_t fHasMCGenTree=kFALSE;
 
       WeightsConfig fWgtsConf;
       //      TString fWgtSpecies;
@@ -95,15 +102,18 @@ namespace HS{
       vector< RooRealProxy* > fParSet;
       vector<Bool_t> fIsCat;
   
-      void InitSets();
-      RooArgSet VarSet(Int_t iset) const;
     
       Double_t fMaxValue=0; //max value of function for accept/reject
       Long64_t fGeni=0; //index for tree generation
-      TString fgenStr="gen";
+      TString fTruthPrefix="gen";
       mutable Int_t fIntCounter=0;
       Bool_t fIsPlotting=kFALSE;
+      Bool_t fUseSamplingIntegral=kFALSE;
+
+      std::shared_ptr<GaussianConstraint> fIntegralPDF;
       
+      void InitSets();
+      RooArgSet VarSet(Int_t iset) const;
       void LoadInWeights();
       virtual void HistIntegrals(const char* rangeName) const;
       void SetLowHighVals(Long64_t& ilow,Long64_t& ihigh) const;
@@ -111,12 +121,30 @@ namespace HS{
       virtual  Double_t evaluateData() const {return 0;}
       virtual void initIntegrator();
 
+      Double_t sampleIntegral(Double_t integral,Double_t sigma) const{
+	return RooRandom::gaussian()*sigma + integral;
+      }
+      
     public:
- 
+
+      void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
+      void SetIsSamplingIntegral(){
+	fUseSamplingIntegral=kTRUE;
+	fIntegralPDF=std::make_shared<GaussianConstraint>(TString("GCfor")+GetName());
+	cout<<" SetIsSamplingIntegral() "<<fIntegralPDF.get()<<" "<<this <<" "<<fIsClone<<endl;
+      }
+      RooRealVar* GetSamplingIntegralVar(){
+	if(fUseSamplingIntegral==kTRUE)
+	  return &(fIntegralPDF->getRooVar());
+	else return nullptr;
+      }
+      
+      GaussianConstraint* GetIntegralPDF(){return fIntegralPDF.get();}
+      
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
       Double_t unnormalisedIntegral(Int_t code,const char* rangeName) const;
-
+      Double_t analyticalIntegralForSampling(const char* rangeName) const;
       void generateEvent(Int_t code) override;
       Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const override;
       void initGenerator(Int_t code) override;
@@ -177,7 +205,15 @@ namespace HS{
       void SetUseWeightsGen(Bool_t use=kTRUE){fUseWeightsGen=use;}
       Bool_t UseWeightsGen(){return fUseWeightsGen;}
       Weights* GetWeights(){return fWeights;}
-      void SetGeni(Long64_t gi){fGeni=gi;if(fParent)fParent->SetGeni(gi);};
+      void SetGeni(Long64_t gi){
+	fGeni=gi;
+	//causes crash with generator if(fIsClone==kTRUE)fParent->SetGeni(gi);
+      };
+      Long64_t  IncrementGeni(){
+	if(fIsClone)fParent->SetGeni(fGeni);
+	++fGeni;
+	return fGeni;
+      }
       Long64_t GetGeni(){return fGeni;}
       
       void SetConstInt(Bool_t force=kTRUE){fForceConstInt=force;}
@@ -200,6 +236,7 @@ namespace HS{
       Bool_t HasMCGenTree(){return fHasMCGenTree;}
       void Plotting(Bool_t plotting=kTRUE){fIsPlotting=plotting;}
       void SetHistIntegrals(vector<TH1F> &hists){fHistIntegrals=hists;}
+      void ResetHistIntegrals(){fHistIntegrals.clear();}
 
       
       ClassDefOverride(HS::FIT::RooHSEventsPDF,1); // Yor description goes here...

@@ -40,14 +40,15 @@ namespace HS{
     public:
       FitManager()=default;
       FitManager(const FitManager& other);
-      FitManager(FitManager&&)=default;
+      FitManager(FitManager&&)=delete;
       ~FitManager() override =default;
       FitManager& operator=(const FitManager& other);
-      FitManager& operator=(FitManager&& other) = default;
+      FitManager& operator=(FitManager&& other) = delete;
 
       Setup *PointerSetUp() {return &fSetup;};
       Setup &SetUp() {return fSetup;};
       const Setup &ConstSetUp() {return fSetup;};
+      Setup *CurrSetUp()  {return fCurrSetup.get();};
 
       //Note the default name and title are given by the bin and bootstrap
       //combination, Data GetGroup and GetItemName are BootStrap related
@@ -85,14 +86,21 @@ namespace HS{
       
       virtual void Reset(){
 	//	fData.Reset(fFiti);
+	cout<<"REMOVE FILEDTREE "<<fFiledTrees.size()<<endl;
+	// for(auto& ft:fFiledTrees){
+	//   ft.reset();
+	// }
 	fFiledTrees.clear();
+	
+	cout<<"REMOVED FILEDTREE "<<endl;
 	fCurrSetup.reset();
 	fCurrDataSet.reset();
       }
       
       void InitPrevResult(const TString& resultDir="",const TString& resultMinimiser="");
       void LoadPrevResult(const TString& resultDir,const TString& resultMinimiser);
-
+      void IgnorePrevResult(){fUsePrevResult=kFALSE;}
+      
       void LoadData(const TString& tname,const strings_t& fnames){
 	 fData.Load(fSetup,tname,fnames);
       }
@@ -142,20 +150,21 @@ namespace HS{
 	fMinimiser.reset(mi);
 	SetMinimiserType(fMinimiser->GetName());
       }
-      void SetMinimiserType(TString mtype){fMinimiserType=std::move(mtype);}
+      void SetMinimiserType(const TString& mtype){fMinimiserType=(mtype);}
       TString GetMinimiserType() const {return fMinimiserType;}
       //    Minimiser* GetMinimiser() const {return fMinimiser;}
-      
+      TString MinimiserFileName(){return TString("Results")+fMinimiserType+".root";}
+
       virtual void FillEventsPDFs();
 
       void PlotDataModel()
       {
 	if(dynamic_cast<RooMcmc*>(fMinimiser.get()))
 	  { 
-	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get())})));
+	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get()),fPlotOptions})));
 	  }
 	else
-	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle()})));
+	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),fPlotOptions})));
       }
       
       void RedirectOutput(const TString& log="");
@@ -165,6 +174,10 @@ namespace HS{
 	fCompiledMacros=std::move(macs);
       }
       strings_t GetCompiledMacros(){return fCompiledMacros;}
+
+      void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
+      void SetYieldMaxFactor(Double_t factor){fYldMaxFactor=factor;}
+      void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
       
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
@@ -192,12 +205,17 @@ namespace HS{
       Bool_t fRedirect=kFALSE;
 
       UInt_t fFiti=0;
+      Double_t fYldMaxFactor=2.;
 
+      
       Bool_t fUsePrevResult=kFALSE;
       TString fPrevResultDir;
       TString fPrevResultMini;
       
-	
+      TString fPlotOptions;
+
+      Bool_t fIsSamplingIntegrals=kFALSE;
+      
       ClassDefOverride(HS::FIT::FitManager,1);
      };
 

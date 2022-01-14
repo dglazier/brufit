@@ -40,7 +40,8 @@ namespace HS{
       Setup *fSetup=nullptr; //!not owned by minimiser
       RooAbsData* fData=nullptr; //!not owned by minimiser
 
-    
+      TString FileName(){return TString("/Results")+GetName()+".root";}
+
     private:
 
  
@@ -68,8 +69,7 @@ namespace HS{
 
       file_uptr SaveInfo() override;
 
-      
-    protected :
+     protected :
       void StoreLikelihood(vector<Double_t> &likelies);
 
       RooFitResult* fResult=nullptr;//! dont write

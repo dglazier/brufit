@@ -39,9 +39,11 @@ namespace HS{
       file_uptr SaveInfo() override;
       void AddFormulaToMCMCTree();
       
-      void MakeChain();
+      Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
       TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -100,18 +102,32 @@ namespace HS{
       void SetupBasicUsage();
       void SetKeepStart(Bool_t keep=kTRUE){fKeepStart=keep;}
 
-      Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
- 
+      virtual Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
+
+      void SetDesiredAcceptance(Double_t min,Double_t max,Double_t target=0){
+	fMinAcc=min;
+	fMaxAcc=max;
+	if(target)
+	  fTargetAcc=target;
+	else
+	  fTargetAcc = (max-min)/2;
+      }
+      void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
+      void SetParVals(RooArgSet* toThesePars);
+      
     protected :
-  
+      void AddEntryBranch();
+      void CleanMakeChain();
+      
       RooStats::MarkovChain* fChain =nullptr; //!
       RooDataSet* fChainData=nullptr;//!
       TTree* fTreeMCMC=nullptr;//!
       Bool_t fCorrectForWeights=kTRUE;
       RooArgSet* fParams=nullptr;//!
-
-      Bool_t fKeepStart=kFALSE; //randomise starting values
+      std::shared_ptr<TFile> fTempFile;//!
       
+      Bool_t fKeepStart=kFALSE; //randomise starting values
+      Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.
       //MCMCCalculator
       RooStats::ModelConfig *fModelConfig=nullptr;
       
@@ -135,6 +151,12 @@ namespace HS{
       vector<Double_t> _formVals;//(formulas.getSize(),0);
       vector<TBranch*> _formBranches;//(formulas.getSize(),nullptr);
 
+      Double_t fChainAcceptance=0;//!
+      Double_t fMinAcc=0.15;
+      Double_t fMaxAcc=0.3;
+      Double_t fTargetAcc=0.234;
+      Int_t  fUncorrelateYields=0;
+      
       ClassDefOverride(HS::FIT::RooMcmc,1);
       
      };
@@ -155,6 +177,23 @@ namespace HS{
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
       ClassDefOverride(HS::FIT::RooMcmcSeq,1);
+   };
+
+    class RooMcmcSeqHelper  : public RooMcmc {
+      
+    public:
+   RooMcmcSeqHelper(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
+	SetNameTitle("HSRooMcmcSeqHelper","RooMcmcSeqHelper minimiser");
+      }
+      RooMcmcSeqHelper(const RooMcmcSeqHelper&)=default;
+      RooMcmcSeqHelper(RooMcmcSeqHelper&&)=default;
+      ~RooMcmcSeqHelper() override =default;
+      RooMcmcSeqHelper& operator=(const RooMcmcSeqHelper& other)=default;
+      RooMcmcSeqHelper& operator=(RooMcmcSeqHelper&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqHelper,1);
    };
 
  class RooMcmcSeqCov  : public RooMcmc {
@@ -191,6 +230,7 @@ namespace HS{
       RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
+      Int_t GetNumBurnInSteps()const final{return fNumBurnInStepsThenCov;}
 
  private:
    
