@@ -339,7 +339,19 @@ namespace HS{
     }
     ///////////////////////////////////////////////////////////
     /// Create PDF, parameters formulas and functions from PdfParser
-    void Setup::ParserPDF(const TString& str, PdfParser& parse){
+    void Setup::ParserPDF(TString str, PdfParser& parse){
+      //Look for possible weights
+      TString wopt;
+      if(str.Contains("WEIGHTS@")){
+	str.ReplaceAll("WEIGHTS@","$"); //$ should be a safe character!!!!
+
+	wopt=str(str.First("$")+1,str.Sizeof()-str.First("$"));
+	str=str(0,str.First("$"));
+	
+	wopt.Prepend("WEIGHTS@");
+      }
+
+      
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
       std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
@@ -368,7 +380,8 @@ namespace HS{
       pdfString=tpdf.Data();
       
      std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
-      FactoryPDF(pdfString);
+     
+      FactoryPDF(pdfString+wopt);
     }
     ///////////////////////////////////////////////////////////
     ///Set this PDF to be included in extended ML fit

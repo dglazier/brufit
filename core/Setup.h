@@ -68,7 +68,7 @@ namespace HS{
 
 
       void FactoryPDF(TString opt);
-      void ParserPDF(const TString& str, PdfParser& parse);
+      void ParserPDF(TString str, PdfParser& parse);
       void LoadVariable(const TString& opt);
       void LoadCategory(const TString& opt);
       void LoadAuxVar(const TString& opt);
