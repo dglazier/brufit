@@ -19,13 +19,13 @@ namespace HS{
       TString  ComponentsRealSphHarmonic(Setup &setup,TString name,TString cth,TString phi,Int_t Lmax,Int_t Mmax){
 
 	TString sphharm=ExpandRealSphHarmonic(setup,cth,phi,Lmax,Mmax);
-	TString expr=Form("RooComponentsPDF::%s(1,{%s,%s},=%s)",name.Data(),cth.Data(),phi.Data(),sphharm.Data());
+	TString expr=Form("RooComponentsPDF::%s(0,{%s,%s},=%s)",name.Data(),cth.Data(),phi.Data(),sphharm.Data());
 	return expr;
       }
       TString  ExpandRealSphHarmonic(Setup &setup,TString cth,TString phi,Int_t Lmax,Int_t Mmax){
 
 	TString components;
-	for(Int_t iL=1;iL<=Lmax;iL++)
+	for(Int_t iL=0;iL<=Lmax;iL++)
 	  for(Int_t iM=0;iM<=iL;iM++){
 	    if(iM>Mmax) continue;
 	    components+=HS::FIT::EXPAND::LoadPolSphHarmonic(setup,cth,phi,iL,iM,0,"Re");
