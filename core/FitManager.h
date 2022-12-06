@@ -18,7 +18,7 @@
 #include "Minimiser.h"
 #include <TNamed.h>
 #include <RooMinimizer.h>
-#include <RooMinuit.h>
+//#include <RooMinuit.h>
 #include <RooAbsData.h>
 #include <RooFitResult.h>
 
