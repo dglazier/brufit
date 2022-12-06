@@ -94,14 +94,25 @@ namespace HS{
 	branches[ib]=tree->Branch(catName,&branchVal[ib],catName+"/I");
 	ib++;
       }
-        
+      //add ID branch
+      auto id = fCurrSetup->WS().var(fCurrSetup->GetIDBranchName());
+      TBranch *idbranch=nullptr;
+      if(id!=nullptr)
+	idbranch = tree->Branch(fCurrSetup->GetIDBranchName(),&fIDval,fCurrSetup->GetIDBranchName()+"/D");
+      
       //Now loop over dataset
       for(Int_t entry=0;entry<numEntries;entry++){
 	auto vars=fGenData->get(entry);
 	ib=0;
+	//extra for categories
 	for(auto& branch: branches){
 	  branchVal[ib++]=vars->getCatIndex(branch->GetName());
 	  branch->Fill();
+	}
+	//extra for new ID branch
+	if(id!=nullptr){
+	  idbranch->Fill();
+	  ++fIDval;
 	}
       }
       tree->Write();
