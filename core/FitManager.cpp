@@ -85,13 +85,22 @@ namespace HS{
       fCurrSetup->SetTitle(GetCurrTitle());
       //make sure we take current setup values
       //If not it will use the string from Factory() etc,
-      fCurrSetup->ParsAndYields().assignFast(fSetup.ParsAndYields());
+      auto& currpy = fCurrSetup->ParsAndYields();
+      currpy.assignFast(fSetup.ParsAndYields());
+      for(auto& par:currpy){//assignFast doesnt do ranges...
+	auto* orig=dynamic_cast<RooRealVar*>(fSetup.ParsAndYields().find(par->GetName()));
+	if(orig!=nullptr){
+	  dynamic_cast<RooRealVar*>(par)->setMin(orig->getMin());
+	  dynamic_cast<RooRealVar*>(par)->setMax(orig->getMax());
+	}
+      }
 
       //Look to see if taking previous fit results as initial pars
       if(fUsePrevResult){
 	LoadPrevResult(fPrevResultDir,fPrevResultMini);
       }
     }
+
     /////////////////////////////////////////////////////////////
     void FitManager::RunAll(){
 

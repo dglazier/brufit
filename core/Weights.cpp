@@ -20,6 +20,7 @@
 #include <TH1.h>
 #include <TLeaf.h>
 #include <TEntryList.h>
+#include <TError.h>
 
 
 namespace HS{
@@ -346,6 +347,10 @@ namespace HS{
       fTitle=file_wts->GetTitle();
 
       savedir->cd();
+      //Going to create trees in memoery so trun off warnings
+      auto saveIgnore =  gErrorIgnoreLevel;
+      gErrorIgnoreLevel=kFatal;
+      
       TTree* tempTree=nullptr;
       tempTree=dynamic_cast<TTree*>(wfile->Get(wname+"_W"));
       fWTree=tempTree->CloneTree();
@@ -370,6 +375,8 @@ namespace HS{
       delete file_wts;file_wts=nullptr;  
       wfile->Close();
       delete wfile;wfile=nullptr;
+
+      gErrorIgnoreLevel=saveIgnore;
     }
     void Weights::LoadSavedDisc(const TString& fname,const TString& wname){
       TDirectory* savedir=gDirectory;
