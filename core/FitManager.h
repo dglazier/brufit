@@ -18,7 +18,6 @@
 #include "Minimiser.h"
 #include <TNamed.h>
 #include <RooMinimizer.h>
-//#include <RooMinuit.h>
 #include <RooAbsData.h>
 #include <RooFitResult.h>
 
@@ -85,14 +84,8 @@ namespace HS{
       virtual void FitTo();
       
       virtual void Reset(){
-	//	fData.Reset(fFiti);
-	cout<<"REMOVE FILEDTREE "<<fFiledTrees.size()<<endl;
-	// for(auto& ft:fFiledTrees){
-	//   ft.reset();
-	// }
 	fFiledTrees.clear();
 	
-	cout<<"REMOVED FILEDTREE "<<endl;
 	fCurrSetup.reset();
 	fCurrDataSet.reset();
       }
@@ -177,7 +170,7 @@ namespace HS{
 
       void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
       void SetYieldMaxFactor(Double_t factor){fYldMaxFactor=factor;}
-      void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
+      //void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
       
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
@@ -214,7 +207,7 @@ namespace HS{
       
       TString fPlotOptions;
 
-      Bool_t fIsSamplingIntegrals=kFALSE;
+      //Bool_t fIsSamplingIntegrals=kFALSE;
       
       ClassDefOverride(HS::FIT::FitManager,1);
      };

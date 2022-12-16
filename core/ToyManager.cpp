@@ -49,25 +49,22 @@ namespace HS{
       // Long64_t nexp=RooRandom::randomGenerator()->Poisson(model->expectedEvents(fitpars));
  
  
-      //fitvars.Print("v");
+      fitvars.Print("v");
       auto iter=fitvars.iterator();
       const RooAbsArg *tmp=nullptr;
       while ((tmp = dynamic_cast<RooAbsArg*>(iter.Next()))){
 	auto arg=fitvars.find(tmp->GetName());
 	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
-      cout<<"ToyManager::Generate() "<<fNToys<<endl;
-
-      while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
+        while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
 	Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
 
+	model->Print();
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
-	cout<<"ToyManager::Generate() Save"<<fToyi<<endl;
 	SaveResults();
 	fToyi++;
-	cout<<"ToyManager::Generate() done "<<fToyi<<endl;
-      }
+     }
       fToyi=0;
       
     }
@@ -246,12 +243,20 @@ namespace HS{
       cout<<" ToyManager::Summarise() Initial Parameters"<<endl;
       if(!parsData.get()) return;
       auto pars=parsData->get();
-      pars->Print("v");
+      // pars->Print("v");
       // auto pars = SetUp().ParsAndYields();   
       TIter iter=pars->createIterator();
       while(auto* arg=dynamic_cast<RooRealVar*>(iter())){	
 	TString parName=arg->GetName();
 	Double_t val=arg->getValV();
+	//in casre a -ve sign on the name replace with minus for drawing
+	if(parName.Contains("-")){
+	  auto oldName=parName;
+	  parName.ReplaceAll("-","minus");
+	  tree->GetBranch(oldName)->SetName(parName);
+	  tree->GetBranch(oldName+"_err")->SetName(parName+"_err");
+	  
+	}
 	
 	tree->Draw(parName,"","goff");
 	//parameter

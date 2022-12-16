@@ -133,13 +133,15 @@ namespace HS{
       if(fChainData){
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	//	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
+	auto saveDir=gDirectory;
 	// if((*gDirectory).IsWritable()==false){
 	//   TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCTemp.root";
 	//   fTempFile=std::make_shared<TFile>(saveName,"recreate");
 	// }
 	//	fChainData->Print("v");
+	fOutFile->cd();
 	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
-	
+	saveDir->cd();
  	delete fChainData; fChainData=nullptr;
       }  
      if(fChain->Size()>fNumBurnInSteps)
@@ -417,13 +419,15 @@ namespace HS{
 
     /////////////////////////////////////////////////////////
     void RooMcmc::AddEntryBranch(){
-      //Add entry branch to mcmc tree for easy cutting on BurnIn
+    std::cout<<"RooMcmc::AddEntryBranch()"<<std::endl;
+       //Add entry branch to mcmc tree for easy cutting on BurnIn
       //fMCMCtree contains all events
       Long64_t entry=0;
       auto entryBranch=fTreeMCMC->Branch("entry",&entry,"entry/L");
       for(entry=0;entry<fTreeMCMC->GetEntries();entry++)
 	entryBranch->Fill();
       
+      std::cout<<"RooMcmc::AddEntryBranch() Done"<<std::endl;
     }
     void RooMcmc::Result(){
       AddEntryBranch();
@@ -472,7 +476,7 @@ namespace HS{
       //avoid future memory leaks/crashes...
       fTreeMCMC->ResetBranchAddresses();
 
-
+      std::cout<<"RooMcmc::AddFormulaToMCMCTree()"<<std::endl;
       auto formulas=fSetup->ParameterFormulas(); //formulas that just depend on parameters, not variables/observables
       if(!formulas.getSize()) return;
 
@@ -518,7 +522,8 @@ namespace HS{
 
 	}
       }  
-    }
+    std::cout<<"RooMcmc::AddFormulaToMCMCTree() done"<<std::endl;
+     }
     ///////////////////////////////////////////////
     Double_t  RooMcmc::SumWeights(){
       // Otherwise sum the weights in the event
@@ -578,17 +583,23 @@ namespace HS{
       // fNumIters = 100;
       //fNumBurnInSteps = 10;
       //fWarmup=fNumBurnInSteps;
-      
-     }
-    ///////////////////////////////////////////////////////////////
-    file_uptr RooMcmc::SaveInfo(){
-      
       TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
       //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
 
-      file_uptr file(TFile::Open(fileName,"recreate"));
+      fOutFile.reset(TFile::Open(fileName,"recreate"));
+       
+     }
+    ///////////////////////////////////////////////////////////////
+    file_uptr RooMcmc::SaveInfo(){
+      std::cout<<"RooMcmc::SaveInfo()"<<std::endl;
+      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
+      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
+
+      // file_uptr file(TFile::Open(fileName,"recreate"));
+      fTreeMCMC->SetDirectory(fOutFile.get());
       Result();
       fTreeMCMC->Write();
+     std::cout<<"RooMcmc::SaveInfo() written mcmc"<<std::endl;
       delete fTreeMCMC; fTreeMCMC=nullptr;//or else crashes in destructor
       //save paramters and chi2s in  dataset (for easy merging)
       //RooArgSet saveArgs(*fParams);
@@ -605,7 +616,9 @@ namespace HS{
       treeDS->Write();
       delete treeDS;treeDS=nullptr;
 
-      return std::move(file);
+    std::cout<<"RooMcmc::SaveInfo() Done"<<std::endl;
+    // return std::move(file);
+       return std::move(fOutFile);
     }
      //////////////////////////////////////////////////////////////
 

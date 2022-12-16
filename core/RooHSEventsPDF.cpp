@@ -156,7 +156,7 @@ namespace HS{
 	  for(Int_t i=0;i<fNTreeEntries;i++){
 	    fTreeEntry=i;
 	    value=evaluateMC(&fvecRealGen,&fvecCatGen);
-       
+	    //	    std::cout<<"RooHSEventsPDF::initGenerator "<<value<<" "<<i<<std::endl;
 	    if(value>fMaxValue)fMaxValue=value*1.01;//make it a little larger
 	  }
  
@@ -308,9 +308,8 @@ namespace HS{
       //only recalculate if a par changes when all variables included(ie code=1)
       if(code==1)
 	if(!CheckChange()) return fLast[0];
- 
-      if(code==1){
-	if(fUseSamplingIntegral==kFALSE){
+         if(code==1){
+	   //	if(fUseSamplingIntegral==kFALSE){
 	  Long64_t accepted=0;
 	  Long64_t ilow=0;
 	  Long64_t ihigh=0;
@@ -323,7 +322,7 @@ namespace HS{
 	    if(!CheckRange(rangeName)) continue;
 	    accepted++;
 	    integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
-	  }
+	    //	  }
 	
 	  //normalise integral by number of events accepted
 	  integral/=accepted;

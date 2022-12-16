@@ -20,7 +20,7 @@ namespace HS{
       fPrevResultDir=other.fPrevResultDir;
       fPrevResultMini=other.fPrevResultMini;
       fYldMaxFactor=other.fYldMaxFactor;
-      fIsSamplingIntegrals=other.fIsSamplingIntegrals;
+      //fIsSamplingIntegrals=other.fIsSamplingIntegrals;
     }
 
     FitManager&  FitManager::operator=(const FitManager& other){
@@ -32,7 +32,7 @@ namespace HS{
       fPrevResultDir=other.fPrevResultDir;
       fPrevResultMini=other.fPrevResultMini;
       fYldMaxFactor=other.fYldMaxFactor;
-      fIsSamplingIntegrals=other.fIsSamplingIntegrals;
+      //fIsSamplingIntegrals=other.fIsSamplingIntegrals;
   
       return *this;
     }
@@ -114,6 +114,7 @@ namespace HS{
 
     ////////////////////////////////////////////////////////////
     void FitManager::FitTo(){
+      std::cout<<"DEBUG FitManager::FitTo()"<<std::endl;
       if(!fMinimiser.get()) SetMinimiser(new HS::FIT::Minuit2());
       fMinimiser->Run(*fCurrSetup,*fCurrDataSet);
       
@@ -185,12 +186,12 @@ namespace HS{
 	      fCurrSetup->AddGausConstraint(histspdf->OffConstraint());
 	      fCurrSetup->AddGausConstraint(histspdf->ScaleConstraint());
 	    }
-	    cout<<"FitManager IsSamplingIntegrals "<<fIsSamplingIntegrals<<" "<<endl;
+	    //cout<<"FitManager IsSamplingIntegrals "<<fIsSamplingIntegrals<<" "<<endl;
 	    //if sampling PDF create constraint for fit
-	    if(fIsSamplingIntegrals==kTRUE){
-	      pdf->SetIsSamplingIntegral();
+	    //if(fIsSamplingIntegrals==kTRUE){
+	    // pdf->SetIsSamplingIntegral();
 	      /////fCurrSetup->AddGausConstraint(pdf->GetIntegralPDF()->getPDF());
-	    }
+	    //}
 	  }
 	  //keep the simulated tree alive until Reset()
 	  fFiledTrees.push_back(std::move(filetree));	

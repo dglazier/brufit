@@ -26,11 +26,11 @@ namespace HS{
       RooMcmc(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): fNumIters(Niter),fNumBurnInSteps(Nburn),fNorm(norm){
 	SetNameTitle("HSRooMcmc","RooMcmc minimiser");
       }
-      RooMcmc(const RooMcmc&)=default;
-      RooMcmc(RooMcmc&&)=default;
+      // RooMcmc(const RooMcmc&)=default;
+      //RooMcmc(RooMcmc&&)=default;
       ~RooMcmc() override;
-      RooMcmc& operator=(const RooMcmc& other)=default;
-      RooMcmc& operator=(RooMcmc&& other) = default;  
+      //RooMcmc& operator=(const RooMcmc& other)=default;
+      //RooMcmc& operator=(RooMcmc&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -125,6 +125,7 @@ namespace HS{
       Bool_t fCorrectForWeights=kTRUE;
       RooArgSet* fParams=nullptr;//!
       std::shared_ptr<TFile> fTempFile;//!
+      file_uptr fOutFile;//!
       
       Bool_t fKeepStart=kFALSE; //randomise starting values
       Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.
