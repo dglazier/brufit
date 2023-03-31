@@ -64,7 +64,8 @@ namespace HS{
  
       RooArgSet* constrainedParams = prodPdf->getParameters(*fData);
 
-      RooAbsReal* nll = prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs));
+      //   RooAbsReal* nll = prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs));
+      RooAbsReal* nll = prodPdf->createNLL(*fData,fSetup->FitOptions());
       //RooAbsReal* nll = prodPdf->createNLL(*fData); 
       delete constrainedParams;
 
@@ -91,7 +92,7 @@ namespace HS{
       //auto* sampPDF= dynamic_cast<RooAbsPdf*>(fSetup->Constraints().at(0));    
       //if(sampPDF)fParams->add(*(sampPDF->getParameters(*fData)));
       //RemoveConstantParameters(fParams);
-
+      fParams->Print("v");
       HSMetropolisHastings mh;
       if(fKeepStart) mh.SetKeepStart();
       if(fMCMCHelp){
