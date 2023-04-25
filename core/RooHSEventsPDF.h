@@ -110,7 +110,7 @@ namespace HS{
       Bool_t fIsPlotting=kFALSE;
       Bool_t fUseSamplingIntegral=kFALSE;
 
-      std::shared_ptr<GaussianConstraint> fIntegralPDF;
+      // std::shared_ptr<GaussianConstraint> fIntegralPDF;//!
       
       void InitSets();
       RooArgSet VarSet(Int_t iset) const;
@@ -128,18 +128,18 @@ namespace HS{
     public:
 
       void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
-      void SetIsSamplingIntegral(){
-	fUseSamplingIntegral=kTRUE;
-	fIntegralPDF=std::make_shared<GaussianConstraint>(TString("GCfor")+GetName());
-	cout<<" SetIsSamplingIntegral() "<<fIntegralPDF.get()<<" "<<this <<" "<<fIsClone<<endl;
-      }
-      RooRealVar* GetSamplingIntegralVar(){
-	if(fUseSamplingIntegral==kTRUE)
-	  return &(fIntegralPDF->getRooVar());
-	else return nullptr;
-      }
+      // void SetIsSamplingIntegral(){
+      // 	fUseSamplingIntegral=kTRUE;
+      // 	fIntegralPDF=std::make_shared<GaussianConstraint>(TString("GCfor")+GetName());
+      // 	cout<<" SetIsSamplingIntegral() "<<fIntegralPDF.get()<<" "<<this <<" "<<fIsClone<<endl;
+      // }
+      // RooRealVar* GetSamplingIntegralVar(){
+      // 	if(fUseSamplingIntegral==kTRUE)
+      // 	  return &(fIntegralPDF->getRooVar());
+      // 	else return nullptr;
+      // }
       
-      GaussianConstraint* GetIntegralPDF(){return fIntegralPDF.get();}
+      // GaussianConstraint* GetIntegralPDF(){return fIntegralPDF.get();}
       
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;

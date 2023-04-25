@@ -54,7 +54,7 @@ namespace HS{
       
     public:
 
-      Minuit(UInt_t nrefits=0) ;
+      Minuit(UInt_t nrefits=0,Bool_t nozeroinit=kFALSE) ;
       Minuit(const Minuit&)=default;
       Minuit(Minuit&&)=default;
       ~Minuit() override =default;
@@ -68,15 +68,17 @@ namespace HS{
       };
 
       file_uptr SaveInfo() override;
-
+      void SaveRefits(RooArgSet& saveArgs);
      protected :
       void StoreLikelihood(vector<Double_t> &likelies);
-
+      virtual void RandomiseParameters();
+      
       RooFitResult* fResult=nullptr;//! dont write
        
       UInt_t fNRefits=0;
-    
-      
+      Bool_t fNoZeroInitialVal=kFALSE;
+      vector<Double_t> fLikelies;
+
       ClassDefOverride(HS::FIT::Minuit,1);
       
      };
@@ -85,14 +87,14 @@ namespace HS{
       
     public:
 
-      Minuit2(UInt_t nrefits=0);
+      Minuit2(UInt_t nrefits=0,Bool_t nozeroinit=kFALSE);
       Minuit2(const Minuit2&)=default;
       Minuit2(Minuit2&&)=default;
       ~Minuit2() override =default;
       Minuit2& operator=(const Minuit2& other)=default;
       Minuit2& operator=(Minuit2&& other) = default;  
 
-      void FitTo() final {
+      void FitTo() override {
 	auto fitOptions=fSetup->FitOptions();
 	fitOptions.Add(dynamic_cast<RooCmdArg*>(RooFit::Minimizer("Minuit2").Clone()));
 	fResult=fSetup->Model()->fitTo(*fData,fitOptions);

@@ -55,7 +55,7 @@ namespace HS{
        Double_t componentVariance(Int_t icomp) const;
        void DoFirstIntegrations(const char* rangeName="") const;
 
-       Double_t sampleIntegral() const;
+       // Double_t sampleIntegral() const;
        
      private:
 

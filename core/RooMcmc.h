@@ -169,11 +169,11 @@ namespace HS{
     RooMcmcSeq(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
 	SetNameTitle("HSRooMcmcSeq","RooMcmcSeq minimiser");
       }
-      RooMcmcSeq(const RooMcmcSeq&)=default;
-      RooMcmcSeq(RooMcmcSeq&&)=default;
+      //  RooMcmcSeq(const RooMcmcSeq&)=default;
+      // RooMcmcSeq(RooMcmcSeq&&)=default;
       ~RooMcmcSeq() override =default;
-      RooMcmcSeq& operator=(const RooMcmcSeq& other)=default;
-      RooMcmcSeq& operator=(RooMcmcSeq&& other) = default;  
+      // RooMcmcSeq& operator=(const RooMcmcSeq& other)=default;
+      //RooMcmcSeq& operator=(RooMcmcSeq&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -186,11 +186,11 @@ namespace HS{
    RooMcmcSeqHelper(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1):RooMcmc(Niter,Nburn,norm){
 	SetNameTitle("HSRooMcmcSeqHelper","RooMcmcSeqHelper minimiser");
       }
-      RooMcmcSeqHelper(const RooMcmcSeqHelper&)=default;
-      RooMcmcSeqHelper(RooMcmcSeqHelper&&)=default;
+      //RooMcmcSeqHelper(const RooMcmcSeqHelper&)=default;
+      //RooMcmcSeqHelper(RooMcmcSeqHelper&&)=default;
       ~RooMcmcSeqHelper() override =default;
-      RooMcmcSeqHelper& operator=(const RooMcmcSeqHelper& other)=default;
-      RooMcmcSeqHelper& operator=(RooMcmcSeqHelper&& other) = default;  
+      //RooMcmcSeqHelper& operator=(const RooMcmcSeqHelper& other)=default;
+      //RooMcmcSeqHelper& operator=(RooMcmcSeqHelper&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -204,11 +204,11 @@ namespace HS{
    RooMcmcSeqCov(Int_t Nburn=10,Int_t Niter=100,Int_t NburnCov=10, Float_t norm=0.1):RooMcmc(Niter,NburnCov,norm),fNumBurnInStepsForCov(Nburn){
 	SetNameTitle("HSRooMcmcSeqCov","RooMcmcSeqCov minimiser");
       }
-      RooMcmcSeqCov(const RooMcmcSeqCov&)=default;
-      RooMcmcSeqCov(RooMcmcSeqCov&&)=default;
+   // RooMcmcSeqCov(const RooMcmcSeqCov&)=default;
+   // RooMcmcSeqCov(RooMcmcSeqCov&&)=default;
       ~RooMcmcSeqCov() override =default;
-      RooMcmcSeqCov& operator=(const RooMcmcSeqCov& other)=default;
-      RooMcmcSeqCov& operator=(RooMcmcSeqCov&& other) = default;  
+   // RooMcmcSeqCov& operator=(const RooMcmcSeqCov& other)=default;
+   // RooMcmcSeqCov& operator=(RooMcmcSeqCov&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -224,11 +224,11 @@ namespace HS{
    RooMcmcSeqThenCov(Int_t Niter=100,Int_t Nburn=10,  Float_t norm=0.1,Int_t NiterThenCov=100,Int_t NburnCov=10,Float_t normThenCov=1):RooMcmc(Niter,Nburn,norm ),fNumItersThenCov(NiterThenCov),fNumBurnInStepsThenCov(NburnCov),fNormThenCov(normThenCov){
 	SetNameTitle("HSRooMcmcSeqThenCov","RooMcmcSeqThenCov minimiser");
       }
-      RooMcmcSeqThenCov(const RooMcmcSeqThenCov&)=default;
-      RooMcmcSeqThenCov(RooMcmcSeqThenCov&&)=default;
+   // RooMcmcSeqThenCov(const RooMcmcSeqThenCov&)=default;
+   // RooMcmcSeqThenCov(RooMcmcSeqThenCov&&)=default;
       ~RooMcmcSeqThenCov() override =default;
-      RooMcmcSeqThenCov& operator=(const RooMcmcSeqThenCov& other)=default;
-      RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
+   // RooMcmcSeqThenCov& operator=(const RooMcmcSeqThenCov& other)=default;
+   // RooMcmcSeqThenCov& operator=(RooMcmcSeqThenCov&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
       Int_t GetNumBurnInSteps()const final{return fNumBurnInStepsThenCov;}
@@ -251,11 +251,11 @@ namespace HS{
      RooMcmcUniform2Seq(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): RooMcmc(Niter,Nburn,norm){
 	SetNameTitle("HSRooMcmcUniform2Seq","RooMcmcUniform2Seq minimiser");
       }
-      RooMcmcUniform2Seq(const RooMcmcUniform2Seq&)=default;
-      RooMcmcUniform2Seq(RooMcmcUniform2Seq&&)=default;
+       // RooMcmcUniform2Seq(const RooMcmcUniform2Seq&)=default;
+       //RooMcmcUniform2Seq(RooMcmcUniform2Seq&&)=default;
       ~RooMcmcUniform2Seq() override =default;
-      RooMcmcUniform2Seq& operator=(const RooMcmcUniform2Seq& other)=default;
-      RooMcmcUniform2Seq& operator=(RooMcmcUniform2Seq&& other) = default;  
+       //RooMcmcUniform2Seq& operator=(const RooMcmcUniform2Seq& other)=default;
+       //RooMcmcUniform2Seq& operator=(RooMcmcUniform2Seq&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -269,11 +269,11 @@ namespace HS{
       RooMcmcGaus(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1): RooMcmc(Niter,Nburn,norm){
 	SetNameTitle("HSRooMcmcGaus","RooMcmcGaus minimiser");
       }
-      RooMcmcGaus(const RooMcmcGaus&)=default;
-      RooMcmcGaus(RooMcmcGaus&&)=default;
+      //RooMcmcGaus(const RooMcmcGaus&)=default;
+      //RooMcmcGaus(RooMcmcGaus&&)=default;
       ~RooMcmcGaus() override =default;
-      RooMcmcGaus& operator=(const RooMcmcGaus& other)=default;
-      RooMcmcGaus& operator=(RooMcmcGaus&& other) = default;  
+      //RooMcmcGaus& operator=(const RooMcmcGaus& other)=default;
+      //RooMcmcGaus& operator=(RooMcmcGaus&& other) = default;  
 
       void Run(Setup &setup,RooAbsData &fitdata) override;
 

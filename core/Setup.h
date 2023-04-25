@@ -204,50 +204,50 @@ namespace HS{
     private:
  
       //note fWS owns all of these vector pointers
-      realvars_t fFitVars;      
-      realvars_t fAuxVars;      
+      realvars_t fFitVars; 
+      realvars_t fAuxVars;
       catvars_t  fFitCats;
       RooArgSet fVars;
       RooArgSet fCats; //only categories
-      RooArgSet fPars;//!
-      RooArgSet fFuncVars;//!
+      RooArgSet fPars;
+      RooArgSet fFuncVars; 
       RooArgList fFormulas;//! CANT WRITE formulas ArgSet!
       RooArgList fParameterFormulas;//! CANT WRITE formulas ArgSet!
       RooArgSet fVarsAndCats;
       RooArgSet fParsAndYields;
-      RooArgSet fNCParsAndYields; //Non constant parameters and yields
-      RooArgList fYields;//species yields
-      RooArgList fPDFs;//species pdfs
-      RooArgList fParameters;//model parameters
+      RooArgSet fNCParsAndYields;//Non constant parameters and yields
+      RooArgList fYields; //species yields
+      RooArgList fPDFs; //species pdfs
+      RooArgList fParameters; //model parameters
       RooArgList fConstants;//model constants
-      RooArgList fConstraints;//constraints on  parameters
-      RooLinkedList fFitOptions;//
-      vector< std::unique_ptr<RandomConstrained> >_parConstraints;//! pdf constraints on parameters
+      RooArgList fConstraints; //constraints on  parameters
+      RooLinkedList fFitOptions; //
+      vector< std::unique_ptr<RandomConstrained> >_parConstraints;// pdf constraints on parameters
       
       RooAbsPdf* fModel=nullptr; //!owned by workspace
  
-      RooWorkspace fWS;
-      TString fVarCut;
-      TString fAddCut;
-      TString fIDBranchName="UID";
-      TString fOutDir;
-      TString fDataOnlyCut;
-      TList fNeedToDeleteThis;
+      RooWorkspace fWS; //
+      TString fVarCut; //
+      TString fAddCut; //
+      TString fIDBranchName="UID";//
+      TString fOutDir;//
+      TString fDataOnlyCut;//
+      TList fNeedToDeleteThis;//
       
-      strings_t fVarString;
-      strings_t fCatString;
-      strings_t fParString;
-      strings_t fConstString;
-      strings_t fFormString;
-      strings_t fAuxVarString;
-      strings_t fPDFString;
-      strings_t fFuncVarString;
+      strings_t fVarString;//
+      strings_t fCatString;//
+      strings_t fParString;//
+      strings_t fConstString;//
+      strings_t fFormString;//
+      strings_t fAuxVarString;//
+      strings_t fPDFString;//
+      strings_t fFuncVarString;//!
 
-      std::map<TString,Bool_t> fConstPars;
-      std::map<TString,Bool_t> fConstPDFPars;
+      std::map<TString,Bool_t> fConstPars; //
+      std::map<TString,Bool_t> fConstPDFPars; //
 
-      std::vector<std::pair<TString,Float_t> > fSpecString;
-      std::map<TString,TString> fPDFInWeights;
+      std::vector<std::pair<TString,Float_t> > fSpecString;//
+      std::map<TString,TString> fPDFInWeights;//
       TString fYld="Yld_";//yield variable prepend
 
       ClassDefOverride(HS::FIT::Setup,1);

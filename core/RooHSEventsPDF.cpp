@@ -56,10 +56,10 @@ namespace HS{
       fInWeightCut=other.fInWeightCut;
       fIsValid=other.fIsValid;
       fUseEvWeights=other.fUseEvWeights;
-      if(other.fUseSamplingIntegral){
-	fUseSamplingIntegral=other.fUseSamplingIntegral;
-	fIntegralPDF=other.fIntegralPDF;
-      }
+      // if(other.fUseSamplingIntegral){
+      // 	fUseSamplingIntegral=other.fUseSamplingIntegral;
+      // 	fIntegralPDF=other.fIntegralPDF;
+      // }
       fWgtsConf=other.fWgtsConf;
 									     
       fEvWeights=other.fEvWeights;
@@ -156,6 +156,8 @@ namespace HS{
 	  for(Int_t i=0;i<fNTreeEntries;i++){
 	    fTreeEntry=i;
 	    value=evaluateMC(&fvecRealGen,&fvecCatGen);
+	    if(value<0){ std::cout<<" RooHSEventsPDF::initGenerator -ve intensity !!! "<<value<<" while max was "<<fMaxValue<<std::endl;exit(0);}
+	    
 	    //	    std::cout<<"RooHSEventsPDF::initGenerator "<<value<<" "<<i<<std::endl;
 	    if(value>fMaxValue)fMaxValue=value*1.01;//make it a little larger
 	  }

@@ -541,26 +541,26 @@ namespace HS{
       }
       return product; 
     }
-  Double_t RooComponentsPDF::sampleIntegral() const{
+  // Double_t RooComponentsPDF::sampleIntegral() const{
 
-    //Note fWeightedBaseLine has 0 variance, so does not contribute to sigma
-    Double_t sumVariance=0.;
-    Double_t sumIntegral=0;
+  //   //Note fWeightedBaseLine has 0 variance, so does not contribute to sigma
+  //   Double_t sumVariance=0.;
+  //   Double_t sumIntegral=0;
    
-    for(UInt_t icomp=0;icomp<fNComps;++icomp){
+  //   for(UInt_t icomp=0;icomp<fNComps;++icomp){
 
-      auto integral = componentIntegral(icomp);
-      sumIntegral+=integral;
-      sumVariance+=(componentVariance(icomp));
+  //     auto integral = componentIntegral(icomp);
+  //     sumIntegral+=integral;
+  //     sumVariance+=(componentVariance(icomp));
     
-    }
+  //   }
 
-    auto sigma = TMath::Sqrt((sumVariance-sumIntegral*sumIntegral)/fNUsedForIntegral);
+  //   auto sigma = TMath::Sqrt((sumVariance-sumIntegral*sumIntegral)/fNUsedForIntegral);
  
-    fIntegralPDF->setMeanSigma(sumIntegral+fWeightedBaseLine,sigma);
-    auto result= fIntegralPDF->sample();
-    return result;
-  }
+  //   fIntegralPDF->setMeanSigma(sumIntegral+fWeightedBaseLine,sigma);
+  //   auto result= fIntegralPDF->sample();
+  //   return result;
+  // }
 
     
   Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){

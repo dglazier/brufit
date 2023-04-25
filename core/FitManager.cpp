@@ -246,10 +246,12 @@ namespace HS{
       }
     }
     void FitManager::WriteThis(){
+      cout<<"FitManager::WriteThis() "<<endl;
       auto file=TFile::Open(fSetup.GetOutDir()+"HSFit.root","recreate");
       if(!fMinimiser.get()) SetMinimiser(new HS::FIT::Minuit2());
       file->WriteObject(this,"HSFit");
       file->WriteObject(fMinimiser.get(),fMinimiserType);
+      cout<<"FitManager::WriteThis() 2"<<endl;
 
       if(fCompiledMacros.size()){
 	auto* macList=new TList();
@@ -259,7 +261,8 @@ namespace HS{
 	  macList->Add(new TObjString(macro));
 	file->WriteObject(macList,"HS_COMPILEDMACROS");
       }
-      delete file;
+       cout<<"FitManager::WriteThis() 3"<<endl;
+     delete file;
     }
     void FitManager::RedirectOutput(const TString& log){
       const char* mess=Form("text ouput will be sent to file %s",log.Data());

@@ -584,6 +584,7 @@ namespace HS{
       // fNumIters = 100;
       //fNumBurnInSteps = 10;
       //fWarmup=fNumBurnInSteps;
+     
       TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
       //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
 
@@ -593,14 +594,10 @@ namespace HS{
     ///////////////////////////////////////////////////////////////
     file_uptr RooMcmc::SaveInfo(){
       std::cout<<"RooMcmc::SaveInfo()"<<std::endl;
-      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
-      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
-
-      // file_uptr file(TFile::Open(fileName,"recreate"));
       fTreeMCMC->SetDirectory(fOutFile.get());
       Result();
       fTreeMCMC->Write();
-     std::cout<<"RooMcmc::SaveInfo() written mcmc"<<std::endl;
+      std::cout<<"RooMcmc::SaveInfo() written mcmc"<<std::endl;
       delete fTreeMCMC; fTreeMCMC=nullptr;//or else crashes in destructor
       //save paramters and chi2s in  dataset (for easy merging)
       //RooArgSet saveArgs(*fParams);
@@ -617,9 +614,8 @@ namespace HS{
       treeDS->Write();
       delete treeDS;treeDS=nullptr;
 
-    std::cout<<"RooMcmc::SaveInfo() Done"<<std::endl;
-    // return std::move(file);
-       return std::move(fOutFile);
+      std::cout<<"RooMcmc::SaveInfo() Done"<<std::endl;
+      return std::move(fOutFile);
     }
      //////////////////////////////////////////////////////////////
 
