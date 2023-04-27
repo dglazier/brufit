@@ -14,15 +14,16 @@ namespace HS{
 
 
     Setup::Setup():TNamed(){
+      RequiredFitOptions();
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      DefaultFitOptions();
-
+      //DefaultFitOptions();
       //to flush anything which is not owned elsewhere
       fNeedToDeleteThis.SetOwner();
     }
     Setup::Setup(const TString& name):TNamed(name,name){
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      DefaultFitOptions();
+      //DefaultFitOptions();
+      RequiredFitOptions();
       fNeedToDeleteThis.SetOwner();
     }
     
@@ -30,9 +31,10 @@ namespace HS{
       //   cout<<"****************************COPY "<<fIDBranchName<<" "<<fVars.getSize()<< " "<< other.fFormString.size()<<endl;
       //       fWS={"HSWS"};
       fNeedToDeleteThis.SetOwner();
-       fFitOptions=other.fFitOptions;
-       fConstraints=other.fConstraints;   
-       fAddCut=other.fAddCut;
+      fFitOptions=other.fFitOptions;
+      RequiredFitOptions(); //make sure we have required options
+      fConstraints=other.fConstraints;   
+      fAddCut=other.fAddCut;
        fVarCut=""; //contructed from LoadAuxVar
        fDataOnlyCut=other.fDataOnlyCut;
        fIDBranchName=other.fIDBranchName;
@@ -549,7 +551,7 @@ namespace HS{
       return fVarsAndCats;
     }
    RooArgSet& Setup::ParsAndYields(){
-     fParsAndYields.clear();//DEBUG
+     //    fParsAndYields.clear();//DEBUG
       if(fParsAndYields.getSize())
 	return fParsAndYields;
       fParsAndYields.add(fParameters);

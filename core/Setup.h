@@ -159,13 +159,16 @@ namespace HS{
       RooLinkedList FitOptions(){return fFitOptions;}
       
       void DefaultFitOptions(){
-	AddFitOption(RooFit::SumW2Error(kTRUE));
-	//AddFitOption(RooFit::NumCPU(4));
-	AddFitOption(RooFit::Save(kTRUE));
 	AddFitOption(RooFit::Warnings(kFALSE));
 	//AddFitOption(RooFit::Minos(kFALSE));
 	//AddFitOption(RooFit::Minimizer("Minuit2"));
       }
+      void RequiredFitOptions(){
+	AddFitOption(RooFit::Save(kTRUE));
+	//	AddFitOption(RooFit::SumW2Error(kTRUE));
+	AddFitOption(RooFit::AsymptoticError(true));
+     }
+
       void RandomisePars();
       void OrganiseConstraints();
       
