@@ -65,7 +65,7 @@ namespace HS{
       
       virtual void FitTo() {
 	fResult=fSetup->Model()->fitTo(*fData,fSetup->FitOptions());
-      };
+     };
 
       file_uptr SaveInfo() override;
       void SaveRefits(RooArgSet& saveArgs);
@@ -98,7 +98,7 @@ namespace HS{
 	auto fitOptions=fSetup->FitOptions();
 	fitOptions.Add(dynamic_cast<RooCmdArg*>(RooFit::Minimizer("Minuit2").Clone()));
 	fResult=fSetup->Model()->fitTo(*fData,fitOptions);
-      };
+       };
       
    
       ClassDefOverride(HS::FIT::Minuit2,1);

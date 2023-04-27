@@ -1,6 +1,8 @@
 #include "Minimiser.h"
 #include <RooStats/RooStatsUtils.h>
 #include <RooDataSet.h>
+#include <TTree.h>
+#include <TMath.h>
 
 namespace HS{
   namespace FIT{
@@ -17,6 +19,7 @@ namespace HS{
       FitTo();
       if(!fNRefits){ //One fit is enough...
 	fResult->Print();
+	
 	return;
       }  
       //Perform many fits with differnt initial parameters
