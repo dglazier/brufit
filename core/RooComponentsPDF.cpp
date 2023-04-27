@@ -9,7 +9,7 @@ namespace HS{
   namespace FIT{
     
     RooComponentsPDF::RooComponentsPDF(const char *name, const char *title,Double_t base,const RooArgList& obsList,const vector<RooArgList> compList)
-      :  HS::FIT::RooHSEventsPDF(name,title), fBaseLine(base)
+      :  HS::FIT::RooHSEventsPDF(name,title), fBaseLine(base),fActualObs{"ActualObs","Actual observables", this},fActualCats{"ActualCats","Actual categories", this},fActualComps{"ActualComps","Actual components", this}
       
     {
 

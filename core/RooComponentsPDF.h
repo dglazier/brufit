@@ -59,7 +59,7 @@ namespace HS{
        
      private:
 
-      RooListProxy fActualObs;
+       RooListProxy fActualObs;
       RooListProxy fActualCats;
       RooListProxy fActualComps;
       
