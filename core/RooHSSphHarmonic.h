@@ -16,7 +16,8 @@ namespace HS{
     public:
       RooHSSphHarmonic() =default;
       // a Real part of Spherical Harmonic, Y_l^m(costTh,Phi)
-      RooHSSphHarmonic(const char *name, const char *title, RooAbsReal& ctheta, RooAbsReal& phi, int l, int m=0,Double_t factor=1);
+      //  RooHSSphHarmonic(const char *name, const char *title, RooAbsReal& ctheta, RooAbsReal& phi, int l, int m=0,Double_t factor=1);
+      RooHSSphHarmonic(const char *name, const char *title, RooAbsReal& ctheta, RooAbsReal& phi, int l, int m=0,int factor=1);
 
       RooHSSphHarmonic(const RooHSSphHarmonic& other, const char* name = nullptr);
       TObject* clone(const char* newname) const override{ return new RooHSSphHarmonic(*this, newname); }
