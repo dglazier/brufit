@@ -24,6 +24,13 @@
 #pragma link C++ class HS::FIT::FitSelector+;
 #pragma link C++ class HS::FIT::HSMetropolisHastings+;
 #pragma link C++ class HS::FIT::HSSequentialProposal+;
+#pragma link C++ class HS::FIT::BruMetropolisHastings+;
+#pragma link C++ class HS::FIT::BruSequentialProposal+;
+#pragma link C++ class HS::FIT::BruCovarianceProposal+;
+#pragma link C++ class HS::FIT::BruMcmc+;
+#pragma link C++ class HS::FIT::BruMcmcSeq+;
+#pragma link C++ class HS::FIT::BruMcmcSeqHelper+;
+#pragma link C++ class HS::FIT::BruMcmcCovariance+;
 #pragma link C++ class HS::FIT::Minimiser+;
 #pragma link C++ class HS::FIT::Minuit+;
 #pragma link C++ class HS::FIT::Minuit2+;

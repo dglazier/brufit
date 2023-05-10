@@ -1,9 +1,9 @@
 #include "PlotResults.h"
 #include "RooHSEventsPDF.h"
 #include "RooMcmc.h"
-#include <RooPlot.h>
 #include <RooMsgService.h>
 #include <TCanvas.h>
+#include <TROOT.h>
 #include <TDirectory.h>
 
 namespace HS{
@@ -12,6 +12,12 @@ namespace HS{
     PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag,const TString& opt):fPlotOptions{opt}{
 
       using namespace RooFit;
+      //stop plots being deleted when current directory is deleted
+      RooPlot::AddDirectory(false);
+
+      Bool_t IsBatch=gROOT->IsBatch();
+      if(fPlotOptions.Contains("goff")==kTRUE) gROOT->SetBatch(kTRUE);
+      
       //cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
       //fCanvases->SetOwner();
       fCanvases->SetName(TString("RFPlots")+setup->GetName());
@@ -47,14 +53,15 @@ namespace HS{
 	//	model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
 	
 	model->paramOn(frame,
-		       Layout(0.1, 0.4, 0.9),
-		       Format("NEU",AutoPrecision(2)),
-		       ShowConstants()); //show fit parameters
+		       Layout(0.1, 0.2, 0.9),
+		       Format("NE",AutoPrecision(1))); //show fit parameters
 	
 	
 	frame->SetTitle(TString("Fit components for ")+var->GetName());
 
 	frame->Draw();
+	fRooPlots.push_back(rooplot_uptr{frame});//keep it live
+	
 	canvas->SetTheta(frame->chiSquare()); //Save Chi2 as theta variable in TCanvas. Retrieve with TCanvas::GetTheta().
 	auto level = RooMsgService::instance().globalKillBelow();
 	RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR) ;
@@ -82,13 +89,14 @@ namespace HS{
 
 	canvas->Modified();
 	canvas->Update();
-	canvas->Draw("");
+	if(fPlotOptions.Contains("goff")==kFALSE)canvas->Draw("");
 
 
      }
 
       //Turn off plotting in RooHSEventsPDF
       RooHSEventsPDF::SetIsPlotting(kFALSE);
+      if(fPlotOptions.Contains("goff")==kTRUE) gROOT->SetBatch(IsBatch);
 
      }
 

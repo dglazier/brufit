@@ -13,6 +13,7 @@
 #include "CornerPlot.h"
 #include "CornerFullPlot.h"
 #include "RooMcmc.h"
+#include "BruMcmc.h"
 #include "Data.h"
 #include "Binner.h"
 #include "Minimiser.h"
@@ -85,6 +86,10 @@ namespace HS{
       
       virtual void Reset(){
 	fFiledTrees.clear();
+
+	//Keep last results
+	fLastPars.reset(dynamic_cast<RooArgSet*>(fCurrSetup->ParsAndYields().snapshot()));
+	fLastForms.reset(dynamic_cast<RooArgList*>(fCurrSetup->Formulas().snapshot()));
 	
 	fCurrSetup.reset();
 	fCurrDataSet.reset();
@@ -156,6 +161,10 @@ namespace HS{
 	  { 
 	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get()),fPlotOptions})));
 	  }
+	else if(dynamic_cast<BruMcmc*>(fMinimiser.get())){
+	  fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<BruMcmc*>(fMinimiser.get()),fPlotOptions})));
+
+	}
 	else
 	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),fPlotOptions})));
       }
@@ -171,13 +180,28 @@ namespace HS{
       void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
       void SetYieldMaxFactor(Double_t factor){fYldMaxFactor=factor;}
       //void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
-      
+
+      const RooArgSet* GetFitParameters() {
+	if(fLastPars.get()==nullptr)//not fit, just use setup values
+	  fLastPars.reset(dynamic_cast<RooArgSet*>(fSetup.ParsAndYields().snapshot()));
+	return fLastPars.get();
+     }
+      const RooArgList* GetFitFormulas() {
+	if(fLastForms.get()==nullptr)//not fit, just use setup values
+	  fLastForms.reset(dynamic_cast<RooArgList*>(fSetup.Formulas().snapshot()));
+	return fLastForms.get();
+      }
+
+      void TurnOffPlotting(){
+	fDoPlotting = kFALSE;
+      }
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
       std::unique_ptr<RooDataSet> fCurrDataSet={}; //!
       
       virtual void SaveResults();
-       
+      //virtual void PlotSavedResults();
+      
     private:
       
       Setup fSetup;
@@ -193,6 +217,9 @@ namespace HS{
       std::vector<plotresult_uptr> fPlots;//!
       RooFitResult* fResult=nullptr;//!
       
+      std::unique_ptr<RooArgSet> fLastPars=nullptr; //!
+      std::unique_ptr<RooArgList> fLastForms=nullptr; //!
+
       strings_t fCompiledMacros;
   
       Bool_t fRedirect=kFALSE;
@@ -206,7 +233,8 @@ namespace HS{
       TString fPrevResultMini;
       
       TString fPlotOptions;
-
+      Bool_t fDoPlotting = kTRUE;
+      
       //Bool_t fIsSamplingIntegrals=kFALSE;
       
       ClassDefOverride(HS::FIT::FitManager,1);

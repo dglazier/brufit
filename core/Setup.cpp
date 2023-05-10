@@ -14,7 +14,7 @@ namespace HS{
 
 
     Setup::Setup():TNamed(){
-      RequiredFitOptions();
+      // RequiredFitOptions();
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
       //DefaultFitOptions();
       //to flush anything which is not owned elsewhere
@@ -23,7 +23,7 @@ namespace HS{
     Setup::Setup(const TString& name):TNamed(name,name){
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
       //DefaultFitOptions();
-      RequiredFitOptions();
+      //RequiredFitOptions();
       fNeedToDeleteThis.SetOwner();
     }
     
@@ -32,7 +32,7 @@ namespace HS{
       //       fWS={"HSWS"};
       fNeedToDeleteThis.SetOwner();
       fFitOptions=other.fFitOptions;
-      RequiredFitOptions(); //make sure we have required options
+      //RequiredFitOptions(); //make sure we have required options
       fConstraints=other.fConstraints;   
       fAddCut=other.fAddCut;
        fVarCut=""; //contructed from LoadAuxVar
@@ -65,7 +65,10 @@ namespace HS{
 	 SetConstPDFPars(pdf.first,pdf.second);
        for(const auto& par:other.fConstPars)
 	 SetConstPar(par.first,par.second);
-      
+
+       	fErrorsSumW2=other.fErrorsSumW2;
+	fErrorsAsym=other.fErrorsAsym;
+    
    }
 
     Setup& Setup::operator=(const Setup& other){
@@ -77,7 +80,9 @@ namespace HS{
       fIDBranchName=other.fIDBranchName;
       fOutDir=other.fOutDir;
       //fWS={"HSWS"};
-      
+      fErrorsSumW2=other.fErrorsSumW2;
+      fErrorsAsym=other.fErrorsAsym;
+ 
      //constants first so can overide parameters
       for(auto &conStr: other.fConstString)
 	LoadConstant(conStr);
@@ -372,7 +377,7 @@ namespace HS{
         //LoadFunctionVars
       auto funs = parse.GetFunctions();
       for(auto& fun:funs){
-	//	cout<<"Load Function var "<<fun<<endl;
+	//	cout<<"DEBUG Load Function var "<<fun<<endl;
 	LoadFunctionVar(fun);
 	
       }
@@ -461,6 +466,7 @@ namespace HS{
 	  
 	  TString sarg = termStrings->At(j)->GetName();
 	  TString vname =sarg;
+	  //cout<<"DEBUG "<<vname<<endl;
 	  if(sarg.Contains("=")){//look for formula
 	    LoadFormula(sarg);//Load formula
 	    vname=sarg(0,sarg.First("=")); //get the var name

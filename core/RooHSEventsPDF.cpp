@@ -41,7 +41,11 @@ namespace HS{
       fvecCatGen=other.fvecCatGen;
       fNTreeEntries=other.fNTreeEntries;
       fTreeEntryNumber=other.fTreeEntryNumber;
-    
+      
+      fAssertPosDataReal=other.fAssertPosDataReal;
+      fAssertPosDataCat=other.fAssertPosDataCat;
+      fNapd =other.fNapd;
+      
       if(other.fEvTree)fEvTree=other.fEvTree;
       fNInt=other.fNInt;
       fGeni=other.fGeni;
@@ -96,7 +100,7 @@ namespace HS{
 	delete fInWeights;
       }
       for(auto & i : fVarSet)
-	delete i;
+      	delete i;
       fVarSet.clear();
       }
 
@@ -255,6 +259,7 @@ namespace HS{
     /*******************************************/
     Double_t RooHSEventsPDF::analyticalIntegralForSampling(const char* rangeName) const
     {
+  
       Double_t integral=0;
       Long64_t accepted=0;
       Long64_t all=0;
@@ -302,7 +307,8 @@ namespace HS{
     {
        if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
        Long64_t NEv=0;
-  
+       
+ 
       //In case changed for generation
   
       Double_t integral=0.;
@@ -310,7 +316,10 @@ namespace HS{
       //only recalculate if a par changes when all variables included(ie code=1)
       if(code==1)
 	if(!CheckChange()) return fLast[0];
-         if(code==1){
+      if(code==1){
+	auto check= AssertPositivePDF();
+	//cout<<"RooHSEventsPDF::analyticalIntegral was it OK "<<check<<endl;
+
 	   //	if(fUseSamplingIntegral==kFALSE){
 	  Long64_t accepted=0;
 	  Long64_t ilow=0;
@@ -344,7 +353,7 @@ namespace HS{
       }
       // Set Last[0] so we can just return that if no parameter changes
       fLast[0]=integral;
-
+      if(integral<0)std::cout<<"DEBUG RooHSEventsPDF::integral "<<fLast[0]<<std::endl;
       return fLast[0];
     }
 
@@ -454,6 +463,8 @@ namespace HS{
     }
  
     Bool_t RooHSEventsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+
+
       if(!tree->GetEntries())return kFALSE;
       Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s",tree->GetName(),cut.Data());
       cout<<"RooHSEventsPDF::SetEvTree "<<this<<endl;
@@ -755,15 +766,16 @@ namespace HS{
       // fNInt=nint;//REOMVE FOR NOW nint is not used
       fNInt=fNTreeEntries;//just use all entries
       //scale Ntests by Ndimensions
-      Ntests=TMath::Power((Double_t)Ntests,(Double_t)fParSet.size());
+      //   Ntests=TMath::Power((Double_t)Ntests,(Double_t)fParSet.size());
+      Ntests=(Ntests*fParSet.size());
 
       Info("RooHSEventsPDF::CheckIntegralParDep","Going to run %d calculations of integral with random parameters",Ntests);
   
       RooRealVar integral("integral","integral",0,0,2);
       integral.setError(sqrt(fNInt)/fNInt); //Error needs to be set before entering in ds
       RooDataSet ds("intds","intds",RooArgSet(integral));
-      //want to set random paramter values
-      //loop over each paramter and calculate integral
+      //want to set random parameter values
+      //loop over each parameter and calculate integral
       vector<Double_t> SavedPars;
       for(auto & ip : fParSet){//first save parameters
         auto par=(dynamic_cast<const RooRealVar*>(&(ip->arg())));
@@ -810,7 +822,6 @@ namespace HS{
       new TCanvas();
       framePull->Draw();
   
- 
       //numerical check gives constant integral, can force const for fit speed
       fConstInt=mean.getVal();
       fNInt=saveNint;
@@ -918,5 +929,49 @@ namespace HS{
       fIntRangeHigh=(ir+1)*range;
 
     }
+
+    void RooHSEventsPDF::MakeAssertPostiveData(){
+      RooArgSet vars = VarSet(0);
+      auto saveTreeEntry=fTreeEntry;
+      fTreeEntry=0;
+      
+      fAssertPosDataReal.resize(fNapd*fNvars);
+      
+      for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+	//whatabout categories !!!
+	UInt_t ivar=0;
+	for(auto v:vars){
+	  auto vr = dynamic_cast<RooRealVar*>(v);
+	  fAssertPosDataReal[fTreeEntry*fNvars+ivar]=(gRandom->Uniform(vr->getMin(""),vr->getMax("")));
+	  ++ivar;
+	}
+	fTreeEntry++;
+      }
+      //cout<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<std::endl;
+      fTreeEntry=saveTreeEntry;
+    }
+    Bool_t RooHSEventsPDF::AssertPositivePDF() const{
+      //make sure this PDF is >=0 for its full allowed range
+      InitAssertPositiveCheck() ;
+      auto saveTreeEntry=fTreeEntry;
+      fTreeEntry=0;
+      for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+       	auto val = evaluateMC(&fAssertPosDataReal,&fAssertPosDataCat);
+	++fTreeEntry;
+	if(val<-1E-4){ //some tolerance
+	  // cout<<"RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve. "<<val<<" "<<fTreeEntry<<endl;
+	  logEvalError("RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve...");
+	  fTreeEntry=saveTreeEntry;
+	  FinishAssertPositiveCheck(); 
+	  return kFALSE;
+	}
+      }
+      fTreeEntry=saveTreeEntry;
+      FinishAssertPositiveCheck() ;
+     
+      return kTRUE;
+    }
+
+    
   }
 }

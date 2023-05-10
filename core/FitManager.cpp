@@ -38,6 +38,7 @@ namespace HS{
     }
     
     Bool_t FitManager::Run(){
+      fSetup.RequiredFitOptions();
       
       CreateCurrSetup();
      
@@ -73,7 +74,7 @@ namespace HS{
       }
       
       //create extended max likelihood pdf
-      //fCurrSetup->Parameters().Print("v");
+      // std::cout<<"DEBUG FitManager::Run()"<<std::endl;fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
       FitTo(); 
 
@@ -114,13 +115,13 @@ namespace HS{
 
     ////////////////////////////////////////////////////////////
     void FitManager::FitTo(){
-      std::cout<<"DEBUG FitManager::FitTo()"<<std::endl;
+      //      std::cout<<"DEBUG FitManager::FitTo()"<<std::endl;
       if(!fMinimiser.get()) SetMinimiser(new HS::FIT::Minuit2());
       fMinimiser->Run(*fCurrSetup,*fCurrDataSet);
       
       ///////////////////////////
       //Plot best fit and return
-      PlotDataModel();
+      if(fDoPlotting) PlotDataModel();
 
     }
     void FitManager::RunOne(Int_t ifit){
@@ -142,7 +143,6 @@ namespace HS{
       
       for(Int_t ip=0;ip<pdfs.getSize();ip++){
 	auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
-
 	if(pdf!=nullptr){
 	
 	  if(fBinner.FileNames(pdf->GetName()).size()==0)
@@ -171,6 +171,9 @@ namespace HS{
 	    ip--;
 	  }
 	  else{ //use it and give it the simulated tree
+	    pdf->MakeAssertPostiveData();
+	    pdf->AssertPositivePDF();//cache it
+	    
 	    pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
 	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
 
@@ -275,11 +278,12 @@ namespace HS{
     }
 
     void FitManager::SaveResults(){
-     
+      auto saveDir = gDirectory;
       auto outFile=fMinimiser->SaveInfo();
       if(fPlots.size())fPlots.back()->Write(); //just save the last one
-      //outfile is unique_ptr so will be deleted and saved here
+      saveDir->cd();
     }
+
 
   }//namespace FIT
 }//namespace HS

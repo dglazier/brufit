@@ -10,12 +10,14 @@
 #include "Setup.h"
 #include <RooDataSet.h>
 #include <RooHist.h>
+#include <RooPlot.h>
 #include <TList.h>
 
 namespace HS{
   namespace FIT{
 
     using roohist_uptr=std::unique_ptr<RooHist>;
+    using rooplot_uptr=std::unique_ptr<RooPlot>;
     
     class PlotResults  {
       
@@ -33,7 +35,8 @@ namespace HS{
     protected:
       std::shared_ptr<TList> fCanvases{new TList()};
       std::vector<roohist_uptr> fRooHists;
-      
+      std::vector<rooplot_uptr> fRooPlots;
+  
       void RemoveNegativeInNames(TTree* tree);
       TString CheckForNegatives(TString name);
 

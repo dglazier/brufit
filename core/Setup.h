@@ -165,10 +165,20 @@ namespace HS{
       }
       void RequiredFitOptions(){
 	AddFitOption(RooFit::Save(kTRUE));
-	//	AddFitOption(RooFit::SumW2Error(kTRUE));
-	AddFitOption(RooFit::AsymptoticError(true));
-     }
+	if(fErrorsSumW2) AddFitOption(RooFit::SumW2Error(kTRUE));
+	else if(fErrorsAsym) AddFitOption(RooFit::AsymptoticError(true));
+	
+      }
 
+      void ErrorsSumW2(){
+	fErrorsSumW2=kTRUE;
+	fErrorsAsym=kFALSE;
+      }
+      void ErrorsWrong(){
+	fErrorsSumW2=kFALSE;
+	fErrorsAsym=kFALSE;
+    }
+      
       void RandomisePars();
       void OrganiseConstraints();
       
@@ -245,6 +255,9 @@ namespace HS{
       strings_t fAuxVarString;//
       strings_t fPDFString;//
       strings_t fFuncVarString;//!
+
+      Bool_t	fErrorsSumW2=kFALSE;
+      Bool_t	fErrorsAsym=kTRUE; //default to this
 
       std::map<TString,Bool_t> fConstPars; //
       std::map<TString,Bool_t> fConstPDFPars; //

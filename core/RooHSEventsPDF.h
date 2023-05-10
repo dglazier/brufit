@@ -102,7 +102,11 @@ namespace HS{
       vector< RooRealProxy* > fParSet;
       vector<Bool_t> fIsCat;
   
-    
+      //  std::shared_ptr<RooDataSet> fAssertPosData={nullptr};
+      vector<Float_t> fAssertPosDataReal;
+      vector<Int_t> fAssertPosDataCat;
+      Long64_t fNapd = 10000;
+      
       Double_t fMaxValue=0; //max value of function for accept/reject
       Long64_t fGeni=0; //index for tree generation
       TString fTruthPrefix="gen";
@@ -125,8 +129,12 @@ namespace HS{
 	return RooRandom::gaussian()*sigma + integral;
       }
       
-    public:
-
+     public:
+      void MakeAssertPostiveData();
+      Bool_t AssertPositivePDF() const;
+      virtual void InitAssertPositiveCheck() const{};
+      virtual void FinishAssertPositiveCheck() const{};
+      
       void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
       // void SetIsSamplingIntegral(){
       // 	fUseSamplingIntegral=kTRUE;

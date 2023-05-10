@@ -37,13 +37,22 @@ namespace HS{
       Bool_t SetEvTree(TTree* tree,TString cut,TTree* MCGenTree=nullptr) override;
       void HistIntegrals(const char* rangeName) const override;
       void CalcWeightedBaseLine(const char* rangeName) const;
-      void RedirectServersToData();
-      void RedirectServersToPdf();
+      void RedirectServersToData() const;
+      void RedirectServersToPdf() const;
       Bool_t isDirectGenSafe(const RooAbsArg& arg) const override ;
       void initGenerator(Int_t code) override;
 
     protected:
-  
+       void InitAssertPositiveCheck() const override{
+	 RedirectServersToPdf();
+	 if(fMCAPDepTerm.empty()==kTRUE)
+	   cacheMCAP(&fAssertPosDataReal,&fAssertPosDataCat);
+	 _assertPostive=kTRUE;};
+       
+       void FinishAssertPositiveCheck() const override {RedirectServersToData();_assertPostive=kFALSE;};
+       Double_t cacheMCAP(const vector<Float_t> *vars,const  vector<Int_t> *cats) const;
+       Double_t evaluateMCAP() const;
+	 
       Double_t evaluateData() const override ;
       Double_t evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const override;
       void MakeSets();
@@ -80,7 +89,9 @@ namespace HS{
       mutable vector<Double_t> fCacheCompDepSigmaIntegral;
       mutable vector<vector<Double_t>> fPrevParVals;
       mutable vector<UInt_t> fRecalcComponent;
-      
+
+       mutable vector<vector<Double_t>> fMCAPDepTerm;
+       
       RooArgSet fParameters;
  
       Double_t fBaseLine=0;
@@ -90,7 +101,8 @@ namespace HS{
       UInt_t fNCats=0;
       UInt_t fNComps=0;
       mutable Bool_t fFirstCalculation=kTRUE;
-       
+       mutable Bool_t _once = kTRUE;
+       mutable Bool_t _assertPostive=kFALSE;
       ClassDefOverride(HS::FIT::RooComponentsPDF,1);
     };
 
