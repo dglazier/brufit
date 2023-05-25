@@ -47,7 +47,8 @@ namespace HS{
 	 RedirectServersToPdf();
 	 if(fMCAPDepTerm.empty()==kTRUE)
 	   cacheMCAP(&fAssertPosDataReal,&fAssertPosDataCat);
-	 _assertPostive=kTRUE;};
+	 _assertPostive=kTRUE;
+       };
        
        void FinishAssertPositiveCheck() const override {RedirectServersToData();_assertPostive=kFALSE;};
        Double_t cacheMCAP(const vector<Float_t> *vars,const  vector<Int_t> *cats) const;
@@ -65,7 +66,7 @@ namespace HS{
        void DoFirstIntegrations(const char* rangeName="") const;
 
        // Double_t sampleIntegral() const;
-       
+       Bool_t CheckChange() const override;
      private:
 
        RooListProxy fActualObs;
@@ -80,7 +81,8 @@ namespace HS{
       vector<vector<RooRealVar*>> fDependentTermParams;
       vector<vector<RooRealProxy*>> fIndependentTermProxy;
 
-      
+       vector<std::unique_ptr<RooRealProxy>> _myVarProxies;//I am going to own these
+       
       vector<RooRealVar*> fIntegrateObs;
       vector<RooCategory*> fIntegrateCats;
       RooArgSet fIntegrateSet;
@@ -103,7 +105,10 @@ namespace HS{
       mutable Bool_t fFirstCalculation=kTRUE;
        mutable Bool_t _once = kTRUE;
        mutable Bool_t _assertPostive=kFALSE;
-      ClassDefOverride(HS::FIT::RooComponentsPDF,1);
+       mutable Long64_t _NIntegralCalls=0;
+       ClassDefOverride(HS::FIT::RooComponentsPDF,1);
+
+       
     };
 
     template<typename T, typename A>

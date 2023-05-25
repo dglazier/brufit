@@ -89,6 +89,7 @@ namespace HS{
 	fComponents.push_back(std::move(vterms));
       }
 
+      // fParSet=other.fParSet;
       fNObs=other.fNObs;
       fNCats=other.fNCats;
       fNComps=other.fNComps;
@@ -125,19 +126,32 @@ namespace HS{
       
       for(auto &comp: fComponents)
 	for(auto &term: comp){
-	  fParSet.push_back(term.get()); //par set just used to check change
 	  //get the RooRealVar for this Proxy term
 	  auto  argTerm=fActualComps.find(term->GetName());
 	  //get its variables, if any
 	  auto vars=argTerm->getVariables();
 	  TIter iter=vars->createIterator();
+	  
 	  while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
 	    //if new variable and not observable
 	    //include it as parameter
 	    if(!fActualObs.contains(*arg)&&!fActualCats.contains(*arg)&&!fParameters.contains(*arg)){
 	      fParameters.add(*arg);
+	      //new RooRealProxy(arg->GetName(),arg->GetName(),this,*dynamic_cast<RooAbsReal*>(arg));
+	      _myVarProxies.push_back(std::unique_ptr<RooRealProxy>{new RooRealProxy(arg->GetName(),arg->GetName(),this,*dynamic_cast<RooAbsReal*>(arg))});
+	      fParSet.push_back(_myVarProxies.back().get());
 	    }
 	  }
+	  //don't forget to check if this term is a parameter itself!
+	  if(vars->getSize()==0){
+	    if(!fActualObs.contains(*argTerm)&&!fActualCats.contains(*argTerm)&&!fParameters.contains(*argTerm)){
+	      fParameters.add(*argTerm);
+	      //new RooRealProxy(arg->GetName(),arg->GetName(),this,*dynamic_cast<RooAbsReal*>(arg));
+	      _myVarProxies.push_back(std::unique_ptr<RooRealProxy>{new RooRealProxy(argTerm->GetName(),argTerm->GetName(),this,*dynamic_cast<RooAbsReal*>(argTerm))});
+	      fParSet.push_back(_myVarProxies.back().get());
+	    }
+	  }
+	  
 	}
       InitSets();
     }
@@ -155,18 +169,18 @@ namespace HS{
 
     Double_t RooComponentsPDF::evaluateData() const 
     {
-      //if(_assertPostive)cout<<"RooComponentsPDF::evaluateData() "<<endl;
       Double_t val=fBaseLine;
        for(auto &comp: fComponents){
 	Double_t product=1;
 	for(auto &term: comp){
-	  //  if(_assertPostive) cout<<"term "<<term->GetName()<<" "<< *term.get()<<endl;
+	  //cout<<"term "<<term->GetName()<<" "<< *term.get()<<endl;
 	  product*= *term.get(); //take the product of all the terms for this component
 	}
 	//if(_assertPostive)	cout<<"product "<<product<<endl;
 	val+=product; //add them to total
       }
-      
+       // cout<<"RooComponentsPDF::evaluateData() "<<val<<endl;
+ 
        return val;
     }
     
@@ -387,8 +401,16 @@ namespace HS{
     {
        if(code!=1) return RooHSEventsPDF::analyticalIntegral(code,rangeName);
        if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
+  
+       //if(code==1)
+	if(!CheckChange()) return fLast[0];
+       //if(code==1){
+	// std::cout<<" RooComponentsPDF::analyticalIntegral "<<_NIntegralCalls++<<" "<<fLast[0]<<std::endl;
 
        auto check= AssertPositivePDF();
+       if(check==kFALSE) return fLast[0]=0;
+       
+       //std::cout<<" RooComponentsPDF::analyticalIntegral "<<_NIntegralCalls++<<" "<<fLast[0]<<std::endl;
        
        //make sure all components calculated
        if(fFirstCalculation==kTRUE) DoFirstIntegrations();
@@ -439,9 +461,11 @@ namespace HS{
  	integral=integral2;
       }
       */
-      if(integral<0)
-	std::cout<<"DEBUG RooHSComponentsPDF::integral "<<integral<<std::endl;
- 
+      // if(integral<0)
+      // std::cout<<"DEBUG RooHSComponentsPDF::integral "<<integral<<std::endl;
+
+      fLast[0]=integral;
+
        return integral;
     }
      
@@ -634,15 +658,39 @@ namespace HS{
   // }
 
     
-  Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+    Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
       auto val = RooHSEventsPDF::SetEvTree(tree,cut,MCGenTree);
 
-    //Cant do this here as need to call ProtoVars first !
+      //Cant do this here as need to call ProtoVars first !
       //Caclulate current value of component integrals
       // for(UInt_t icomp=0;icomp<fNComps;icomp++)
       // 	fRecalcComponent.push_back(icomp);
       //     RecalcComponentIntegrals(0,"");
       return val;
     }
+  
+
+    Bool_t RooComponentsPDF::CheckChange() const{
+      //Note analytical integral is const funtion so can only change data members
+      //which are pointed to something, thus need Double_t *fLast
+      //and construct a N-D array where we can change elements
+
+      //std::cout<<"RooHSEventsPDF::CheckChange() "<<fParameters.size()<<" "<<fNpars<<std::endl;
+      Bool_t hasChanged=false;
+      for(Int_t i=1;i<fNpars+1;i++)
+	if(fLast[i]!=(static_cast<RooRealVar*>((fParameters[i-1]))->getVal())){
+	  hasChanged=true;
+	  //std::cout<<"RooHSEventsPDF::CheckChange() "<<fParameters[i-1]->GetName()<<" "<<fLast[i]<<" to "<<static_cast<RooRealVar*>(fParameters[i-1])->getVal()<<std::endl;
+	}
+  
+      if(hasChanged){
+	for(Int_t i=1;i<fNpars+1;i++){
+	  fLast[i]=static_cast<RooRealVar*>((fParameters[i-1]))->getVal();
+	  
+	}
+      }
+	
+      return hasChanged;
+    }   
   }
 }
