@@ -12,9 +12,9 @@ namespace HS{
       //M[0|4<L+1] sum over M up to 4 but <= L+1
       //COS2PHI => formula defined in  PolarisedSphHarmonicMoments
       //ReY_L_M(cosThGJ,Phi,Y_L_M)} => real part of Y^M_L a function of cosThGJ, Phi
-      _Sum +=       Form("+ SUM(L[1|%d],M[0|%d<L+1]){H_0_L_M*K_L*ReY_L_M(trucosThGJ,truphiGJ,Y_L_M)}",2*_Lmax,2*_Mmax);
-      _Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M*K_L*ReY_L_M(trucosThGJ,truphiGJ,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax);
-      _Sum +=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M*K_L*ImY_L_M(trucosThGJ,truphiGJ,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax);
+      _Sum +=       Form("+ SUM(L[1|%d],M[0|%d<L+1]){H_0_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+      _Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+      _Sum +=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
 
       P2S0AmpLoader::LoadPartialWaves(*_Setup,_Lmax,_Mmax,_Nref,_OnlyEven,_NegativeM); //generate formula vars for Hs in terms of partial waves
       _IsAmplitudes=kTRUE;
@@ -34,9 +34,9 @@ namespace HS{
       //M[0|4<L+1] sum over M up to 4 but <= L+1
       //COS2PHI => formula defined in  PolarisedSphHarmonicMoments
       //ReY_L_M(cosThGJ,Phi,Y_L_M)} => real part of Y^M_L a function of cosThGJ, Phi
-      _Sum +=       Form("+ SUM(L[1|%d],M[0|%d<L+1]){H_0_L_M[0,-2,2]*K_L*ReY_L_M(trucosThGJ,truphiGJ,Y_L_M)}",2*_Lmax,2*_Mmax);
-      _Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M[0,-2,2]*K_L*ReY_L_M(trucosThGJ,truphiGJ,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax);
-      _Sum+=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M[0,-2,2]*K_L*ImY_L_M(trucosThGJ,truphiGJ,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax);
+      _Sum +=       Form("+ SUM(L[1|%d],M[0|%d<L+1]){H_0_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+      _Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+      _Sum+=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
       
       _IsAmplitudes=kFALSE;
       return _Sum;
