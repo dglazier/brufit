@@ -43,8 +43,7 @@ namespace HS{
       TString FileName(){return TString("/Results")+GetName()+".root";}
 
     private:
-
- 
+  
       ClassDefOverride(HS::FIT::Minimiser,1);
       
     };//class Minimiser
@@ -72,13 +71,16 @@ namespace HS{
      protected :
       void StoreLikelihood(vector<Double_t> &likelies);
       virtual void RandomiseParameters();
+      void AppendFitToTree();
       
       RooFitResult* fResult=nullptr;//! dont write
-       
+      RooDataSet* _saveDataSet=nullptr;//! dont write
+      TTree *_treeDSbru=nullptr;//! dont write
       UInt_t fNRefits=0;
       Bool_t fNoZeroInitialVal=kFALSE;
       vector<Double_t> fLikelies;
-
+      std::vector<Int_t > _Statuses;
+ 
       ClassDefOverride(HS::FIT::Minuit,1);
       
      };

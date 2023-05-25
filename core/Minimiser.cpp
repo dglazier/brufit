@@ -7,7 +7,7 @@
 namespace HS{
   namespace FIT{
     
-    Minuit::Minuit(UInt_t nrefits,Bool_t nozeroinit) : fNRefits(nrefits),fNoZeroInitialVal(nozeroinit) {
+    Minuit::Minuit(UInt_t nrefits,Bool_t nozeroinit) : fNRefits(nrefits),fNoZeroInitialVal(nozeroinit),_saveDataSet{} {
       SetNameTitle("HSMinuit","Minuit minimiser");
     }
  
@@ -21,7 +21,9 @@ namespace HS{
 	fResult->Print();
 	
 	return;
-      }  
+      }
+      AppendFitToTree();
+      
       //Perform many fits with differnt initial parameters
       UInt_t nrefit = 0;
       fSetup->SaveSnapShot(Form("Refit_%d",nrefit)); //original
@@ -41,10 +43,13 @@ namespace HS{
 	RandomiseParameters();
 	
 	FitTo();
+
+	AppendFitToTree();
 	
 	fSetup->SaveSnapShot(Form("Refit_%d",nrefit));
 	
 	StoreLikelihood(fLikelies);
+	
 	results.push_back(result_uptr{dynamic_cast<RooFitResult*>(fResult->clone())});
       }
 	
@@ -78,6 +83,8 @@ namespace HS{
      
       RooRealVar Nllval("NLL","NLL",fResult->minNll());
       saveArgs.add(Nllval);
+      RooRealVar state("status","status",fResult->status());
+      saveArgs.add(state);
 	
       RooDataSet saveDS(FinalParName(),TString(GetName())+"Results",saveArgs);
       saveDS.add(saveArgs);
@@ -87,7 +94,11 @@ namespace HS{
       treeDS->Write();
       fResult->Write("MinuitResult");
 
-      SaveRefits(saveArgs);
+      if(_treeDSbru!=nullptr){
+	_treeDSbru->SetDirectory(file.get());
+	_treeDSbru->Write();
+      }
+      // SaveRefits(saveArgs);
 
       return std::move(file);
  
@@ -106,9 +117,13 @@ namespace HS{
 	RooRealVar Nllval("NLL","NLL",fLikelies[irefit]);
 	refitArgs.add(Nllval);
 	
+	RooRealVar state("status","status",_Statuses[irefit]);
+	refitArgs.add(state);
+	
 	saveDS.add(refitArgs);
 
       }
+      saveDS.Print("v");
       TTree* treeDS=RooStats::GetAsTTree(ResultTreeName()+"_Refits",ResultTreeName()+"_Refits",saveDS);
       treeDS->Write();
   
@@ -122,6 +137,8 @@ namespace HS{
       Bool_t fail=(fResult->minNll()!=-1e+30);
       if((!nan)&&edm&&fail)fLikelies.push_back(fResult->minNll());
       else fLikelies.push_back(1E300);
+
+      _Statuses.push_back(fResult->status());
     }
     
     void Minuit::RandomiseParameters(){
@@ -144,6 +161,30 @@ namespace HS{
 	
 
     }
+    //////////////////////////////////////////////////////////////
+
+    void Minuit::AppendFitToTree(){
+      
+
+	RooArgSet isaveArgs(fSetup->Parameters());
+	isaveArgs.add(fSetup->Yields());
+     
+	RooRealVar iNllval("NLL","NLL",fResult->minNll());
+	isaveArgs.add(iNllval);
+	RooRealVar istate("status","status",fResult->status());
+	isaveArgs.add(istate);
+ 
+   	RooDataSet saveDS(FinalParName(),TString(GetName())+"Results",isaveArgs);
+ 	saveDS.add(isaveArgs);
+
+	auto treeDSbru=std::unique_ptr<TTree>(RooStats::GetAsTTree(ResultTreeName()+"Bru",ResultTreeName(),saveDS));
+
+	TList list;
+	if(_treeDSbru) list.Add(_treeDSbru);
+	list.Add(treeDSbru.get());
+	_treeDSbru= TTree::MergeTrees(&list);
+    }
+    
     //////////////////////////////////////////////////////////////
   Minuit2::Minuit2(UInt_t nrefits,Bool_t nozeroinit) : Minuit(nrefits,nozeroinit) {
       SetNameTitle("HSMinuit2","Minuit2 minimiser");

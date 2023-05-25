@@ -45,12 +45,16 @@ namespace HS{
 
 	const auto& pdfs = setup->constPDFs();
 
-	for(Int_t ic=0;ic<pdfs.getSize();ic++)
-	  model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(1E-2));
+	if(pdfs.getSize()>1) //only draw components if >1
+	  for(Int_t ic=0;ic<pdfs.getSize();ic++)
+	    model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(1E-2));
 
 	
-	model->plotOn(frame,LineColor(kRed)) ;
-	//	model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
+      	model->plotOn(frame,LineColor(kRed)) ;
+
+	//	model->getParameters(data)->Print("v");
+	//	std::cout<<"PlotOn  "<<model->expectedEvents(model->getObservables(data))<<std::endl;
+       	//model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
 	
 	model->paramOn(frame,
 		       Layout(0.1, 0.2, 0.9),

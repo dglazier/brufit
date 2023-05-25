@@ -318,6 +318,7 @@ namespace HS{
 	if(!CheckChange()) return fLast[0];
       if(code==1){
 	auto check= AssertPositivePDF();
+	if(check==kFALSE) return fLast[0]=0;
 	//cout<<"RooHSEventsPDF::analyticalIntegral was it OK "<<check<<endl;
 
 	   //	if(fUseSamplingIntegral==kFALSE){
@@ -350,10 +351,13 @@ namespace HS{
 	Int_t vindex=code-2;
 	Double_t vval=*(fProxSet[vindex]);
 	integral=fHistIntegrals[vindex].Interpolate(vval);
+	if(integral<0) integral=0;
+	//std::cout<<"DEBUG RooHSEventsPDF::integral "<<integral<<std::endl;
+	return integral;
       }
       // Set Last[0] so we can just return that if no parameter changes
       fLast[0]=integral;
-      if(integral<0)std::cout<<"DEBUG RooHSEventsPDF::integral "<<fLast[0]<<std::endl;
+      //std::cout<<"DEBUG RooHSEventsPDF::integral "<<fLast[0]<<std::endl;
       return fLast[0];
     }
 
@@ -390,7 +394,7 @@ namespace HS{
       Long64_t ilow=0;
       Long64_t ihigh=0;
       SetLowHighVals(ilow,ihigh);
-      // cout<<"RooHSEventsPDF::HistIntegrals"<<endl;
+      //  cout<<"RooHSEventsPDF::HistIntegrals"<<endl;
       for(Int_t i=0;i<fNvars;i++){
 	auto  arg=dynamic_cast<const RooRealVar*>(&fProxSet[i]->arg());
 	if(arg)
@@ -450,9 +454,13 @@ namespace HS{
       //which are pointed to something, thus need Double_t *fLast
       //and construct a N-D array where we can change elements
 
+      // std::cout<<"RooHSEventsPDF::CheckChange() "<<fParSet.size()<<std::endl;
       Bool_t hasChanged=false;
       for(Int_t i=1;i<fNpars+1;i++)
-	if(fLast[i]!=(*(fParSet[i-1]))) hasChanged=true;
+	if(fLast[i]!=(*(fParSet[i-1]))){
+	  hasChanged=true;
+	  //  std::cout<<"RooHSEventsPDF::CheckChange() "<<fParSet[i-1]->GetName()<<" "<<fLast[i]<<" to "<<(*(fParSet[i-1]))<<std::endl;
+	}
       if(hasChanged){
 	for(Int_t i=1;i<fNpars+1;i++){
 	  fLast[i]=*(fParSet[i-1]);
@@ -467,7 +475,7 @@ namespace HS{
 
       if(!tree->GetEntries())return kFALSE;
       Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s",tree->GetName(),cut.Data());
-      cout<<"RooHSEventsPDF::SetEvTree "<<this<<endl;
+
       //Set the cut
       //Note weight cut can be set with WEIGHT@expr in factory constructor
       if(cut==TString())
@@ -952,14 +960,17 @@ namespace HS{
     }
     Bool_t RooHSEventsPDF::AssertPositivePDF() const{
       //make sure this PDF is >=0 for its full allowed range
+      // std::cout<<"RooHSEventsPDF::AssertPositivePDF()"<<std::endl;
       InitAssertPositiveCheck() ;
+      //std::cout<<"RooHSEventsPDF::AssertPositivePDF() done init"<<std::endl;
       auto saveTreeEntry=fTreeEntry;
       fTreeEntry=0;
+      // cout<<"RooHSEventsPDF::AssertPositivePDF()"<<endl;
       for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
        	auto val = evaluateMC(&fAssertPosDataReal,&fAssertPosDataCat);
 	++fTreeEntry;
 	if(val<-1E-4){ //some tolerance
-	  // cout<<"RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve. "<<val<<" "<<fTreeEntry<<endl;
+	  //  cout<<"RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve. "<<val<<" "<<fTreeEntry<<endl;
 	  logEvalError("RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve...");
 	  fTreeEntry=saveTreeEntry;
 	  FinishAssertPositiveCheck(); 
@@ -967,7 +978,8 @@ namespace HS{
 	}
       }
       fTreeEntry=saveTreeEntry;
-      FinishAssertPositiveCheck() ;
+      //std::cout<<"RooHSEventsPDF::AssertPositivePDF() done "<<std::endl;
+       FinishAssertPositiveCheck() ;
      
       return kTRUE;
     }

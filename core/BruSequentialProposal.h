@@ -43,13 +43,15 @@ namespace HS{
       virtual Bool_t CheckStepSize(Float_t acceptance);
 
       Float_t StepSizeFactor() const {return fScale;}
+      void SetIsSequential(Bool_t isit){_isNotSequential= (!isit);}
     private:
  
       Float_t fScale=1;
       Float_t fMinAcc=0.15;
       Float_t fMaxAcc=0.3;
       Float_t fTargetAcc=0.234;
- 
+
+      Bool_t _isNotSequential=kFALSE;
 
 
       ClassDefOverride(BruSequentialProposal,1) // A concrete implementation of ProposalFunction, that uniformly samples the parameter space.

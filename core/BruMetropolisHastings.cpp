@@ -108,7 +108,7 @@ namespace HS{
 	  //if(fTryHelp==kTRUE){
 	  //if(fAcceptance<fMinAcc||fAcceptance>fMaxAcc){
 	  RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
-	  std::cout<<"WARNING BruMetropolisHastings acceptance not optimal exiting..." <<" current Likelihood "<<CalcNLL(xL)<<" "<<fPropFunc->ClassName()<<" "<<dynamic_cast<RooStats::SequentialProposal*>(fPropFunc)<<std::endl;
+	  //	  std::cout<<"WARNING BruMetropolisHastings acceptance not optimal exiting..." <<" current Likelihood "<<CalcNLL(xL)<<" "<<fPropFunc->ClassName()<<" "<<dynamic_cast<RooStats::SequentialProposal*>(fPropFunc)<<std::endl;
 
 	  // x.Print("v");
 	  auto bseqprop=dynamic_cast<BruSequentialProposal*>(fPropFunc);
@@ -123,7 +123,7 @@ namespace HS{
 	    continue;
 	  }
 	  else{
-	    std::cout<<"********************************************L"<<xPrimeL<<" "<<xL<<std::endl;
+	    std::cerr<<"ERROR BruMetropolisHastings need a BruSequentialProposal "<<std::endl;
 	    // std::cout<<"x "<<std::endl;
 	    // x.Print("v");
 	    // std::cout<<"xprime "<<std::endl;

@@ -187,7 +187,7 @@ namespace HS{
       
     public:
       
-      BruMcmcSeqHelper(Int_t Niter=100,Int_t Nburn=10, Float_t norm=5,float target=0.234,float accmin=0.15,float accmax=0.35):BruMcmc(Niter,Nburn,norm),
+      BruMcmcSeqHelper(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.1,float target=0.234,float accmin=0.15,float accmax=0.35):BruMcmc(Niter,Nburn,norm),
 	_proposal{norm,target,accmin,accmax}{
 	SetNameTitle("HSBruMcmcSeqHelper","BruMcmcSeqHelper minimiser");
       }
@@ -206,21 +206,32 @@ namespace HS{
       
     public:
       
-      BruMcmcCovariance(Int_t Niter=100,Int_t Nburn=10, Float_t norm=5,float target=0.234,float accmin=0.15,float accmax=0.35):
+      BruMcmcCovariance(Int_t Niter=100,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.15,float accmax=0.35):
 	BruMcmc(Niter,Nburn,norm),
 	_propSeq{norm,target,accmin,accmax},
-	_propCov{0.1,target,accmin,accmax}
+	//	_propSeq{norm,0.1,0.15,0.5}, //try for largish inial steps
+	_propCov{norm,target,accmin,accmax}//1 for norm if covariance is correct
      {
-       SetNameTitle("HSBruMcmcSeqHelper","BruMcmcSeqHelper minimiser");
+       SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
      }
   
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
- 
+
+     void TurnOffSequential(){_doSeq=kFALSE;}
+     void TurnOffNDStep(){_doND=kFALSE;}
+     void TurnOffCovariance(){_doCov=kFALSE;}
+     
     private:
-      BruSequentialProposal _propSeq;
-      BruCovarianceProposal _propCov;
-      
+
+     BruSequentialProposal _propSeq;
+     BruCovarianceProposal _propCov;
+
+
+     Bool_t _doSeq=kTRUE;
+     Bool_t _doND=kTRUE;
+     Bool_t _doCov=kTRUE;
+     
       ClassDefOverride(HS::FIT::BruMcmcCovariance,1);
    };
 

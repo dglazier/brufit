@@ -176,7 +176,7 @@ namespace HS{
       }
        
       
-      Bool_t CheckChange() const; //Have any fit parameters changed since last integral?
+      virtual Bool_t CheckChange() const; //Have any fit parameters changed since last integral?
       Bool_t CheckRange(const char* rangeName) const; //only integrate EvTree over specifed variable range
 
       void SetNInt(Long64_t n){fNInt=n;}

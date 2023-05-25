@@ -122,11 +122,11 @@ namespace HS{
       }
       if(_covMatrix.GetNrows()==0)_covMatrix.ResizeTo(mat.GetNrows(),mat.GetNcols());
       _covMatrix=mat*static_cast<Double_t>(StepSizeFactor());
-      _covMatrix.Print();
          
       if(_xVec.getSize()==0){
-	//_vars = RooArgSet(vars);
-	 	for (auto *r : static_range_cast<RooRealVar *> (vars)){
+	//	std::cout<<" BruCovarianceProposal::SetCovariance  static_range_cast does not work until 6.28 c++14"<<std::endl;exit(0);
+	for (auto *r : static_range_cast<RooRealVar *> (vars)){
+	  
 	  //make an offset variable mu for each var
 	  _xVec.add(*r);
 	  
@@ -135,6 +135,7 @@ namespace HS{
 	  _muVec.add(*clone);
 	  AddMapping(*clone, *r);
 	}
+	
       }
 
         

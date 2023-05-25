@@ -13,7 +13,7 @@
 #include <TMatrixD.h>
 #include <TH1D.h>
 #include <TMatrixDSym.h>
-
+#include <RooGlobalFunc.h>
 namespace HS{
   namespace FIT{
 
@@ -226,18 +226,18 @@ namespace HS{
       
       tree->ResetBranchAddresses();
 
-      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
+      // TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
       
-      TFile* saveSeq=new TFile(saveName,"recreate");
+      // TFile* saveSeq=new TFile(saveName,"recreate");
 
-      cout<<"Set tree file "<<tree->GetDirectory()<<endl;
-      // auto saveDir=tree->GetDirectory();
-      //tree->SetDirectory(saveSeq);
-      AddEntryBranch();
-      //tree->Write();
-      saveSeq->WriteObject(tree,tree->GetName());
-      // tree->SetDirectory(saveDir);
-      delete saveSeq;
+      // cout<<"Set tree file "<<tree->GetDirectory()<<endl;
+      // // auto saveDir=tree->GetDirectory();
+      // //tree->SetDirectory(saveSeq);
+      // AddEntryBranch();
+      // //tree->Write();
+      // saveSeq->WriteObject(tree,tree->GetName());
+      // // tree->SetDirectory(saveDir);
+      // delete saveSeq;
       //      tree->SetDirectory(nullptr);
       
       return covMatSymNorm;
@@ -602,11 +602,11 @@ namespace HS{
      }
     ///////////////////////////////////////////////////////////////
     file_uptr BruMcmc::SaveInfo(){
-      std::cout<<"BruMcmc::SaveInfo()"<<std::endl;
+    
       fTreeMCMC->SetDirectory(fOutFile.get());
       Result();
       fTreeMCMC->Write();
-      std::cout<<"BruMcmc::SaveInfo() written mcmc"<<std::endl;
+    
       delete fTreeMCMC; fTreeMCMC=nullptr;//or else crashes in destructor
       //save paramters and chi2s in  dataset (for easy merging)
       //RooArgSet saveArgs(*fParams);
@@ -623,7 +623,7 @@ namespace HS{
       treeDS->Write();
       delete treeDS;treeDS=nullptr;
 
-      std::cout<<"BruMcmc::SaveInfo() Done"<<std::endl;
+      std::cout<<"BruMcmc::SaveInfo() Done to "<<fOutFile->GetName()<<std::endl;
       return std::move(fOutFile);
     }
      //////////////////////////////////////////////////////////////
@@ -666,24 +666,73 @@ namespace HS{
 
   void BruMcmcCovariance::Run(Setup &setup,RooAbsData &fitdata){
 
+    //auto foptions = fSetup->FitOptions();
+    
+    std::cout<<"BruMcmcCovariance::Run check for prefit "<<dynamic_cast<RooDataSet*>(&fitdata)<<std::endl;
+    RooDataSet tiny("tiny", "tiny", *fitdata.get(),
+		    fitdata.isWeighted() ? RooFit::WeightVar(dynamic_cast<RooDataSet*>(&fitdata)->weightVar()->GetName())  : RooCmdArg());
+
+    std::cout<<"BruMcmcCovariance::Run check for prefit "<<std::endl;
+    auto tinyFraction = 0.1;
+    if(0){
+      
+      auto step =(Int_t) 1/tinyFraction; //for 10%
+      for (int i=0; i<fitdata.numEntries(); i+=step)
+	{
+	  const RooArgSet *event = fitdata.get(i);
+	  tiny.add(*event, fitdata.weight());
+	}
+      fData=&tiny;
+
+      std::cout<<"BruMcmcCovariance::Run made tiny datset for prefit!!"<<std::endl;
+      fData->Print("v");
+    }
+    else{
+      fData=&fitdata;
+    }
+    
      fSetup=&setup;
-     fData=&fitdata;
-     //initialise MCMCCalculator
-     SetData(fitdata);
+      //initialise MCMCCalculator
+     // SetData(fitdata);
      SetModel(setup.GetModelConfig());
      SetupBasicUsage();
 
-     SetProposalFunction(_propSeq);
-     MakeChain();
+     //find a region of hgh likelihood
+     if(_doSeq==kTRUE){
+       SetProposalFunction(_propSeq);
+       MakeChain();
+     }
+     
+     //now move in all parameters simultaneosuly to
+     //give chain for covaiance matrix
+     if(_doND==kTRUE){
+       _propSeq.SetIsSequential(kFALSE);
+       MakeChain();
+     }
 
-     std::unique_ptr<TMatrixDSym> covMat; 
-     covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
+     //Now find accurate covariance matrix for final sampling
+     if(fTreeMCMC!=nullptr){
+       std::unique_ptr<TMatrixDSym> covMat; 
+       covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
+
+       if(0){
+	 auto& yields = fSetup->Yields();
+	 for(auto yld:static_range_cast<RooRealVar *>(yields)){
+	   yld->setVal(yld->getVal()/tinyFraction);
+	 }
+	 fData=&fitdata; //make sure have full dataset
+       }
+
+       if(_doCov==kTRUE){
+	 std::cout<<" BruMcmcCovariance::Run "<<_doCov<<std::endl;
+	   _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
+	 SetProposalFunction(_propCov);
+	 MakeChain();
+       }
+       
+     }
+  }
   
-     _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
-     SetProposalFunction(_propCov);
-  
-     MakeChain();
-   }
 
    
   }

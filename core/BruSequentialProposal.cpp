@@ -25,20 +25,23 @@ namespace HS{
       int n = xPrime.getSize();
       int j = int( floor(RooRandom::uniform()*n) );
       int i = 0;
-      for (auto *var : static_range_cast<RooRealVar *>(xPrime)) {
-	if (i == j) {
-	  double val = var->getVal(), max = var->getMax(), min = var->getMin(), len = max - min;
-	  auto step = RooRandom::gaussian() * len * fScale;//scale=#number of sigma
-	  while ((val+step > max) || (val+step <min) ) step = RooRandom::gaussian() * len * fScale;
+      // std::cout<<"BruSequentialProposal::Propose  static_range_cast< does not work until 6.28 c++14"<<std::endl;
+      //exit(0);
+       for (auto *var : static_range_cast<RooRealVar *>(xPrime)) {
+      	if (i == j || _isNotSequential) {
+      	  // std::cout<<"Propose "<<i<<" "<<j<<std::endl;
+      	  double val = var->getVal(), max = var->getMax(), min = var->getMin(), len = max - min;
+      	  auto step = RooRandom::gaussian() * len * fScale;//scale=#number of sigma
+      	  while ((val+step > max) || (val+step <min) ) step = RooRandom::gaussian() * len * fScale;
 
-	  //val += RooRandom::gaussian() * len * fScale;
-	  //	  while (val > max)  val -= len;//should try val=max-val
-	  //while (val < min) val += len;
+      	  //val += RooRandom::gaussian() * len * fScale;
+      	  //	  while (val > max)  val -= len;//should try val=max-val
+      	  //while (val < min) val += len;
 
-	  var->setVal(val+step);
-	  //std::cout << "Proposing a step along " << var->GetName() << std::endl;
-	}
-	++i;
+      	  var->setVal(val+step);
+      	  //std::cout << "Proposing a step along " << var->GetName() << std::endl;
+      	}
+      	++i;
       }
     }
     Bool_t  BruSequentialProposal::CheckStepSize(Float_t acceptance){
@@ -46,7 +49,8 @@ namespace HS{
 	//in case no event accepted start with correcting for 1%
 	Double_t acc = acceptance >0 ? acceptance:0.01;
 	fScale *= (acc)/(fTargetAcc);
- 	std::cout<<"BruSequentialProposal::CheckStepSize Changed to "<<fScale<<" from "<<(fTargetAcc)/acc*fScale<<std::endl;
+	if(fScale<1E-6) fScale = 1E-6; //lower limit to scale
+ 	std::cout<<"BruSequentialProposal::CheckStepSize Changed to "<<fScale<<"(min 1E-6)) from "<<(fTargetAcc)/acc*fScale<<std::endl;
 	return kTRUE;
       }
       return kFALSE;

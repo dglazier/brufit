@@ -3,11 +3,10 @@
 ///Class:               AmpMinuit2
 ///Description:
 ///           
-
-#include "Minimiser.h"
-
-
 #pragma once
+#include "Minimiser.h"
+#include "AmpHelpers.h"
+
 namespace HS{
   namespace FIT{
 
@@ -16,7 +15,7 @@ namespace HS{
       
     public:
 
-      AmpMinuit2(UInt_t nrefits=0,Bool_t nozeroinit=kFALSE);
+      AmpMinuit2(AmpConfigure* configure,UInt_t nrefits=0,Bool_t nozeroinit=kFALSE);
       AmpMinuit2(const AmpMinuit2&)=default;
       AmpMinuit2(AmpMinuit2&&)=default;
       ~AmpMinuit2() override =default;
@@ -28,13 +27,23 @@ namespace HS{
       /* 	fitOptions.Add(dynamic_cast<RooCmdArg*>(RooFit::Minimizer("Minuit2").Clone())); */
       /* 	fResult=fSetup->Model()->fitTo(*fData,fitOptions); */
       /* }; */
+
       
       void RandomiseParameters() override;
+
+    private:
+      
       UInt_t fIFit=0;
- 
+
+      AmpHelpers _ampHelper;
+  
       ClassDefOverride(HS::FIT::AmpMinuit2,1);
       
     };
+
+    // namespace Amp{
+    //   void RandomiseAmps(RooArgList& pars);
+    // }
 
   }//namespaces
 }

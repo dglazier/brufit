@@ -101,6 +101,7 @@ namespace HS{
       }
       TString GetItemName(Int_t ii);
       void LoadWeights(TString wname,TString fname,TString wobj="HSsWeights");
+      const RooRealVar* WeightVar()const {return fWeightVar.get();}
       
     protected:
       void LoadWeights();
