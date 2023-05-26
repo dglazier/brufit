@@ -474,7 +474,7 @@ namespace HS{
 
 
       if(!tree->GetEntries())return kFALSE;
-      Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s",tree->GetName(),cut.Data());
+      Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s and %lld events",tree->GetName(),cut.Data(), tree->GetEntries());
 
       //Set the cut
       //Note weight cut can be set with WEIGHT@expr in factory constructor
@@ -746,7 +746,7 @@ namespace HS{
 	fMCGenTree->ResetBranchAddresses();
   	fMCGenTree->Reset();
       }
-
+      Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s and kept %lld events",tree->GetName(),cut.Data(), fNTreeEntries);
        return fBranchStatus;
     }
     

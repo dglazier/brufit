@@ -102,7 +102,9 @@ namespace HS{
       void LoadData(const TString& tname,const strings_t& fnames){
 	 fData.Load(fSetup,tname,fnames);
       }
-      void LoadData(const TString& tname,const TString& fname,const TString& name="Data"){
+      //  void LoadData(const TString& tname,const TString& fname,const TString& name="Data"){
+      void LoadData(const TString& tname,const TString& fname){
+	const TString name="Data";
 	fBinner.SplitData(tname,fname,name);
 	LoadData(fBinner.TreeName(name),fBinner.FileNames(name));
 	fData.SetParentName(fname);
