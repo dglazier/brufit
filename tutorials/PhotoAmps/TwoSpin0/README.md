@@ -1,7 +1,7 @@
 # Analysis of 2 Spin0 Photoproduction
 -------------------------------------
 
-The formalism of ["Moments of angular distribution and beam asymmetries in ηπ^0 photoproduction at GlueX"] ( https://journals.aps.org/prd/abstract/10.1103/PhysRevD.100.054017) is implemented to analyse meson decays in linearly polarised photoproduction.
+The formalism of ["Moments of angular distribution and beam asymmetries in ηπ^0 photoproduction at GlueX"]( https://journals.aps.org/prd/abstract/10.1103/PhysRevD.100.054017) is implemented to analyse meson decays in linearly polarised photoproduction.
 
 The intensity is expanded in polarised moments of spherical harmonic distributions. These moments are expressed in terms of partial wave amplitudes. Fits can be performed (or events generated) using either moments directly or (by use of RooFit Formula variables) the partial waves.
 
