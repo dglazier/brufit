@@ -61,13 +61,11 @@ namespace HS{
     }
     
     inline  void  AmpHelpers::CopyToMomentPars(){
-      std::cout<<"AmpHelpers::() CopyToMomentPars"<<_IsAmplitudes<<std::endl;
-  
       auto& ampMoments = _ampSetup.Formulas();
       auto& parMoments = _fitSetup->Parameters();
       // static_range_cast does not work until 6.28
       for(auto par:static_range_cast<RooRealVar *>(parMoments)){
-      	auto* mom=dynamic_cast<RooFormulaVar*>(ampMoments.find(par->GetName()));
+    	auto* mom=dynamic_cast<RooFormulaVar*>(ampMoments.find(par->GetName()));
       	if((mom)!=nullptr){
       	  cout<<"copy formula value for "<<mom->GetName()<<" "<<mom->getVal()<<std::endl;
       	  par->setVal(mom->getVal());
@@ -100,7 +98,7 @@ namespace HS{
     ///////////////////////////////////////////////////////
     inline  void AmpHelpers::RandomiseFitParameters(){
       RandomiseAmps();
-      std::cout<<"AmpHelpers::RandomiseFitParameters() "<<_IsAmplitudes<<std::endl;
+      //std::cout<<"AmpHelpers::RandomiseFitParameters() "<<_IsAmplitudes<<std::endl;
       if(_IsAmplitudes)
 	CopyToAmpPars();
       else

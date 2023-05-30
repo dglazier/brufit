@@ -473,7 +473,9 @@ namespace HS{
       Int_t ic=0;
       //cout<<"Components String "<<scomps<<endl;
       for(Int_t i=0;i<compStrings->GetEntries();i++ ){
-	//	cout<<"  com i    "<<i<<" "<<compStrings->At(i)->GetName()<<endl;
+	auto compo = TString(compStrings->At(i)->GetName());
+	compo.ReplaceAll(";","*");
+	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
 	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
 	TString term = compStrings->At(i)->GetName();
 	auto termStrings=term.Tokenize(";");

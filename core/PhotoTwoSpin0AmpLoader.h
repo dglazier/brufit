@@ -319,7 +319,7 @@ namespace P2S0AmpLoader{
     
     //auto simplified = sumTotal;
     auto simplified = Simplify(sumTotal);
-   
+    //    cout<<"PhotoLoader moment = "<<simplified<<endl;
     return simplified;
 
   }

@@ -80,6 +80,8 @@ namespace HS{
       
       const std::string&  GetName(){return _Name;}
 
+      const std::string&  GetSummation(){return _Sum;}
+
   
     protected:
 

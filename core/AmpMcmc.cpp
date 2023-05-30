@@ -54,9 +54,9 @@ namespace HS{
 	  exit(0);
 	}
       }
-      //  pars.Print("v");
-      std::cout<<"AmpMcmc::RandomiseParameters() for the "<<fIFit++<< " time, current intensity "<<intensity0<<std::endl;
-      //   exit(0);
+      //fSetup->Parameters().Print("v");
+       // std::cout<<"AmpMcmc::RandomiseParameters() for the "<<fIFit++<< " time, current intensity "<<intensity0<<std::endl;
+       //exit(0);
     }
 
     ///////////////////////////////////////////////////////////////
