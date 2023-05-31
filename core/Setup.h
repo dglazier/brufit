@@ -183,6 +183,11 @@ namespace HS{
       void OrganiseConstraints();
       
       void SetParVal(const TString& par,Double_t val,Bool_t co=kFALSE){
+	if(dynamic_cast<RooRealVar*>(fParameters.find(par))==nullptr){
+	  std::cerr<<"Error Setup::SetParVal invalid parameter"<<par<<std::endl;
+	  exit(0);
+	}
+      
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setVal(val);
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
 	fConstPars[par]=co;

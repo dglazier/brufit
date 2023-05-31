@@ -712,8 +712,6 @@ namespace HS{
 
      //Now find accurate covariance matrix for final sampling
      if(fTreeMCMC!=nullptr){
-       std::unique_ptr<TMatrixDSym> covMat; 
-       covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
 
        if(0){
 	 auto& yields = fSetup->Yields();
@@ -725,7 +723,9 @@ namespace HS{
 
        if(_doCov==kTRUE){
 	 std::cout<<" BruMcmcCovariance::Run "<<_doCov<<std::endl;
-	   _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
+	 std::unique_ptr<TMatrixDSym> covMat; 
+	 covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
+	 _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
 	 SetProposalFunction(_propCov);
 	 MakeChain();
        }
