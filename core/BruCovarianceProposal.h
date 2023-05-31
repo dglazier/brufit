@@ -49,6 +49,17 @@ namespace HS{
 	fCache.reset();
 	fCachePosition = 0;
 	fLastX.removeAll();
+
+	fMaster.clear();
+	fMap.clear();
+
+	_covMatrix.Clear();
+	_covMatrix.ResizeTo(0,0);
+	_covMatrix = TMatrixDSym();
+	_xVec.clear();
+	_muVec.clear();
+       
+ 
       }
 
       virtual void printMappings()

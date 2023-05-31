@@ -114,6 +114,8 @@ namespace HS{
     }
 
     void BruCovarianceProposal::SetCovariance(const TMatrixDSym& mat,const RooArgSet& vars){
+      Reset();
+
       //Based on void ProposalHelper::CreatePdf()
       if (vars.getSize()!=mat.GetNcols()) {
 	std::cerr << "BruCovarianceProposal::SetCovariance: " <<
@@ -126,13 +128,12 @@ namespace HS{
       if(_xVec.getSize()==0){
 	//	std::cout<<" BruCovarianceProposal::SetCovariance  static_range_cast does not work until 6.28 c++14"<<std::endl;exit(0);
 	for (auto *r : static_range_cast<RooRealVar *> (vars)){
-	  
 	  //make an offset variable mu for each var
 	  _xVec.add(*r);
 	  
 	  TString cloneName = TString::Format("%s%s", "mu__", r->GetName());
 	  auto clone = static_cast<RooRealVar*>(r->clone(cloneName.Data()));
-	  _muVec.add(*clone);
+	  _muVec.addOwned(*clone);
 	  AddMapping(*clone, *r);
 	}
 	
