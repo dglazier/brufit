@@ -1,6 +1,7 @@
 #include "BruMcmc.h"
 #include "BruMetropolisHastings.h"
 
+#include <TROOT.h>
 #include <TIterator.h>
 #include <TDirectory.h>
 #include <TLeaf.h>
@@ -602,7 +603,8 @@ namespace HS{
      }
     ///////////////////////////////////////////////////////////////
     file_uptr BruMcmc::SaveInfo(){
-    
+      auto saveDir= gDirectory;
+      fOutFile->cd();
       fTreeMCMC->SetDirectory(fOutFile.get());
       Result();
       fTreeMCMC->Write();
@@ -624,6 +626,7 @@ namespace HS{
       delete treeDS;treeDS=nullptr;
 
       std::cout<<"BruMcmc::SaveInfo() Done to "<<fOutFile->GetName()<<std::endl;
+      saveDir->cd();
       return std::move(fOutFile);
     }
      //////////////////////////////////////////////////////////////
