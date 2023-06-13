@@ -44,7 +44,7 @@ namespace HS{
 
        CreateWeights();
        
- 
+       // cout<<"HS::FIT::sPlot::Run Done "<<endl;
        return kTRUE;
    }
     
@@ -124,9 +124,11 @@ namespace HS{
 	} //ID not defined just use entry number in dataset
 	else fWeights->FillWeights(ev,eventW);
       }
+      cout<<"sPlot::ExportWeights Done"<<endl;
     }
     
     weights_uptr sPlot::MergeWeights(){
+      std::cout<<"sPlot::MergeWeights() "<<std::endl;
       //in addition combine the weights into 1 and load them
       weights_uptr wts(new Weights("HSsWeights"));
       //Note the output file cannot contain the word Weights (because of Merge), hence Tweights!
@@ -143,7 +145,7 @@ namespace HS{
     }
 
     void sPlot::WeightedTree(){
-      if(!fWeights.get()){
+       if(!fWeights.get()){
 	if(Bins().GetSize()>0)
 	  fWeights = MergeWeights();
 	else{

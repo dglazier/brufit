@@ -21,6 +21,7 @@
 #include <TLeaf.h>
 #include <TEntryList.h>
 #include <TError.h>
+#include <TROOT.h>
 
 
 namespace HS{
@@ -272,9 +273,12 @@ namespace HS{
       TTree* idtree=fIDTree->CloneTree(0); //create empty tree with branch adresses set //Clone before create index so do not have to save index
       idtree->SetDirectory(fFile); //set file to save memory
       BuildIndex();
+      cout<<"Weights::SortWeights() "<<gDirectory->GetName()<<std::endl;
+      auto saveDir=gDirectory;
+      gROOT->cd(); //stops Error in <TBranch::WriteBasketImpl>: basket's WriteBuffer failed.
       TTree* Mwtree=fWTree->CloneTree(); //create clone tree in memory or very slow!
       Mwtree->SetDirectory(nullptr);
-      cout<<"Weights::SortWeights() Clone tree to save "<<endl;
+
       TTree* wtree=fWTree->CloneTree(0); //create empty tree with branch adresses set
       wtree->SetDirectory(fFile);//set file to save memory
       for( Long64_t i =  0; i < fN ; i++ ) {
@@ -301,7 +305,8 @@ namespace HS{
       //reset index
       fIDv=nullptr;//these have been deleted with orig fIDTree
       fIDi=nullptr;
- 
+
+      saveDir->cd();
       fIsSorted=kTRUE;
     }
     /////////////////////////////////////////////////////////////////
@@ -317,7 +322,7 @@ namespace HS{
     ////////////////////////////////////////////////////////////////
     ///Finally save weights to disk
     void Weights::Save(){
-      // cout<<"void Weights::Save() "<<fFile<<endl;
+      cout<<"void Weights::Save() "<<fFile<<endl;
       //cout<<fIDTree<<" "<<fWTree<<endl;
       if(!fFile) {cout<<"Weights::Save() no file associated with "<<GetName()<<" so not saved"<<endl;return;}
       if(!fFile->IsWritable()) return;
@@ -328,6 +333,7 @@ namespace HS{
       fIDTree->Write(); //As 1GB limit on object buffers in TFile
       Write();//save the rest (not trees) of the weights class
  
+      cout<<"void Weights::Save() done"<<fFile<<endl;
       delete fFile;fFile=nullptr;fWTree=nullptr;fIDTree=nullptr;
 
     }
@@ -540,7 +546,7 @@ namespace HS{
       }
  
       tree->ResetBranchAddresses();
-
+      std::cout<<"Weights::AddToTree done"<<std::endl;
     }
     void Weights::AddToTreeDisc(TTree* tree,const TString& fileName){
       TDirectory* saveDir=gDirectory;

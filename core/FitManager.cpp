@@ -171,8 +171,6 @@ namespace HS{
 	    ip--;
 	  }
 	  else{ //use it and give it the simulated tree
-	    pdf->MakeAssertPostiveData();
-	    pdf->AssertPositivePDF();//cache it
 	    
 	    pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
 	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
@@ -195,6 +193,10 @@ namespace HS{
 	    // pdf->SetIsSamplingIntegral();
 	      /////fCurrSetup->AddGausConstraint(pdf->GetIntegralPDF()->getPDF());
 	    //}
+
+	    pdf->MakeAssertPostiveData();
+	    pdf->AssertPositivePDF();//cache it
+
 	  }
 	  //keep the simulated tree alive until Reset()
 	  fFiledTrees.push_back(std::move(filetree));	

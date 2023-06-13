@@ -462,7 +462,7 @@ namespace HS{
       }
       */
       // if(integral<0)
-      // std::cout<<"DEBUG RooHSComponentsPDF::integral "<<integral<<std::endl;
+      //    std::cout<<"DEBUG RooHSComponentsPDF::integral "<<integral<<" "<<expectedEvents(fIntegrateSet)<<std::endl;
 
       fLast[0]=integral;
 

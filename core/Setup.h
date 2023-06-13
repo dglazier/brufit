@@ -174,10 +174,14 @@ namespace HS{
 	fErrorsSumW2=kTRUE;
 	fErrorsAsym=kFALSE;
       }
+      void ErrorsAsymp(){
+	fErrorsSumW2=kFALSE;
+	fErrorsAsym=kTRUE;
+      }
       void ErrorsWrong(){
 	fErrorsSumW2=kFALSE;
 	fErrorsAsym=kFALSE;
-    }
+      }
       
       void RandomisePars();
       void OrganiseConstraints();
@@ -261,8 +265,8 @@ namespace HS{
       strings_t fPDFString;//
       strings_t fFuncVarString;//!
 
-      Bool_t	fErrorsSumW2=kFALSE;
-      Bool_t	fErrorsAsym=kTRUE; //default to this
+      Bool_t	fErrorsSumW2=kTRUE;
+      Bool_t	fErrorsAsym=kFALSE; //default to this
 
       std::map<TString,Bool_t> fConstPars; //
       std::map<TString,Bool_t> fConstPDFPars; //

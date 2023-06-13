@@ -155,12 +155,12 @@ namespace HS{
     }
     Double_t RooHSEventsHistPDF::evaluateMC(Double_t mcx) const {
       Double_t arg=(mcx-fVarMax)*scale+fVarMax;
-      // cout<<fHist<<" "<<arg<<" "<<fx_off<<" "<<falpha<<" "<<fParent<<endl;
+      //cout<<"DEBUG RooHSEventsHistPDF::evaluateMC "<<fHist<<" "<<arg<<" "<<fx_off<<" "<<falpha<<" "<<fParent<<endl;
       // if(fParent) cout<<dynamic_cast<RooHSEventsHistPDF*>(fParent)->GetRootHist()<<endl;
       arg=arg-offset;
       fx_off->setVal(arg);
       falpha->setVal(Double_t(alpha));
-      //  cout<<fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<<" "<<arg<<" "<<mcx<<endl;
+      //cout<<"DEBUG RooHSEventsHistPDF::evaluateMC "<<fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<<" "<<arg<<" "<<mcx<<endl;
       return  fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE);
 
   
@@ -295,7 +295,6 @@ namespace HS{
       return 1; 
     }
     void RooHSEventsHistPDF::ResetTree(){
-      cout<<"vvvvvvvvvvvvvvvvvvvvvvvvv RooHSEventsHistPDF::ResetTree()"<<endl;
   
       RooHSEventsPDF::ResetTree();
       if(fHist) {
