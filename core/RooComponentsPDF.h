@@ -14,9 +14,9 @@
 namespace HS{
   namespace FIT{
  
-     using std::unique_ptr;
+    using std::unique_ptr;
 
-     class RooComponentsPDF : public HS::FIT::RooHSEventsPDF {
+    class RooComponentsPDF : public HS::FIT::RooHSEventsPDF {
 
       
       using vecUPtrReal = std::vector<unique_ptr<RooRealProxy>>;
@@ -28,7 +28,7 @@ namespace HS{
       RooComponentsPDF(const char *name, const char *title,Double_t base,const RooArgList& obsList,const vector<RooArgList> compList);
       RooComponentsPDF(const RooComponentsPDF& other, const char* name=nullptr) ;
       TObject* clone(const char* newname) const override { return new RooComponentsPDF(*this,newname); }
-       inline ~RooComponentsPDF() override =default;
+      inline ~RooComponentsPDF() override =default;
  
       
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
@@ -43,16 +43,16 @@ namespace HS{
       void initGenerator(Int_t code) override;
 
     protected:
-       void InitAssertPositiveCheck() const override{
-	 RedirectServersToPdf();
-	 if(fMCAPDepTerm.empty()==kTRUE)
-	   cacheMCAP(&fAssertPosDataReal,&fAssertPosDataCat);
-	 _assertPostive=kTRUE;
-       };
+      void InitAssertPositiveCheck() const override{
+	RedirectServersToPdf();
+	if(fMCAPDepTerm.empty()==kTRUE)
+	  cacheMCAP(&fAssertPosDataReal,&fAssertPosDataCats);
+	_assertPostive=kTRUE;
+      };
        
-       void FinishAssertPositiveCheck() const override {RedirectServersToData();_assertPostive=kFALSE;};
-       Double_t cacheMCAP(const vector<Float_t> *vars,const  vector<Int_t> *cats) const;
-       Double_t evaluateMCAP() const;
+      void FinishAssertPositiveCheck() const override {RedirectServersToData();_assertPostive=kFALSE;};
+      Double_t cacheMCAP(const vector<Float_t> *vars,const  vector<Int_t> *cats) const;
+      Double_t evaluateMCAP() const;
 	 
       Double_t evaluateData() const override ;
       Double_t evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const override;
@@ -61,15 +61,15 @@ namespace HS{
       Double_t componentIntegral(Int_t icomp) const;
       void initIntegrator() override;
  
-       void RecalcComponentIntegralsSampling(Int_t code,const char* rangeName) const;
-       Double_t componentVariance(Int_t icomp) const;
-       void DoFirstIntegrations(const char* rangeName="") const;
+      void RecalcComponentIntegralsSampling(Int_t code,const char* rangeName) const;
+      Double_t componentVariance(Int_t icomp) const;
+      void DoFirstIntegrations(const char* rangeName="") const;
 
-       // Double_t sampleIntegral() const;
-       Bool_t CheckChange() const override;
-     private:
+      // Double_t sampleIntegral() const;
+      Bool_t CheckChange() const override;
+    private:
 
-       RooListProxy fActualObs;
+      RooListProxy fActualObs;
       RooListProxy fActualCats;
       RooListProxy fActualComps;
       
@@ -81,21 +81,21 @@ namespace HS{
       vector<vector<RooRealVar*>> fDependentTermParams;
       vector<vector<RooRealProxy*>> fIndependentTermProxy;
 
-       vector<std::unique_ptr<RooRealProxy>> _myVarProxies;//I am going to own these
+      vector<std::unique_ptr<RooRealProxy>> _myVarProxies;//I am going to own these
        
       vector<RooRealVar*> fIntegrateObs;
       vector<RooCategory*> fIntegrateCats;
       RooArgSet fIntegrateSet;
-      
+      RooArgSet fParameters;//!
+   
       mutable vector<Double_t> fCacheCompDepIntegral;
       mutable vector<Double_t> fCacheCompDepSigmaIntegral;
       mutable vector<vector<Double_t>> fPrevParVals;
       mutable vector<UInt_t> fRecalcComponent;
 
-       mutable vector<vector<Double_t>> fMCAPDepTerm;
+      mutable vector<vector<Double_t>> fMCAPDepTerm;
        
-      RooArgSet fParameters;
- 
+   
       Double_t fBaseLine=0;
       mutable Double_t fWeightedBaseLine=0;
       mutable Double_t fNUsedForIntegral=0;
@@ -103,16 +103,16 @@ namespace HS{
       UInt_t fNCats=0;
       UInt_t fNComps=0;
       mutable Bool_t fFirstCalculation=kTRUE;
-       mutable Bool_t _once = kTRUE;
-       mutable Bool_t _assertPostive=kFALSE;
-       mutable Long64_t _NIntegralCalls=0;
-       ClassDefOverride(HS::FIT::RooComponentsPDF,1);
+      mutable Bool_t _once = kTRUE;
+      mutable Bool_t _assertPostive=kFALSE;
+      mutable Long64_t _NIntegralCalls=0;
+      ClassDefOverride(HS::FIT::RooComponentsPDF,1);
 
        
     };
 
     template<typename T, typename A>
-      bool vecContains( T arg, std::vector<T,A> const& vec ) {
+    bool vecContains( T arg, std::vector<T,A> const& vec ) {
       if(std::find(vec.begin(),vec.end(),arg) == vec.end())
 	return false;
       return true;

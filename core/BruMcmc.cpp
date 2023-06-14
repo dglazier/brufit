@@ -670,7 +670,7 @@ namespace HS{
   void BruMcmcCovariance::Run(Setup &setup,RooAbsData &fitdata){
 
     //auto foptions = fSetup->FitOptions();
-    
+    /* //Prefit with reduced stats, needs work....remove for now
     std::cout<<"BruMcmcCovariance::Run check for prefit "<<dynamic_cast<RooDataSet*>(&fitdata)<<std::endl;
     RooDataSet tiny("tiny", "tiny", *fitdata.get(),
 		    fitdata.isWeighted() ? RooFit::WeightVar(dynamic_cast<RooDataSet*>(&fitdata)->weightVar()->GetName())  : RooCmdArg());
@@ -693,16 +693,18 @@ namespace HS{
     else{
       fData=&fitdata;
     }
+    */
     
-     fSetup=&setup;
-      //initialise MCMCCalculator
-     // SetData(fitdata);
-     SetModel(setup.GetModelConfig());
-     SetupBasicUsage();
-
-     //find a region of hgh likelihood
-     if(_doSeq==kTRUE){
-       SetProposalFunction(_propSeq);
+    fData=&fitdata;
+    fSetup=&setup;
+    //initialise MCMCCalculator
+    
+    SetModel(setup.GetModelConfig());
+    SetupBasicUsage();
+    
+    //find a region of hgh likelihood
+    if(_doSeq==kTRUE){
+      SetProposalFunction(_propSeq);
        MakeChain();
      }
      
@@ -716,13 +718,13 @@ namespace HS{
      //Now find accurate covariance matrix for final sampling
      if(fTreeMCMC!=nullptr){
 
-       if(0){
-	 auto& yields = fSetup->Yields();
-	 for(auto yld:static_range_cast<RooRealVar *>(yields)){
-	   yld->setVal(yld->getVal()/tinyFraction);
-	 }
-	 fData=&fitdata; //make sure have full dataset
-       }
+       // if(0){
+       // 	 auto& yields = fSetup->Yields();
+       // 	 for(auto yld:static_range_cast<RooRealVar *>(yields)){
+       // 	   yld->setVal(yld->getVal()/tinyFraction);
+       // 	 }
+       // 	 fData=&fitdata; //make sure have full dataset
+       // }
 
        if(_doCov==kTRUE){
 	 std::cout<<" BruMcmcCovariance::Run "<<_doCov<<std::endl;

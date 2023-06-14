@@ -327,16 +327,16 @@ namespace HS{
       //three super terms
       
         //Initiliase components cache
-      //fDependentTerm.resize(fNComps);
+     
       fDependentTermProxy.resize(fNComps);
       fDependentTermParams.resize(fNComps);
       fPrevParVals.resize(fNComps);
       fCacheCompDepIntegral.resize(fNComps);
       fCacheCompDepSigmaIntegral.resize(fNComps);
       
-      //fIndependentTerm.resize(fNComps);
+     
       fIndependentTermProxy.resize(fNComps);
-      //fParameterTerm.resize(fNComps);
+    
       UInt_t icomp=0;
       for(auto &comp: fComponents){
 	fCacheCompDepIntegral[icomp]=1;

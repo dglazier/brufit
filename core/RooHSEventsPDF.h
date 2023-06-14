@@ -104,7 +104,7 @@ namespace HS{
   
       //  std::shared_ptr<RooDataSet> fAssertPosData={nullptr};
       vector<Float_t> fAssertPosDataReal;
-      vector<Int_t> fAssertPosDataCat;
+      vector<Int_t> fAssertPosDataCats;
       Long64_t fNapd = 10000;
       
       Double_t fMaxValue=0; //max value of function for accept/reject

@@ -96,16 +96,16 @@ namespace HS{
     }
     private:
  
-      std::unique_ptr<RooMultiVarGaussian> fPdf={nullptr}; /// the proposal density function
-      std::map<RooRealVar*, RooAbsReal*> fMap; /// map of values in pdf to update
-      std::map<RooRealVar*, RooAbsReal*>::iterator fIt; /// pdf iterator
-      RooArgSet fLastX; /// the last point we were at
+      std::unique_ptr<RooMultiVarGaussian> fPdf={nullptr}; //! the proposal density function
+      std::map<RooRealVar*, RooAbsReal*> fMap; //! map of values in pdf to update
+      std::map<RooRealVar*, RooAbsReal*>::iterator fIt; //! pdf iterator
+      RooArgSet fLastX; //! the last point we were at
       Int_t fCacheSize; /// how many points to generate each time
       Int_t fCachePosition; /// our position in the cached proposal data set
-      std::unique_ptr<RooDataSet> fCache={nullptr}; /// the cached proposal data set
-      RooArgSet fMaster; /// pointers to master variables needed for updates
+      std::unique_ptr<RooDataSet> fCache={nullptr}; //! the cached proposal data set
+      RooArgSet fMaster; //! pointers to master variables needed for updates
  
-      TMatrixDSym _covMatrix;
+      TMatrixDSym _covMatrix;//!
 
       RooArgList _xVec;
       RooArgList _muVec;

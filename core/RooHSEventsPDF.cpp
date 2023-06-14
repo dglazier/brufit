@@ -43,7 +43,7 @@ namespace HS{
       fTreeEntryNumber=other.fTreeEntryNumber;
       
       fAssertPosDataReal=other.fAssertPosDataReal;
-      fAssertPosDataCat=other.fAssertPosDataCat;
+      fAssertPosDataCats=other.fAssertPosDataCats;
       fNapd =other.fNapd;
       
       if(other.fEvTree)fEvTree=other.fEvTree;
@@ -939,25 +939,76 @@ namespace HS{
     }
 
     void RooHSEventsPDF::MakeAssertPostiveData(){
-      RooArgSet vars = VarSet(0);
+      //   RooArgSet vars = VarSet(0);
       auto saveTreeEntry=fTreeEntry;
       fTreeEntry=0;
-      
-      fAssertPosDataReal.resize(fNapd*fNvars);
-      
-      for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
-	//whatabout categories !!!
+
+      auto NVars=fProxSet.size();
+      fAssertPosDataReal.resize(fNapd*NVars);
+
+      auto NCats=fCatSet.size();
+      fAssertPosDataCats.resize(fNapd*NCats);
+
+       for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+	
 	UInt_t ivar=0;
-	for(auto v:vars){
-	  auto vr = dynamic_cast<RooRealVar*>(v);
-	  fAssertPosDataReal[fTreeEntry*fNvars+ivar]=(gRandom->Uniform(vr->getMin(""),vr->getMax("")));
-	  ++ivar;
+	for(auto v:fProxSet){
+	  //	  cout<<"RooHSEventsPDF::MakeAssertPostiveData() "<<iapd<<" "<<v->GetName()<<std::endl;
+	  auto vr = dynamic_cast<const RooRealVar*>(&v->arg());
+	  if(vr!=nullptr){
+	    fAssertPosDataReal[fTreeEntry*NVars+ivar]=(gRandom->Uniform(vr->getMin(""),vr->getMax("")));
+	    ++ivar;
+	  }
 	}
+	UInt_t icat=0;
+	for(auto v:fCatSet){
+	  auto vc = dynamic_cast<const RooCategory*>(&v->arg());
+	
+	  if(vc!=nullptr){
+	    auto catstate = gRandom->Integer(vc->size());
+	    auto val = vc->getOrdinal(catstate).second;
+	   
+	    fAssertPosDataCats[fTreeEntry*NCats+icat]=val;
+	    ++icat;
+	  }
+	}
+	
 	fTreeEntry++;
       }
-      //cout<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<std::endl;
+       // cout<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<" "<<fAssertPosDataCats[0]<<std::endl;exit(0);
       fTreeEntry=saveTreeEntry;
     }
+   // void RooHSEventsPDF::MakeAssertPostiveData(){
+   //    RooArgSet vars = VarSet(0);
+   //    auto saveTreeEntry=fTreeEntry;
+   //    fTreeEntry=0;
+   //    auto NVarsAndCats=vars.getSize();
+   //    fAssertPosDataReal.resize(fNapd*NVarsAndCats);
+   //    cout<<"RooHSEventsPDF::MakeAssertPostiveData() "<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<std::endl;
+   //    for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+	
+   // 	//whatabout categories !!!
+   // 	UInt_t ivar=0;
+   // 	for(auto v:vars){
+   // 	  cout<<"RooHSEventsPDF::MakeAssertPostiveData() "<<iapd<<" "<<v->GetName()<<std::endl;
+   // 	  auto vr = dynamic_cast<RooRealVar*>(v);
+   // 	  if(vr!=nullptr){
+   // 	    fAssertPosDataReal[fTreeEntry*NVarsAndCats+ivar]=(gRandom->Uniform(vr->getMin(""),vr->getMax("")));
+
+   // 	  }
+   // 	  else{//category
+   // 	    auto vc = dynamic_cast<RooCategory*>(v);
+   // 	    auto catstate = gRandom->Integer(vc->size());
+   // 	    auto val = vc->getOrdinal(catstate).second;
+   // 	    fAssertPosDataCat[fTreeEntry*NVarsAndCats+ivar]=val;
+   // 	  }
+   // 	  ++ivar;
+   // 	}
+   // 	fTreeEntry++;
+   //    }
+   //    //cout<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<std::endl;
+   //    fTreeEntry=saveTreeEntry;
+   //  }
     Bool_t RooHSEventsPDF::AssertPositivePDF() const{
       //make sure this PDF is >=0 for its full allowed range
       // std::cout<<"RooHSEventsPDF::AssertPositivePDF()"<<std::endl;
@@ -967,7 +1018,7 @@ namespace HS{
       fTreeEntry=0;
       // cout<<"RooHSEventsPDF::AssertPositivePDF()"<<endl;
       for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
-       	auto val = evaluateMC(&fAssertPosDataReal,&fAssertPosDataCat);
+       	auto val = evaluateMC(&fAssertPosDataReal,&fAssertPosDataCats);
 	++fTreeEntry;
 	if(val<-1E-4){ //some tolerance
 	  //  cout<<"RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve. "<<val<<" "<<fTreeEntry<<endl;
