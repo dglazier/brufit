@@ -15,6 +15,7 @@ namespace HS{
       Double_t intensity0=0;
       //auto& pars = fSetup->Parameters();
 
+      _ampHelper.SetSetup(nullptr); //make sure reconfigure
       _ampHelper.ConfigAmps(fSetup);
       // _ampHelper.SetSetup(fSetup);
 
