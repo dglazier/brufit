@@ -106,8 +106,8 @@ namespace HS{
       // SaveRefits(saveArgs);
 
       //cleanup
-      if(treeDS){delete treeDS;treeDS=nullptr;}
-      if(_treeDSbru){delete _treeDSbru;_treeDSbru=nullptr;}
+      if(treeDS){treeDS=nullptr;}
+      if(_treeDSbru){_treeDSbru=nullptr;}
       
       return std::move(file);
  
