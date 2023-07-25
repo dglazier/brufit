@@ -756,7 +756,7 @@ namespace HS{
       if(fInWeights) delete fInWeights;
       fInWeights=nullptr;
       fInWeights=new Weights();
-      fInWeights->LoadSaved(fWgtsConf.File(),fWgtsConf.ObjName());
+      fInWeights->LoadSavedDisc(fWgtsConf.File(),fWgtsConf.ObjName());
       // fWgtSpecies = fWgtsConf.Species();
       if(fInWeights->GetSpeciesID(fWgtsConf.Species())==-1){
 	cout<<"ERROR RooHSEventsPDF::LoadInWeights() requested species "<<fWgtsConf.Species()<<" not found in given weights"<<endl;
