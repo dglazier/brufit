@@ -130,11 +130,15 @@ namespace HS{
 	fBinner.ReloadData(fname,name);
       }
       
-      void LoadGenerated(const TString& tname,TString fname,const TString& name){
-	TString buffer = fBinner.GetCut();
-	fBinner.RemoveAllCuts();
-	fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
-	fBinner.AddCut(buffer);
+      void LoadGenerated(const TString& tname,TString fname,const TString& name, Bool_t ignoreCuts=kFALSE){
+            if(ignoreCuts)
+                  fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
+            else{
+                  TString buffer = fBinner.GetCut();
+                  fBinner.RemoveAllCuts();
+                  fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
+                  fBinner.AddCut(buffer);
+            }
       }
       void ReloadGenerated(const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name+"__MCGen");

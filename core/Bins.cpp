@@ -84,7 +84,7 @@ namespace HS{
       }
       VecString_t part;
       for (int iB = 1; iB <= fVarAxis[iA].GetNbins(); iB++) { 
-	fVarAxis[iA].SetBinLabel(iB,Form("%1.2f_",fVarAxis[iA].GetBinCenter(iB)));
+	fVarAxis[iA].SetBinLabel(iB,Form("%1.6f_",fVarAxis[iA].GetBinCenter(iB)));
 	part.push_back(TString(fVarAxis[iA].GetName())+fVarAxis[iA].GetBinLabel(iB));
 	IterateAxis(iA+1,binName+fVarAxis[iA].GetName()+fVarAxis[iA].GetBinLabel(iB));
       }

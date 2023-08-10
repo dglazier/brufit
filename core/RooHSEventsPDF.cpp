@@ -369,10 +369,12 @@ namespace HS{
 	for(Long64_t ie=0;ie<fNTreeEntries;ie++){
 	  fTreeEntry=ie;
 	  if(!CheckRange(TString(rangeName).Data())) continue;
+          // cout << "evaluateMC: " << evaluateMC(&fvecReal,&fvecCat) << " GetIntegralWeight: " << GetIntegralWeight(ie) << endl;
+
 	  integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
 	  nev++;
 	}
-	cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << endl;
+	cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << ". Integral=" << integral << endl;
       }
       else if(code==2 && fHasMCGenTree){
 	for(Long64_t ie=0;ie<fNMCGenTreeEntries;ie++){
@@ -380,7 +382,7 @@ namespace HS{
 	  integral+=evaluateMC(&fvecRealMCGen,&fvecCatMCGen);
 	  nMC++;
 	}
-	cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << endl;
+	cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << ". Integral=" << integral  << endl;
       }
       else{
 	return 0;
@@ -756,7 +758,9 @@ namespace HS{
       if(fInWeights) delete fInWeights;
       fInWeights=nullptr;
       fInWeights=new Weights();
-      fInWeights->LoadSaved(fWgtsConf.File(),fWgtsConf.ObjName());
+      // fInWeights->LoadSaved(fWgtsConf.File(),fWgtsConf.ObjName());
+      fInWeights->LoadSavedDisc(fWgtsConf.File(),fWgtsConf.ObjName());
+      fInWeights->PrintWeight();
       // fWgtSpecies = fWgtsConf.Species();
       if(fInWeights->GetSpeciesID(fWgtsConf.Species())==-1){
 	cout<<"ERROR RooHSEventsPDF::LoadInWeights() requested species "<<fWgtsConf.Species()<<" not found in given weights"<<endl;
