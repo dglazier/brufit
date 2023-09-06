@@ -334,11 +334,11 @@ namespace HS{
 	    if(!CheckRange(rangeName)) continue;
 	    accepted++;
 	    integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
-	    //	  }
+	  }
 	
 	  //normalise integral by number of events accepted
 	  integral/=accepted;
-	}
+	  
 	//Needs fixed to componentsPDF method
 	//else{//use sampled method
 	  //	  integral = analyticalIntegralForSampling(rangeName);
