@@ -65,7 +65,7 @@ namespace HS{
       string GetPDF(){return _pdfString;}
 
       void SetVars(const string& vars){_varsString="{"+vars+"}";}
-      
+      const string& GetVarsString(){return _varsString;}
       void ParseTerm(string term);
       
     protected :
