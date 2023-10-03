@@ -46,6 +46,20 @@ namespace HS{
 	_Setup->LoadVariable(var);
 	_Polarisation=var(0,var.First('['));
       }
+     void SetPolCirc(const TString& var){
+	_Setup->LoadVariable(var);
+	_PolCirc=var(0,var.First('['));
+      }
+      void SetBeamHelicity(const TString& var){
+	_Setup->LoadVariable(var);
+	_BeamHelicity=var(0,var.First('['));
+	_HelicityIsCat=kFALSE;
+      }
+      void SetBeamHelicityState(const TString& var){
+	_Setup->LoadCategory(var);
+	_BeamHelicity=var(0,var.First('['));
+ 	_HelicityIsCat=kTRUE;
+     }
       void SetConstPolarisation(const TString& var){ //e.g. Pol[0.5]
 	_Setup->LoadConstant(var);
 	//	_Polarisation=var(0,var.First('['));
@@ -70,6 +84,13 @@ namespace HS{
       void SetOnlyEvenWaves(){
 	_OnlyEven=kTRUE;
       }
+      void UseCircularPol(){
+	_UseI3=kTRUE;
+      }
+      void IgnoreLinearPol(){
+	_UseI12=kFALSE;
+      }
+      
       std::string  ConfigureMoments() override;
       
       std::string ConfigurePWAs() override;
@@ -93,6 +114,8 @@ namespace HS{
       std::string _DecayAnglePhi;
       std::string _PolPhi;
       std::string _Polarisation;
+      std::string _PolCirc;
+      std::string _BeamHelicity;
       std::string _Sum;
       std::string _Name;
       
@@ -102,8 +125,10 @@ namespace HS{
       Bool_t _OnlyEven=kFALSE;
       Bool_t _NegativeM=kTRUE;
       Bool_t _constPol=kFALSE;
+      Bool_t _UseI3=kFALSE;
+      Bool_t _UseI12=kTRUE;
+      Bool_t _HelicityIsCat=kFALSE;
 
-      
     };
     
   }

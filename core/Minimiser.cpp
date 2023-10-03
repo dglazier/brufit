@@ -65,6 +65,11 @@ namespace HS{
       fSetup->LoadSnapShot(Form("Refit_%d",best));
       fResult=dynamic_cast<RooFitResult*>(results[best]->clone());    
       fResult->Print();
+
+      //cleanup
+      fLikelies.clear();
+      _Statuses.clear();
+      
       return;
     }
     ////////////////////////////////////////////////////////////////
@@ -100,6 +105,10 @@ namespace HS{
       }
       // SaveRefits(saveArgs);
 
+      //cleanup
+      if(treeDS){treeDS=nullptr;}
+      if(_treeDSbru){_treeDSbru=nullptr;}
+      
       return std::move(file);
  
     }

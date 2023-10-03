@@ -32,16 +32,17 @@ namespace P2S0AmpLoader{
 
     int reflfactor = 1;
     if(alpha==1||alpha==2) reflfactor = reflsign; //-ve in Eqn D8b&c canceled by -ve in A9b 
+
     if(factor == 1) factor=1.0;
     if(factor == -1) factor=-1.0;
   
     if(l==lpr&&m==mpr)return Form("%d*%0.16f*(@%c_%d_%d[]*@%c_%d_%d[])",reflfactor,factor,refl,l,m,refl,lpr,mpr);
       
     TString func="cos"; //for real part
-    if(alpha==2) func="cos"; //for imaginery part
+    if(alpha==3) func="sin"; //for imaginery part
 
     // cout<<"FACTOR "<<factor<<endl;
-    return Form("%0.16f*(TMath::Abs(@%c_%d_%d[])*TMath::Abs(@%c_%d_%d[])*%s(@%cphi_%d_%d[]-@%cphi_%d_%d[]))",reflfactor*factor,refl,l,m,refl,lpr,mpr,func.Data(),refl,l,m,refl,lpr,mpr);
+     return Form("%0.16f*(TMath::Abs(@%c_%d_%d[])*TMath::Abs(@%c_%d_%d[])*%s(@%cphi_%d_%d[]-@%cphi_%d_%d[]))",reflfactor*factor,refl,l,m,refl,lpr,mpr,func.Data(),refl,l,m,refl,lpr,mpr);
    }
 
  ///////////////////////////////////////////////////////////////////////////
@@ -269,8 +270,26 @@ namespace P2S0AmpLoader{
 		  sum+= BruTermCircle(refl,-1*mprimesign*ccfactor,il,im,ilpr,-impr,alpha,negm);
 		}
 		
-	      }		
+	      }
+	      
+	      if(alpha==3){
+		//from eqn D8a
+		//note mmprimesign cancels -ve in ccfactor for opposite SDME entries
+		ccfactor*=-1;//-ve in Eqn A9d
+		sum+= BruTermCircle(refl,ccfactor,il,im,ilpr,impr,alpha,negm);
+		sum+= " - ";
+		sum+= BruTermCircle(refl,mmprimesign*ccfactor,il,-im,ilpr,-impr,alpha,negm);
 
+		if(useNegRef==kTRUE){
+		
+		  refl=-1;
+		  sum+= " + ";
+		  sum+= BruTermCircle(refl,ccfactor,il,im,ilpr,impr,alpha,negm);
+		  sum+= " - " ;
+		  sum+= BruTermCircle(refl,mmprimesign*ccfactor,il,-im,ilpr,-impr,alpha,negm);
+		}
+	      }
+	      
 	      //if not including -ve m remove XXX terms
 	      sum.ReplaceAll("+ -1*XXX","");
 	      sum.ReplaceAll("-1*XXX","");
@@ -319,7 +338,7 @@ namespace P2S0AmpLoader{
     
     //auto simplified = sumTotal;
     auto simplified = Simplify(sumTotal);
-    //    cout<<"PhotoLoader moment = "<<simplified<<endl;
+    cout<<"PhotoLoader moment = "<<simplified<<endl;
     return simplified;
 
   }
@@ -405,6 +424,15 @@ namespace P2S0AmpLoader{
 	    momf=CGMatrixReflectivity("H",iL,iM,lmax,mmax,2,(nRefl==2),onlyEven,negm);
 	    if(momf[momf.Length()-1]!='=')setup.LoadFormula(momf);
 	 
+	    else {
+	      momf.ReplaceAll("=","[0]");
+	      setup.LoadConstant(momf);
+	    }
+	  }
+	  if(iM!=0){
+	    momf=CGMatrixReflectivity("H",iL,iM,lmax,mmax,3,(nRefl==2),onlyEven,negm);
+	    if(momf[momf.Length()-1]!='=')setup.LoadFormula(momf);
+	    
 	    else {
 	      momf.ReplaceAll("=","[0]");
 	      setup.LoadConstant(momf);

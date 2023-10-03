@@ -38,15 +38,20 @@ namespace HS{
       Setup _ampSetup; // just for configuring
       Setup* _fitSetup={nullptr}; //actual fit setup
       Bool_t _IsAmplitudes=kTRUE;
+      Bool_t _IsConfigured=kFALSE;
       
     };
 
  
    inline  void  AmpHelpers::ConfigAmps(Setup* setup){
-     if(_fitSetup!=nullptr) return;//already done
+     if(_IsConfigured){
+       _fitSetup=setup;
+       return;//already done
+     }
+     _fitSetup=setup;
+
      
      _IsAmplitudes = _configure->IsAmplitudes(); //config should be configured for whatever we are fitting (moments or amps)
-     _fitSetup=setup;
       //Copy parameters and formulas to _ampSetup
       auto oldSetup = _configure->GetSetup();
       _configure->SetSetup(&_ampSetup);
@@ -71,6 +76,8 @@ namespace HS{
       	  par->setVal(mom->getVal());
       	}
       }
+
+      _IsConfigured=kTRUE;
       
       return;
     }

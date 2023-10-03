@@ -295,12 +295,14 @@ namespace HS{
       for(Int_t ii=0;ii<fNvars;ii++){
 	//cout<<vars->at(fTreeEntry*fNvars+ii)<<" ";
 	fIntegrateObs[ii]->setVal(vars->at(fTreeEntry*fNvars+ii));
-      }
+	//	std::cout<<fIntegrateObs[ii]->GetName()<<" "<<fIntegrateObs[ii]->getVal();
+       }
       for(Int_t ii=0;ii<fNcats;ii++){
 	fIntegrateCats[ii]->setIndex(cats->at(fTreeEntry*fNcats+ii));
+ 	//std::cout<<fIntegrateCats[ii]->GetName()<<" "<<fIntegrateCats[ii]->getIndex();
       }
-      //cout<<endl;
-      return evaluateData();
+      // cout<<endl;
+       return evaluateData();
     }
     Bool_t RooComponentsPDF::isDirectGenSafe(const RooAbsArg& arg) const {
       if(fActualObs.find(arg.GetName())) return kTRUE;

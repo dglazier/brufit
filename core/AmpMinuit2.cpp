@@ -15,8 +15,7 @@ namespace HS{
       Double_t intensity0=0;
       //auto& pars = fSetup->Parameters();
 
-      _ampHelper.ConfigAmps(fSetup);
-      // _ampHelper.SetSetup(fSetup);
+       _ampHelper.ConfigAmps(fSetup);
 
       
       for(Int_t irand=0;irand<10000;++irand){

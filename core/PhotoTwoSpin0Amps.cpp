@@ -14,13 +14,25 @@ namespace HS{
       //ReY_L_M(cosThGJ,Phi,Y_L_M)} => real part of Y^M_L a function of cosThGJ, Phi
       if(_OnlyEven==kFALSE){
 	_Sum +=       Form("+ SUM(L[1|%d],M[0|%d<L+1]){H_0_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-	_Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-	_Sum +=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	if(_UseI12){
+	  _Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	  _Sum +=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	}
+	if(_UseI3){
+	  _Sum+=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_3_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*PCIRC}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+
+	}
       }
       else{//increment L by 2
       	_Sum +=       Form("+ SUM(L[2|%d:2],M[0|%d<L+1]){H_0_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-      	_Sum +=       Form("+ SUM(L[0|%d:2],M[0|%d<L+1]){H_1_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-      	_Sum +=        Form("+ SUM(L[2|%d:2],M[1|%d<L+1]){H_2_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	if(_UseI12){
+	  _Sum +=       Form("+ SUM(L[0|%d:2],M[0|%d<L+1]){H_1_L_M*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	  _Sum +=        Form("+ SUM(L[2|%d:2],M[1|%d<L+1]){H_2_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	}
+	if(_UseI3){
+	  _Sum+=        Form("+ SUM(L[2|%d],M[1|%d<L+1]){H_3_L_M*K_L*ImY_L_M(%s,%s,Y_L_M)*PCIRC}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+
+	}
 
       }
 
@@ -44,20 +56,32 @@ namespace HS{
       //ReY_L_M(cosThGJ,Phi,Y_L_M)} => real part of Y^M_L a function of cosThGJ, Phi
       if(_OnlyEven==kFALSE){
 	_Sum +=       Form("+ SUM(L[1|%d],M[0|%d<L+1]){H_0_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-	_Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-	_Sum+=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	if(_UseI12){
+	  _Sum +=       Form("+ SUM(L[0|%d],M[0|%d<L+1]){H_1_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	  _Sum+=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_2_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	}
+	if(_UseI3){
+	  _Sum+=        Form("+ SUM(L[1|%d],M[1|%d<L+1]){H_3_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*PCIRC}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+
+	}
       }
       else{//increment L by 2
       	_Sum +=       Form("+ SUM(L[2|%d:2],M[0|%d<L+1]){H_0_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-      	_Sum +=       Form("+ SUM(L[0|%d:2],M[0|%d<L+1]){H_1_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-      	_Sum+=        Form("+ SUM(L[2|%d:2],M[1|%d<L+1]){H_2_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	if(_UseI12){
+	  _Sum +=       Form("+ SUM(L[0|%d:2],M[0|%d<L+1]){H_1_L_M[0,-2,2]*K_L*ReY_L_M(%s,%s,Y_L_M)*COS2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	  _Sum+=        Form("+ SUM(L[2|%d:2],M[1|%d<L+1]){H_2_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+	}
+	if(_UseI3){
+	  _Sum+=        Form("+ SUM(L[2|%d],M[1|%d<L+1]){H_3_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*PCIRC}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
+
+	}
 
       }
       _IsAmplitudes=kFALSE;
       return _Sum;
 
     }
-    
+  
     void PhotoTwoSpin0Amps::LoadModelPDF(Long64_t Nevents){
       //Nevents in case this is a toy generator
       //  ComponentsPdfParser  parser = PolarisedSphHarmonicMoments("AngularDist","trucosThGJ","truphiGJ","truphiCM","trucosThCM",_Lmax*2,0,_Lmax*2);
@@ -119,39 +143,88 @@ namespace HS{
       TString phi = _DecayAnglePhi;
       TString phiPol = _PolPhi;
       TString Pol = _Polarisation;
+      TString BeamHel = _BeamHelicity;
+      TString PolCirc = _PolCirc;
+      
       Int_t Lmax = _Lmax*2; //L for moments is 2xL for partial waves
       Int_t Mmax = _Mmax*2;
       
       ComponentsPdfParser mp(name.Data());
-     if(_constPol==kFALSE){
-       mp.SetVars(Form("%s,%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data(),Pol.Data()));
-     }
-     else{
-       mp.SetVars(Form("%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data()));
-     }
-      //From eqn a15a,b  https://arxiv.org/pdf/1906.04841.pdf 
+   //From eqn a15a,b  https://arxiv.org/pdf/1906.04841.pdf 
       mp.AddFunctionTemplate("RooHSSphHarmonic","Y_*_0(*,*,*,*,1)");//tau=1 for M=0
       mp.AddFunctionTemplate("RooHSSphHarmonic","Y_*_*(*,*,*,*,2)");//tau=2
       mp.AddFunctionTemplate("RooHSSphHarmonicRe","ReY_*_*(*,*,Y_*_*)");
       mp.AddFunctionTemplate("RooHSSphHarmonicIm","ImY_*_*(*,*,Y_*_*)");
 
-      //Create   RooHSSphHarmonic functions, this only needs done here because RooHSSphHarmonic are not created by the parser otherwise...
+      
+      if(_UseI3){
+
+	if(_constPol==kFALSE){
+	  if(PolCirc.Length()==0){
+	    //make circ pol a parameter
+	    mp.SetVars(Form("%s,%s,%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data(),Pol.Data(),BeamHel.Data()));
+	    //mp.AddParameter("parPcirc[0,0,1]");
+	  }
+	  else{
+	    mp.SetVars(Form("%s,%s,%s,%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data(),Pol.Data(),BeamHel.Data(),PolCirc.Data()));
+	  }
+	}
+	else{
+	  if(PolCirc.Length()==0){
+	    mp.SetVars(Form("%s,%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data(),BeamHel.Data()));
+	    //mp.AddParameter("parPcirc[0,0,1]");
+	  }
+	  else{
+	    mp.SetVars(Form("%s,%s,%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data(),BeamHel.Data(),PolCirc.Data()));
+	  }
+	}
+     }
+      else{
+	if(_constPol==kFALSE){
+	  mp.SetVars(Form("%s,%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data(),Pol.Data()));
+	}
+	else{
+	  mp.SetVars(Form("%s,%s,%s",cth.Data(),phi.Data(),phiPol.Data()));
+	}
+     }
+     
+        //Create   RooHSSphHarmonic functions, this only needs done here because RooHSSphHarmonic are not created by the parser otherwise...
       //Note extra factor 2 when M!=0 (tau in paper)
       mp.ConstructPDF(mp.ReplaceSummations(Form("SUM(L[0|%d],M[%d|%d>-L-1<L+1!0]){Y_L_M(%s,%s,L,M,2)}+SUM(L[0|%d]){Y_L_0(%s,%s,L,0,1)}",Lmax,0,Mmax,cth.Data(),phi.Data(),Lmax,cth.Data(),phi.Data())));
 
 
       if(_constPol==kFALSE){
-	mp.AddFormula(Form("COS2PHI=@%s[]*cos(2*@%s[])",Pol.Data(),phiPol.Data())); //Note +ve
+	mp.AddFormula(Form("COS2PHI=@%s[]*cos(2*@%s[])",Pol.Data(),phiPol.Data())); //Note +ve (due to -ve in Eqn A15a)
 	mp.AddFormula(Form("SIN2PHI=-@%s[]*sin(2*@%s[])",Pol.Data(),phiPol.Data())); //Note -ve
       }
       else{
 	mp.AddFormula(Form("COS2PHI=%s*cos(2*@%s[])",Pol.Data(),phiPol.Data())); //Note +ve
-	mp.AddFormula(Form("SIN2PHI=%s*sin(2*@%s[])",Pol.Data(),phiPol.Data())); //Note -ve
+	mp.AddFormula(Form("SIN2PHI=-%s*sin(2*@%s[])",Pol.Data(),phiPol.Data())); //Note -ve
       }
       for(Int_t iL=0;iL<=Lmax;iL++)
 	mp.AddConstant(Form("K_%d[%lf]",iL,TMath::Sqrt(2*iL+1.)/TMath::Sqrt(4*TMath::Pi())));
       
-     
+      if(_UseI3){
+	std::cout<<"VARS "<<mp.GetVarsString()<<std::endl;
+	//case helciity is continous variable
+	if(_HelicityIsCat==kFALSE){
+	  if(PolCirc.Length()==0){
+	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@parPcirc[0,0,0.5]",BeamHel.Data(),BeamHel.Data()));
+	  }
+	  else{  
+	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@%s[]",BeamHel.Data(),BeamHel.Data(),PolCirc.Data()));
+	  }
+	}
+	//case helciity is category 
+	if(_HelicityIsCat==kTRUE){
+	  if(PolCirc.Length()==0){
+	    mp.AddFormula(Form("PCIRC=@%s[]*@parPcirc[0,0,0.5]",BeamHel.Data()));
+	  }
+	  else{
+	  mp.AddFormula(Form("PCIRC=@%s[]*@%s[]",BeamHel.Data(),PolCirc.Data()));
+	  }
+	}
+      }
       return mp;
       
     }

@@ -334,11 +334,11 @@ namespace HS{
 	    if(!CheckRange(rangeName)) continue;
 	    accepted++;
 	    integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
-	    //	  }
+	  }
 	
 	  //normalise integral by number of events accepted
 	  integral/=accepted;
-	}
+	  
 	//Needs fixed to componentsPDF method
 	//else{//use sampled method
 	  //	  integral = analyticalIntegralForSampling(rangeName);
@@ -758,10 +758,9 @@ namespace HS{
       if(fInWeights) delete fInWeights;
       fInWeights=nullptr;
       fInWeights=new Weights();
-      // fInWeights->LoadSaved(fWgtsConf.File(),fWgtsConf.ObjName());
+
       fInWeights->LoadSavedDisc(fWgtsConf.File(),fWgtsConf.ObjName());
-      fInWeights->PrintWeight();
-      // fWgtSpecies = fWgtsConf.Species();
+
       if(fInWeights->GetSpeciesID(fWgtsConf.Species())==-1){
 	cout<<"ERROR RooHSEventsPDF::LoadInWeights() requested species "<<fWgtsConf.Species()<<" not found in given weights"<<endl;
 	fInWeights->Print();
