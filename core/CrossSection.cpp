@@ -18,7 +18,10 @@ namespace FIT{
 
 	Bool_t CrossSection::Run(){
 
-		LoadFitResult();
+		if(!LoadFitResult()){
+			cout << " CrossSection::Run() Couldn't load fit results." << endl;
+			return kFALSE;
+		}
 
 		CreateCurrSetup();
 
@@ -51,12 +54,14 @@ namespace FIT{
 		Write();
 	}
 
-	void CrossSection::LoadFitResult(){
+	Bool_t CrossSection::LoadFitResult(){
 		if(fResultFileName==TString())
-			return;
+			return kFALSE;
 
 		TString resultFile=fResultDir+Bins().BinName(GetDataBin(GetFiti()))+"/"+fResultFileName;
 		std::unique_ptr<TFile> fitFile{TFile::Open(resultFile)};
+		if(fitFile==nullptr)
+			return kFALSE;
 		std::unique_ptr<RooDataSet> result{dynamic_cast<RooDataSet*>( fitFile->Get(Minimiser::FinalParName()))};
 
 		//Set the values of the paramteres to those in the given result
@@ -68,6 +73,10 @@ namespace FIT{
 			cout<<"CrossSection::LoadFitResult setting values from fit results "<<resultFile<<" : "<<endl;
 			newPars.Print("v");
 		}
+		else
+			return kFALSE;
+		
+		return kTRUE;
 	}
 
 	void CrossSection::SetBeamEnergyBinLimits(TString bin){
@@ -244,12 +253,12 @@ namespace FIT{
 			//find correct bin limits, feels clumsy, is there a better way to do this?
 			Double_t binvalue = -1.;
 			TString currname = GetCurrName();
-			TObjArray* token = currname.Tokenize("_");
-			for(auto j:*token){
-				TString namebuffer = ((TObjString*)j)->String();
-				if(namebuffer.Contains(axisname)){ // pick out part of name that contains axisname
-					namebuffer.ReplaceAll(axisname,""); //remove axisname from bin, only central value is left
-					binvalue = namebuffer.Atof();
+			TString tok;
+			Ssiz_t from = 0;
+			while(currname.Tokenize(tok,from,"__")){
+				if(tok.Contains(axisname)){ //pick out part of name that contains axisname
+					tok.ReplaceAll(axisname,""); //remove axisname from bin, only central value is left
+					binvalue = tok.Atof();
 					break;
 				}
 			}
@@ -280,6 +289,8 @@ namespace FIT{
 		Double_t acccorryielderrbuffer[nbins];
 		Double_t fluxnormyieldbuffer[nbins];
 		Double_t fluxnormielderrbuffer[nbins];
+		Double_t acceptancebuffer[nbins];
+		Double_t acceptanceerrbuffer[nbins];
 		Double_t binningbuffer[nbins];
 		Double_t ebinning[nbins];
 		std::set<Double_t> ebinningset;
@@ -287,7 +298,7 @@ namespace FIT{
 			TString fileName=Form("%s%s/ResultsCrossSection.root",SetUp().GetOutDir().Data(),Bins().BinName(i).Data());
 			std::unique_ptr<TFile> file{TFile::Open(fileName)};
 			if(file==nullptr){ //check file exists
-				cout << fileName << " couldn't be opened. Does it exist?" << endl;
+				cout << "CrossSection::DrawResults " << fileName << " couldn't be opened. Does it exist?" << endl;
 				csbuffer[i] = 0;
 				cserrbuffer[i] = 0;
 				binningbuffer[i] = 0;
@@ -308,6 +319,8 @@ namespace FIT{
 			acccorryielderrbuffer[i] = yielderrbuffer[i]/a->GetAcceptance();
 			fluxnormyieldbuffer[i] = yieldbuffer[i]/a->GetFlux();
 			fluxnormielderrbuffer[i] = yielderrbuffer[i]/a->GetFlux();
+			acceptancebuffer[i] = a->GetAcceptance();
+			acceptanceerrbuffer[i] = a->GetAcceptance_err();
 
 			binningbuffer[i] = a->GetBinValue();
 			ebinning[i] = a->GetBeamEnergyValue();
@@ -324,6 +337,8 @@ namespace FIT{
 		Double_t acccorryield_err[ebins][nbins/ebins];
 		Double_t fluxnormyield[ebins][nbins/ebins];
 		Double_t fluxnormield_err[ebins][nbins/ebins];
+		Double_t acceptance[ebins][nbins/ebins];
+		Double_t acceptance_err[ebins][nbins/ebins];
 		Double_t binning[ebins][nbins/ebins];
 		Double_t energybins[ebins];
 		Int_t ecounter=0;
@@ -339,6 +354,8 @@ namespace FIT{
 					acccorryield_err[ecounter][counter] = acccorryielderrbuffer[j];
 					fluxnormyield[ecounter][counter] = fluxnormyieldbuffer[j];
 					fluxnormield_err[ecounter][counter] = fluxnormielderrbuffer[j];
+					acceptance[ecounter][counter] = acceptancebuffer[j];
+					acceptance_err[ecounter][counter] = acceptanceerrbuffer[j];
 					binning[ecounter][counter] = binningbuffer[j];
 					energybins[ecounter]=i;
 					counter++;
@@ -406,6 +423,18 @@ namespace FIT{
 			gFluxNormYields[e]->GetXaxis()->SetTitle(axisname);
 		}
 
+		TGraphErrors* gAcceptance[ebins];
+		TCanvas* cAcceptance = new TCanvas("acceptance","acceptance");
+		cAcceptance->DivideSquare(ebins);
+		for(Int_t e=0; e<ebins;e++){
+			cAcceptance->cd(e+1);
+			gAcceptance[e] = new TGraphErrors(nbins/ebins,binning[e],acceptance[e],0,acceptance_err[e]);
+			gAcceptance[e]->SetNameTitle(TString::Format("Acceptance%d",e),fBeamEnergyBinName+TString::Format("=%f",energybins[e]));
+			gAcceptance[e]->Draw("AP");
+			gAcceptance[e]->SetMarkerStyle(20);
+			gAcceptance[e]->GetXaxis()->SetTitle(axisname);
+		}
+
 		if(outputfile != ""){
 			cout << "Save to " << outputfile << endl;
 			auto outfile=std::unique_ptr<TFile> (new TFile{outputfile,"recreate"});
@@ -414,11 +443,13 @@ namespace FIT{
 				cYields->Write();
 				cAccCorrYields->Write();
 				cFluxNormYields->Write();
+				cAcceptance->Write();
 				for(Int_t e=0; e<ebins;e++){
 					gResults[e]->Write();
 					gYields[e]->Write();
 					gAccCorrYields[e]->Write();
 					gFluxNormYields[e]->Write();
+					gAcceptance[e]->Write();
 				}
 			}
 		}
