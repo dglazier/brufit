@@ -244,7 +244,7 @@ namespace HS{
 	auto newPars = fCurrSetup->ParsAndYields();
 	auto* resAll = result->get(); //get all result info
 	auto* resPars=resAll->selectCommon(newPars); //just select pars and yieds
-       	newPars.assignFast(*resPars); //set values to results
+       	newPars.assign(*resPars); //set values to results
 	cout<<"FitManager::LoadResult setting values from fit results "<<resultFile<<" : "<<endl;
 	newPars.Print("v");
 	//	delete result;result=nullptr;
