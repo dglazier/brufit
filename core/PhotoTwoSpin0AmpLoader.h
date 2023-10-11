@@ -2,6 +2,7 @@
 
 #include <TMath.h>
 #include <TError.h>
+#include <TF1.h>
 #include <Math/SpecFuncMathMore.h>
 #include "Setup.h"
 
@@ -45,7 +46,116 @@ namespace P2S0AmpLoader{
      return Form("%0.16f*(TMath::Abs(@%c_%d_%d[])*TMath::Abs(@%c_%d_%d[])*%s(@%cphi_%d_%d[]-@%cphi_%d_%d[]))",reflfactor*factor,refl,l,m,refl,lpr,mpr,func.Data(),refl,l,m,refl,lpr,mpr);
    }
 
- ///////////////////////////////////////////////////////////////////////////
+TString Simplify(TString moment){
+
+  auto expr = TString(moment(moment.First("=")+1,moment.Length()));
+  auto terms = (expr.Tokenize('+'));
+
+  auto SwitchWaves = [](const TString& pws){
+    auto pw1 = pws(pws.First('_'),pws.First('[') - pws.First('_'));
+    auto pwtemp = TString(pws(pws.First(']'),pws.Length()-pws.First(']')));
+    auto pw2 = pwtemp(pwtemp.First('_'),pwtemp.First('[') - pwtemp.First('_'));
+    auto ptemp = pws;
+    ptemp.ReplaceAll(pw1,"PW1PART");
+    ptemp.ReplaceAll(pw2,"PW2PART");
+    ptemp.ReplaceAll("PW1PART",pw2);
+    ptemp.ReplaceAll("PW2PART",pw1);
+    return ptemp;
+  };
+  auto NumericalPart = [](const TString& pname){
+    auto pnum = TString(pname(0,pname.First('(')-1));
+    TF1 fnum("fnum",pnum);//use TF1 to convert arithmetic to single double	
+    Double_t anum = fnum.Eval(0);
+    return anum;
+  };
+  auto MatchTermWithConj = [&SwitchWaves,&NumericalPart](TString& aname,TString other){
+		     auto isNeg = false;
+		     auto isOtherNeg = false;
+		     auto name = aname;
+		     //store numerical factors
+		     auto anum = NumericalPart(name);
+		     auto onum = NumericalPart(other);
+		     //cout<<"number " <<Form("%0.16f",anum)<<" other num "<<Form("%0.16f",onum)<<" dif "<<Form("%0.16f",anum-onum)<<" sum "<<Form("%0.16f",anum+onum)<<endl;
+		     
+		     //remove numerical factor
+		     auto pwname = TString(name(name.First('('),name.Last(')')-name.First('(')+1));
+		     //get switched pws tp get conjugate
+		     auto conjname=SwitchWaves(pwname);
+ 
+		     bool isChanging=false;
+		     if(other.Contains(pwname)||other.Contains(conjname)){
+		       auto conjfactor = 1;
+		       if(pwname.Contains("sin")){
+			 //check if same 
+			 if(other.Contains(pwname)) conjfactor=1;
+			 //or conjugate
+			 else  conjfactor = -1; //sin changes sign when phi=-ve phi
+		       }
+		       //sum numerical parts
+		       auto nsum = anum + onum*conjfactor;
+		       if(TMath::Abs(nsum)<1E-15){
+			 name=""; //exactly cancelled
+		       }
+		       else{//sum terms
+			 name = Form("%0.16f * %s",nsum,pwname.Data());
+		       }
+		      
+		       isChanging=true;
+		       aname = name;
+		     }
+
+		     return isChanging;
+		   };
+
+  TString newExpr="";
+  for(int i=0;i<terms->GetEntries();++i){
+    auto name = TString(terms->At(i)->GetName());
+    if(name=="") continue;
+    //cout<<"Testing "<<name<<endl;
+    for(int j=i+1;j<terms->GetEntries();++j){
+      auto othername = TString(terms->At(j)->GetName());
+      if(othername.Length()==0) continue;
+      auto changed = MatchTermWithConj(name,othername);
+      //cout<<" with "<<othername<<" "<<changed<<endl;
+      if(changed){
+	//cout<<"new name is "<<name<<" from "<<terms->At(i)->GetName()<<" and "<<othername<<endl;
+	dynamic_cast<TObjString*>(terms->At(j))->SetString("");
+	break;
+      }
+    }
+    //    if(name == terms->At(i)->GetName())cout<<"Testing "<<name<<endl;
+    if(name!=""){
+      newExpr+=name;
+      if(i!=terms->GetEntries()-1){
+	newExpr+='+';
+      }
+    }
+  }
+ 
+    if(newExpr.EndsWith("+"))  newExpr = newExpr.Strip(TString::kTrailing,'+');
+    newExpr.ReplaceAll(" ","");//remove whitespace so can iterate
+    newExpr.Prepend(moment(0,moment.First("=")+1));
+  
+  
+  return newExpr;
+}
+TString SimplifyAll(TString moment){
+  TString target = moment;
+  TString changed = "";
+  auto count =0;
+  //iterate until all terms combined together
+  while (1){
+    changed  = Simplify(target);
+    cout<<"target "<<target <<endl;
+    cout<<"changed "<<changed<<endl<<endl;
+    if(changed==target) break;
+    target = changed;
+    count++;
+  }
+  cout<<"SimplifyAll interations "<<count<<endl;
+  return target;
+}
+  /*///////////////////////////////////////////////////////////////////////////
   TString Simplify(TString moment){
     //Look for like terms and sum together (some may cancel)
    
@@ -161,7 +271,7 @@ namespace P2S0AmpLoader{
      }
     return newExpr;
   }
-
+  */
   //////////////////////////////////////////////////////////////////////
   inline TString CGMatrixReflectivity(TString Moment,Int_t L,Int_t M,
 				      Int_t lmax, Int_t mmax,Int_t alpha,
@@ -277,7 +387,7 @@ namespace P2S0AmpLoader{
 		//note mmprimesign cancels -ve in ccfactor for opposite SDME entries
 		ccfactor*=-1;//-ve in Eqn A9d
 		sum+= BruTermCircle(refl,ccfactor,il,im,ilpr,impr,alpha,negm);
-		sum+= " - ";
+		sum+= " +- ";//include + for easy splitting in simplify
 		sum+= BruTermCircle(refl,mmprimesign*ccfactor,il,-im,ilpr,-impr,alpha,negm);
 
 		if(useNegRef==kTRUE){
@@ -285,7 +395,7 @@ namespace P2S0AmpLoader{
 		  refl=-1;
 		  sum+= " + ";
 		  sum+= BruTermCircle(refl,ccfactor,il,im,ilpr,impr,alpha,negm);
-		  sum+= " - " ;
+		  sum+= " +- " ;//include + for easy splitting in simplify
 		  sum+= BruTermCircle(refl,mmprimesign*ccfactor,il,-im,ilpr,-impr,alpha,negm);
 		}
 	      }
@@ -336,8 +446,9 @@ namespace P2S0AmpLoader{
     for(int ic=0;ic<sumTotal.Length();ic++)
       copySum+=sumTotal[ic];
     
-    //auto simplified = sumTotal;
-    auto simplified = Simplify(sumTotal);
+    auto simplified = sumTotal;
+    //auto simplified = Simplify(sumTotal);
+    //auto simplified = SimplifyAll(sumTotal);
     cout<<"PhotoLoader moment = "<<simplified<<endl;
     return simplified;
 
