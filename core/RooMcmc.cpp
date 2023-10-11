@@ -12,6 +12,7 @@
 #include <TMatrixD.h>
 #include <TH1D.h>
 #include <TMatrixDSym.h>
+#include <cmath>
 
 namespace HS{
   namespace FIT{
@@ -126,9 +127,19 @@ namespace HS{
 	return kFALSE; //unsuccessful
       }
       
-      if(fChainData){ delete fChainData; fChainData=nullptr;}
+     if(fChain->Size()>fNumStepsThres && fChain->Size()<fNumIters-10) fDontDeleteChain = kTRUE;      
       
-      fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
+      if(!fDontDeleteChain)
+      	{
+	  if(fChainData){ delete fChainData; fChainData=nullptr;}      
+	  fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
+	  fNumIters = fNumIters-fChain->Size();
+	}
+	  else
+	{
+	  if(fChainData) fChainData->append(*(fChain->GetAsDataSet(EventRange(0, fChain->Size()))));	
+	  fNumIters = fNumIters-fChain->Size();		  
+	  }
 
       if(fChainData){
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
@@ -230,6 +241,78 @@ namespace HS{
       
       return covMatSymNorm;
     }
+    ////////////////////////////////////////////////////////
+    TMatrixDSym RooMcmc::MakeMcmcRMSMatrix(TTree* tree,size_t burnin){
+          
+      auto pars = fSetup->NonConstParsAndYields();
+      Int_t Npars = pars.size();
+      Int_t Nentries = tree->GetEntries()-burnin;
+      Int_t param_index=0;    
+      vector<Double_t> params(Npars);
+      Double_t data[Npars];
+      Double_t dataRMS[Npars];
+      //Int_t NburnC = fNumBurnInStepsCov;
+
+      TH1F *hist = new TH1F("hist","hist",100,-10,1000);
+      for(RooAbsArg* ipar : pars)
+	{
+	  std::string name3 = ">>hist";
+	  std::string name = ipar->GetName();
+	  std::string n = name + name3;
+	  const char* name2 = n.c_str();
+	  tree->Draw(name2);
+	  dataRMS[param_index] = hist->GetRMS();
+	  std::cout<<dataRMS[param_index]<<std::endl;
+	  if(dataRMS[param_index]==0 && !name.find("Yld")) dataRMS[param_index] = 0.1;
+	  if(dataRMS[param_index]==0 && name.find("Yld")) dataRMS[param_index] = 50;
+
+	  param_index++;
+	}
+      
+      std::cout<<"Finds RMS"<<std::endl;
+
+      Double_t dataRMS_mat[Npars*Npars];
+      for(Int_t i=0; i<Npars*Npars;i++)
+	{//Set the values of the matrix 
+	  dataRMS_mat[i]=0;
+	  
+	}	
+      for(Int_t j=0;j<Npars;j++)
+	{
+	  dataRMS_mat[j*(Npars+1)]=dataRMS[j];
+	}
+    	  
+
+      TMatrixDSym covMatSym(Npars,dataRMS_mat);//=nullptr;
+      // covMatSym.SetMatrixArray(dataRMS_mat,""); //actually returns pointer to reference so do not delete
+      
+std::cout<<"Sets dataRMS_matrix"<<std::endl;
+//covMatSym.Print();
+      //covMatSym is the symmetric covariance matrix to be used in the proposal function
+     
+      //      TMatrixDSym covMatSymNorm=*covMatSym;
+     
+      std::cout<<"Sets elements of TMatrix"<<std::endl;
+      
+      tree->ResetBranchAddresses();
+
+      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
+      
+      TFile* saveSeq=new TFile(saveName,"recreate");
+
+      cout<<"Set tree file "<<tree->GetDirectory()<<endl;
+      // auto saveDir=tree->GetDirectory();
+      //tree->SetDirectory(saveSeq);
+      AddEntryBranch();
+      //tree->Write();
+      saveSeq->WriteObject(tree,tree->GetName());
+      // tree->SetDirectory(saveDir);
+      delete saveSeq;
+      //      tree->SetDirectory(nullptr);
+      
+      return covMatSym;
+    }
+
     ////////////////////////////////////////////////////////
     
     TMatrixDSym RooMcmc::MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin){
@@ -651,6 +734,7 @@ namespace HS{
 
     fMCMCHelp=kTRUE; //turn on help
     auto adjustedNorm=fNorm;
+    Int_t counter = 1;
     while(MakeChain()==kFALSE){
       if(fChainAcceptance) adjustedNorm *= (fTargetAcc)/(fChainAcceptance);
       else {//probably stuck some where start again!
@@ -744,6 +828,7 @@ namespace HS{
       //MakeChain();
 
       fMCMCHelp=kTRUE; //turn on help
+      Int_t counter=1;
       auto adjustedNorm=fNorm;
       while(MakeChain()==kFALSE){
 	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
@@ -756,6 +841,12 @@ namespace HS{
 	  SetParVals(initialPars.get());
 	  adjustedNorm *= 5;
 	}
+	if(adjustedNorm > 1E20*fNorm || adjustedNorm < fNorm/1E20) 
+	  {//Protect against huge or tiny norm
+	    adjustedNorm = fNorm+counter;
+	    SetParVals(initialPars.get());
+	    counter++;
+	  }
 	
 	cout<<"RooMcmcSeqHelper from Seq The n Cov adjust norm to "<<adjustedNorm<<" from "<<fNorm<<" for target acceptance "<<fTargetAcc<< " chain accept "<<fChainAcceptance<<endl;
 	sp.reset(new RooStats::SequentialProposal(adjustedNorm));
@@ -832,6 +923,145 @@ namespace HS{
     }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
+ void RooMcmcSeqThenRMS::Run(Setup &setup, RooAbsData &fitdata){
+
+   
+      fSetup=&setup;
+      fData=&fitdata;
+      //initialise MCMCCalculator
+      SetData(fitdata);
+      SetModel(setup.GetModelConfig());
+      SetupBasicUsage();
+
+      //store initial value to use if we get screwed up
+      std::unique_ptr<RooArgSet> initialPars{fSetup->ParsAndYields().snapshot()};
+      /*
+      //A class that 
+1.Runs through a number of burn in events
+2.Runs a sequential proposal mcmc
+3.Finds the covariance matrix from the seq prop run
+4.Uses the cov mat to generate new prop func and run
+      */
+      fMCMCHelp=kFALSE; //not for seqential (yet)
+      //RooStats::SequentialProposal sp(fNorm);
+      //SetProposalFunction(sp);
+      //fKeepStart=kTRUE; //start values from previous
+      //MakeChain();
+      std::unique_ptr<RooStats::SequentialProposal> sp{new RooStats::SequentialProposal(fNorm)};
+      SetProposalFunction(*sp.get());
+      fKeepStart=kTRUE; //start values from previous
+      //MakeChain();
+      Int_t counter = 1;
+      fMCMCHelp=kTRUE; //turn on help
+      auto adjustedNorm=fNorm;
+      while(MakeChain()==kFALSE){
+	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
+	//Double_t acc = fChainAcceptance; //in case no event accepted start with correcting for 1%
+	
+	// adjustedNorm *= TMath::Sqrt(0.234)/TMath::Sqrt(acc);
+	//	adjustedNorm *= (0.234)/(acc);
+	if(fChainAcceptance) adjustedNorm *= (fTargetAcc)/(fChainAcceptance);
+	else {//probably stuck some where start again!
+	  SetParVals(initialPars.get());
+	  adjustedNorm *= 5;
+	}
+	if(adjustedNorm > 1E20*fNorm || adjustedNorm < fNorm/1E20) 
+	  {//Protect against huge or tiny norm
+	    adjustedNorm = fNorm+counter;
+	    SetParVals(initialPars.get());
+	    counter++;
+	  }
+	
+	cout<<"RooMcmcSeqHelper from Seq Then RMS adjust norm to "<<adjustedNorm<<" from "<<fNorm<<" for target acceptance "<<fTargetAcc<< " chain accept "<<fChainAcceptance<<endl;
+	sp.reset(new RooStats::SequentialProposal(adjustedNorm));
+	SetProposalFunction(*sp.get());
+      }
+      
+      auto saveN = fNumIters;
+      fNumIters = fNumItersThenCov;
+      auto saveNorm=fNorm;
+      fNorm=fNormThenCov;
+      auto saveBurn=fNumBurnInSteps;
+      fNumBurnInSteps=fNumBurnInStepsThenCov;
+
+      //      TMatrixDSym covMat =  MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps);
+      //MakeMcmcCovarianceMatrix(fTreeMCMC,saveBurn);
+      std::unique_ptr<TMatrixDSym> covMat;
+      
+      if(fUncorrelateYields)
+	covMat.reset(new TMatrixDSym(MakeMcmcNonYieldCovarianceMatrix(fTreeMCMC,saveBurn)));
+      else
+	covMat.reset(new TMatrixDSym(MakeMcmcRMSMatrix(fTreeMCMC,saveBurn)));
+      
+      auto divideNorm = 1./fNorm;
+      // covMat*= divideNorm;
+ 
+        
+      std::unique_ptr<ProposalHelper> ph{new ProposalHelper()};
+      ph->SetUniformFraction(0);
+      ph->SetVariables(fSetup->NonConstParsAndYields());
+      ph->SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+
+
+      //nite we reset the cache every proposal as was
+      //causing the chain to get stuck
+      ph->SetCacheSize(1);
+      ph->SetCovMatrix((*covMat.get())*divideNorm);
+      auto* pf = dynamic_cast<RooStats::PdfProposal*>(ph->GetProposalFunction());
+      pf->SetOwnsPdf(kTRUE);
+      SetProposalFunction(*pf);
+     	
+      fKeepStart=kTRUE; //start values from previous
+      fMCMCHelp=kTRUE; //turn on help
+
+      //update inital pars to vals at end of sequential chain
+      Result();
+      initialPars.reset(fSetup->ParsAndYields().snapshot());
+      Int_t covcounter = 1;
+      while(MakeChain()==kFALSE){
+	//	auto adjustNorm = 1./fNorm / 0.234*fChainAcceptance;
+	Double_t acc = fChainAcceptance >0 ? fChainAcceptance:1; //in case no event accepted start with correcting for 1%
+	
+	//	divideNorm *= TMath::Sqrt(acc)/TMath::Sqrt(fTargetAcc);
+
+	if(fChainAcceptance)
+	  {
+	    divideNorm *= (fChainAcceptance)/(fTargetAcc);
+	    SetParVals(initialPars.get());
+	  }
+	else{//zero acceptance, probably stuck, move back to inital vals
+	  SetParVals(initialPars.get());
+	  divideNorm /= 5;
+	}
+
+	if(1./divideNorm < 1 || 1./divideNorm > 1000000) 
+	  {//Protect against huge or tiny norm
+	    divideNorm = 1./(fNorm+covcounter);
+	    SetParVals(initialPars.get());
+	    covcounter++;
+	  }
+
+	cout<<"RooMcmcSeqThenCov adjust norm to "<<1./divideNorm<<" from "<<fNorm<< endl;
+	ph.reset(new ProposalHelper());
+	ph->SetUniformFraction(0);
+	ph->SetVariables(fSetup->NonConstParsAndYields());
+	ph->SetUpdateProposalParameters(true); // auto-create mean vars and add mappings
+	ph->SetCovMatrix((*covMat.get())*divideNorm);
+	delete pf;
+	pf = dynamic_cast<RooStats::PdfProposal*>(ph->GetProposalFunction());
+	SetProposalFunction(*pf);
+
+      }
+      
+      fNumIters = saveN; //switch back to seq Niters for next bin
+      fNorm=saveNorm;
+      fNumBurnInSteps=saveBurn;
+    }
+  
+
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
     void RooMcmcUniform2Seq::Run(Setup &setup,RooAbsData &fitdata){
      fSetup=&setup;
      fData=&fitdata;

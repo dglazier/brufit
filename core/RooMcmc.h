@@ -42,6 +42,7 @@ namespace HS{
       Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
       TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin);
+      TMatrixDSym MakeMcmcRMSMatrix(TTree* tree, size_t burnin);
       TMatrixDSym MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin);
       TMatrixDSym MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin);
       TTree* GetTree(){return fTreeMCMC;}
@@ -147,7 +148,11 @@ namespace HS{
       Int_t fNumBins{}; // set the number of bins to create for each
       Int_t fWarmup{}; //ignore these events
       Float_t fNorm=1;
+      Int_t fNumStepsThres=500000; //Number of steps past which the chain will not adjust norm (only adjust position)
+
       Int_t fNumBurnInStepsCov; //Number of steps to remove from chain to make covariance matrix for proposal function
+
+      Bool_t fDontDeleteChain = kFALSE; //Default to start chain again
 
       vector<Double_t> _formVals;//(formulas.getSize(),0);
       vector<TBranch*> _formBranches;//(formulas.getSize(),nullptr);
@@ -242,6 +247,32 @@ namespace HS{
       ClassDefOverride(HS::FIT::RooMcmcSeqThenCov,1);
    };
 
+class RooMcmcSeqThenRMS  : public RooMcmc {
+      
+ public:
+   
+ RooMcmcSeqThenRMS(Int_t Niter=100,Int_t Nburn=10,  Float_t norm=0.1,Int_t NiterThenCov=100,Int_t NburnCov=10,Float_t normThenCov=1,Int_t Nthres=500000):RooMcmc(Niter,Nburn,norm ),fNumItersThenCov(NiterThenCov),fNumBurnInStepsThenCov(NburnCov),fNormThenCov(normThenCov){fNumStepsThres = Nthres;
+	SetNameTitle("HSRooMcmcSeqThenRMS","RooMcmcSeqThenRMS minimiser");
+      }
+  //  RooMcmcSeqThenRMS(const RooMcmcSeqThenRMS&)=default;
+  //  RooMcmcSeqThenRMS(RooMcmcSeqThenRMS&&)=default;
+      ~RooMcmcSeqThenRMS() override =default;
+      //  RooMcmcSeqThenRMS& operator=(const RooMcmcSeqThenRMS& other)=default;
+      //RooMcmcSeqThenRMS& operator=(RooMcmcSeqThenRMS&& other) = default;  
+
+      void Run(Setup &setup,RooAbsData &fitdata) override;
+      Int_t GetNumBurnInSteps()const final{return fNumBurnInStepsThenCov;}
+
+
+ private:
+   
+   Int_t fNumItersThenCov=100; //number of iterations to run second metropolis algorithm with covariance proposal
+   Int_t fNumBurnInStepsThenCov=50; //Number of burn in steps to discard from the chain to make covariance matrix
+   Float_t fNormThenCov=1;
+  
+
+      ClassDefOverride(HS::FIT::RooMcmcSeqThenRMS,1);
+   };
 
 
      class RooMcmcUniform2Seq  : public RooMcmc {

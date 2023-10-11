@@ -15,7 +15,7 @@ namespace HS{
 
       str=StringReplaceAll(str," ","");//remove whitespace
       str=ReplaceSummations(str); //expand summations
-
+      cout<<"construct PDF  "<<str<<endl;
       //change + -> : and * -> ; for RooComponentsPDF
       str=StringReplaceAll(str,"+",":");
       str=StringReplaceAll(str,"*",";");
@@ -30,7 +30,7 @@ namespace HS{
       while(!term.empty()){
 	term=NextComponentsTerm(str,pos,tpos);
 
-	//std::cout<<"term "<<term<<endl;
+	//	std::cout<<"term "<<term<<endl;
 	//case predefined
 	if(CheckParameterList(term))
 	  continue;
