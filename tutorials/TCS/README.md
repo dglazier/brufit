@@ -1,5 +1,4 @@
-Example for fitting Time-Like Compton Scattering Distributions
-##############################################################
+# Example for fitting Time-Like Compton Scattering Distributions
 
 The dilepton model is defined in Model.C and is used for both NoDetector
 and Detector fits below.
@@ -12,8 +11,7 @@ Where 	B = relative BH contribution
 		ReM = real part of helicity ampltude
 		ImM = imaginary part of helicity amplitude : ReM2  =(1- ImM2)
 
-1) No Detector
-**************
+## No Detector
 
    Here we just generate a large "flat" dataset for all observables.
    We then use the "flat" dataset to generate sub data sets with given
@@ -39,8 +37,8 @@ Or different values for our 3 parameters
 Output in toys_test/
 
 
-2) Detector
-***********
+## Detector
+
 
 For this you need to produce simulated data from some detector setup and reconstruction.
 The events should be signal only and ideally truth matched.
