@@ -36,6 +36,8 @@ namespace HS{
       static const TString FinalParName(){return "FinalParameters";}
       static const TString ResultTreeName(){return "ResultTree";}
 
+      void SetSetup(Setup *setup){fSetup=setup;}
+      
     protected:
       Setup *fSetup=nullptr; //!not owned by minimiser
       RooAbsData* fData=nullptr; //!not owned by minimiser
