@@ -144,7 +144,8 @@ namespace HS{
       for(Int_t ip=0;ip<pdfs.getSize();ip++){
 	auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
 	if(pdf!=nullptr){
-	
+	  //SetTruthprefix
+	  pdf->SetTruthPrefix(fTruthPrefix);
 	  if(fBinner.FileNames(pdf->GetName()).size()==0)
 	    continue;
 	  //Open tree files for getting events
