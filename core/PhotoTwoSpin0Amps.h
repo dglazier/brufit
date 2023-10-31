@@ -50,7 +50,11 @@ namespace HS{
 	_Setup->LoadVariable(var);
 	_PolCirc=var(0,var.First('['));
       }
-      void SetBeamHelicity(const TString& var){
+      void SetPolCircFormula(const TString& var){
+	_Setup->LoadFormula( var);
+	_PolCirc=var(0,var.First('='));
+      }
+     void SetBeamHelicity(const TString& var){
 	_Setup->LoadVariable(var);
 	_BeamHelicity=var(0,var.First('['));
 	_HelicityIsCat=kFALSE;

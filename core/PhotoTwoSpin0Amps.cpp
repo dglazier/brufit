@@ -38,6 +38,15 @@ namespace HS{
 
       P2S0AmpLoader::LoadPartialWaves(*_Setup,_Lmax,_Mmax,_Nref,_OnlyEven,_NegativeM); //generate formula vars for Hs in terms of partial waves
       _IsAmplitudes=kTRUE;
+
+      //remove parameter circual polarisation from formula
+      //to prevent integral resumming
+      if(_PolCirc.length()==0&&_UseI3){
+	auto helcirc = Form("PCIRC*parPcirc");
+	auto 	tsum = TString(_Sum.data());
+	tsum.ReplaceAll("PCIRC",helcirc);
+	_Sum = tsum;
+      }
       return _Sum;
     }
     
@@ -73,10 +82,19 @@ namespace HS{
 	}
 	if(_UseI3){
 	  _Sum+=        Form("+ SUM(L[2|%d],M[1|%d<L+1]){H_3_L_M[0,-2,2]*K_L*ImY_L_M(%s,%s,Y_L_M)*PCIRC}",2*_Lmax,2*_Mmax,_DecayAngleCosTh.data(),_DecayAnglePhi.data());
-
 	}
 
       }
+
+      //remove parameter circual polarisation from formula
+      //to prevent integral resumming
+      if(_PolCirc.length()==0&&_UseI3){
+	auto helcirc = Form("PCIRC*parPcirc");
+	auto tsum = TString(_Sum.data());
+	tsum.ReplaceAll("PCIRC",helcirc);
+	_Sum = tsum;
+      }
+     
       _IsAmplitudes=kFALSE;
       return _Sum;
 
@@ -209,7 +227,9 @@ namespace HS{
 	//case helciity is continous variable
 	if(_HelicityIsCat==kFALSE){
 	  if(PolCirc.Length()==0){
-	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@parPcirc[0,0,0.5]",BeamHel.Data(),BeamHel.Data()));
+	    //mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@parPcirc[0.5,0,1]",BeamHel.Data(),BeamHel.Data()));
+	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))",BeamHel.Data(),BeamHel.Data()));
+	    mp.AddParameter("parPcirc[0.5,0,1]");
 	  }
 	  else{  
 	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@%s[]",BeamHel.Data(),BeamHel.Data(),PolCirc.Data()));
@@ -218,7 +238,10 @@ namespace HS{
 	//case helciity is category 
 	if(_HelicityIsCat==kTRUE){
 	  if(PolCirc.Length()==0){
-	    mp.AddFormula(Form("PCIRC=@%s[]*@parPcirc[0,0,0.5]",BeamHel.Data()));
+	    // mp.AddFormula(Form("PCIRC=@%s[]*@parPcirc[0.5,0,1]",BeamHel.Data()));
+	    mp.AddFormula(Form("PCIRC=@%s[]",BeamHel.Data()));
+	    mp.AddParameter("parPcirc[0.5,0,1]");
+
 	  }
 	  else{
 	  mp.AddFormula(Form("PCIRC=@%s[]*@%s[]",BeamHel.Data(),PolCirc.Data()));
