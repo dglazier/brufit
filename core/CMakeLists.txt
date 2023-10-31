@@ -4,7 +4,7 @@ set(DIRNAME core)
 
 
 
-ROOT_GENERATE_DICTIONARY(G__${BRUFIT} Weights.h FiledTree.h RooHSComplex.h RooHSComplexSumSqdTerm.h RooHSEventsPDF.h RooComponentsPDF.h RooHSEventsHistPDF.h RooHSEventsHistPDF.h RooHSSphHarmonic.h RooHSDWigner.h RooHSDWignerProduct.h RelBreitWigner.h PdfParser.h PredefinedParsers.h ComponentsPdfParser.h Setup.h Binner.h Bins.h BootStrapper.h Data.h PlotResults.h MCMCPlotResults.h AutocorrPlot.h CornerPlot.h CornerFullPlot.h Minimiser.h FitManager.h sPlot.h ToyManager.h CrossSection.h RooMcmc.h AmpMinuit2.h AmpMcmc.h BruSequentialProposal.h  BruCovarianceProposal.h BruMetropolisHastings.h  BruMcmc.h HSMetropolisHastings.h Process.h FitSelector.h PhotoTwoSpin0Amps.h LINKDEF BruFitLinkDef.h)
+ROOT_GENERATE_DICTIONARY(G__${BRUFIT} Weights.h FiledTree.h RooHSComplex.h RooHSComplexSumSqdTerm.h RooHSEventsPDF.h RooComponentsPDF.h RooHSEventsHistPDF.h RooHSEventsHistPDF.h RooHSSphHarmonic.h RooHSDWigner.h RooHSDWignerProduct.h RelBreitWigner.h PdfParser.h PredefinedParsers.h ComponentsPdfParser.h Setup.h Binner.h Bins.h BootStrapper.h Data.h PlotResults.h MCMCPlotResults.h AutocorrPlot.h CornerPlot.h CornerFullPlot.h Minimiser.h FitManager.h sPlot.h ToyManager.h CrossSection.h RooMcmc.h AmpMinuit2.h AmpMcmc.h BruSequentialProposal.h  BruCovarianceProposal.h BruMetropolisHastings.h  BruMcmc.h HSMetropolisHastings.h Process.h FitSelector.h PhotoTwoSpin0Amps.h Utilities.h LINKDEF BruFitLinkDef.h)
 
 
 
