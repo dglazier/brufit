@@ -32,6 +32,10 @@ namespace HS{
 	_fitSetup=setup;
       }
       
+      void SetParRange(TString name, Double_t amin, Double_t amax){
+	dynamic_cast<RooRealVar*>(_ampSetup.Parameters().find(name))->setRange(amin,amax);
+    }
+
     private:
       
       AmpConfigure* _configure={nullptr}; // just for confuguring
@@ -42,7 +46,7 @@ namespace HS{
       
     };
 
- 
+  
    inline  void  AmpHelpers::ConfigAmps(Setup* setup){
      if(_IsConfigured){
        _fitSetup=setup;
@@ -62,7 +66,8 @@ namespace HS{
       //put back old setup
       _configure->SetSetup(oldSetup);
  
-      
+      _IsConfigured=kTRUE;
+  
     }
     
     inline  void  AmpHelpers::CopyToMomentPars(){
@@ -77,8 +82,7 @@ namespace HS{
       	}
       }
 
-      _IsConfigured=kTRUE;
-      
+       
       return;
     }
 
@@ -93,13 +97,13 @@ namespace HS{
 	  continue;
       	auto* mom=dynamic_cast<RooRealVar*>(ampPars.find(par->GetName()));
     	if((mom)!=nullptr){
-      	  cout<<"copy formula value for "<<mom->GetName()<<" "<<mom->getVal()<<std::endl;
+      	  //cout<<"copy formula value for "<<mom->GetName()<<" "<<mom->getVal()<<std::endl;
       	  par->setVal(mom->getVal());
       	}
       }
 
       
-      return;
+        return;
     }
 
     ///////////////////////////////////////////////////////
@@ -140,20 +144,19 @@ namespace HS{
       auto normalisepar = RooRandom::uniform();
       ampNorm+=normalisepar*normalisepar;
  
-      if(ampNorm>1){
-	for(auto par:pars){
-	  auto realPar = dynamic_cast<RooRealVar*>(par);
-	  if(realPar==nullptr)
-	    continue;
-	  if(TString(realPar->GetName()).Contains("phi")==kFALSE)
-	    realPar->setVal(realPar->getVal()/TMath::Sqrt(ampNorm));
-	}
+      for(auto par:pars){
+	auto realPar = dynamic_cast<RooRealVar*>(par);
+	if(realPar==nullptr)
+	  continue;
+	if(TString(realPar->GetName()).Contains("phi")==kFALSE)
+	  realPar->setVal(realPar->getVal()/TMath::Sqrt(ampNorm));
       }
+      
     
     }//RandomAmps
 
  
-
+  
     
   }
 }
