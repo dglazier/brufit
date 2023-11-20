@@ -201,6 +201,9 @@ namespace HS{
       void TurnOffPlotting(){
 	fDoPlotting = kFALSE;
       }
+
+      void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
+ 
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
       std::unique_ptr<RooDataSet> fCurrDataSet={}; //!
@@ -238,6 +241,8 @@ namespace HS{
       TString fPrevResultDir;
       TString fPrevResultMini;
       
+      TString fTruthPrefix="gen";
+
       TString fPlotOptions;
       Bool_t fDoPlotting = kTRUE;
       

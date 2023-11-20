@@ -171,7 +171,23 @@ namespace HS{
     ////////////////////////////////////////////////////////////////
     std::unique_ptr<FitManager> ToyManager::Fitter(){
       std::unique_ptr<FitManager> fit{new FitManager(*this)};      
-      fit->LoadData("ToyData",fToyFileNames);
+      //      fit->LoadData("ToyData",fToyFileNames);
+      //if we have a eventpdf generation, use the original tree
+      //filtered by the entry list. If we just use ToyData then
+      //there can be some events outwith Dataset limits due to
+      //resolution effects and generating with truth
+      //Note the entry list probably does not work in the case of
+      //multiple PDFS, might need to improve this
+      if(SetUp().PDFs().getSize()==1){
+	auto evPdf=dynamic_cast<RooHSEventsPDF*> (&(SetUp().PDFs()[0]));
+	if(evPdf!=nullptr)
+	  fit->LoadData(Bins().TreeName(evPdf->GetName()),fToyFileNames);
+	else
+	  fit->LoadData("ToyData",fToyFileNames);
+      }
+      else //multiple PDFs must use ToyData
+	fit->LoadData("ToyData",fToyFileNames);
+ 
       fit->Data().Toys(fNToys);
       return fit;
       //      return std::move(fit);

@@ -155,6 +155,7 @@ namespace HS{
     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
     /// Add a fit parameter X between -1 and 1
     void Setup::LoadParameterOnTheFly(const TString& opt){
+      cout<<"Setup::LoadParameterOnTheFly "<<opt<<endl;
       //Find parameter name i.e. up to '['
       auto parName=TString(opt(0,opt.First('[')));
       if( ArgListContainsName(fParameters,parName) )
@@ -162,8 +163,7 @@ namespace HS{
       if( ArgListContainsName(fConstants,parName) )
 	return; //already loaded
       
-      //cout<<"LoadParameterOnTheFly   "<<opt<<endl;
-       //replaceAll -ve signs in name with "neg"
+        //replaceAll -ve signs in name with "neg"
       TString varname = opt;
 
       if(opt.Contains(',')==false){
@@ -385,7 +385,8 @@ namespace HS{
       //Load Parameters
       auto pars = parse.GetParameters();
       for(auto& par:pars)
-	LoadParameterOnTheFly(par);
+	LoadParameter(par);
+      //LoadParameterOnTheFly(par);
       //LoadFormulas
       auto forms = parse.GetFormulas();
       for(auto& form:forms)
@@ -511,7 +512,10 @@ namespace HS{
 	  else if( dynamic_cast<RooCategory*>(fWS.cat(vname))) termList.add(*fWS.cat(vname));
 	  else if ( dynamic_cast<RooFormulaVar*>(fWS.function(vname))) termList.add(*fWS.function(vname));
 	  else if ( dynamic_cast<RooAbsReal*>(fWS.function(vname))) termList.add(*fWS.function(vname)); //for function vars
-	  else Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
+	  else{
+	    fWS.Print("v");
+	    Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
+	  }
 	}
 	//std::cout <<" term list "<<std::endl;termList.Print("v");
 	compsLists.push_back(termList);//add this term to the components list
