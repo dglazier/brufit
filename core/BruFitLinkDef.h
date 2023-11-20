@@ -56,6 +56,7 @@
 #pragma link C++ class HS::FIT::RooMcmcGaus+;
 #pragma link C++ class HS::FIT::RooMcmcSeqCov+;
 #pragma link C++ class HS::FIT::RooMcmcSeqThenCov+;
+#pragma link C++ class HS::FIT::RooMcmcSeqThenRMS+;
 #pragma link C++ class HS::FIT::Setup+;
 #pragma link C++ class HS::FIT::sPlot+;
 #pragma link C++ class HS::FIT::ToyManager+;
@@ -73,6 +74,7 @@
 #pragma link C++ class HS::FIT::RooHSDWignerProductRe+;
 #pragma link C++ class HS::FIT::GaussianConstraint+;
 #pragma link C++ class HS::FIT::PhotoTwoSpin0Amps+;
+#pragma link C++ class HS::FIT::PhotoSpin1Spin0Amps+;
 #pragma link C++ defined_in "PredefinedParsers.h";
 //#pragma link C++ class HS::FIT::+;
 
