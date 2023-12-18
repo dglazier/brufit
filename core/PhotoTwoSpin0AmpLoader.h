@@ -446,9 +446,9 @@ TString SimplifyAll(TString moment){
     for(int ic=0;ic<sumTotal.Length();ic++)
       copySum+=sumTotal[ic];
     
-    auto simplified = sumTotal;
+    //auto simplified = sumTotal;
     //auto simplified = Simplify(sumTotal);
-    //auto simplified = SimplifyAll(sumTotal);
+    auto simplified = SimplifyAll(sumTotal);
     cout<<"PhotoLoader moment = "<<simplified<<endl;
     return simplified;
 
