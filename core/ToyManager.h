@@ -66,6 +66,7 @@ namespace HS{
       void PreRun() override;
       void LoadResult();
       void InitSummary();
+      void SetNEvents(Long64_t N){fNEvents=N;}
       
       static const TString InitialParsName(){return "InitialParameters";}
 
@@ -79,6 +80,7 @@ namespace HS{
       TString fResultOutDir;
       TString fResultFileName;
       Double_t fIDval=0;
+      Long64_t fNEvents=-1;
       Int_t fNToys=1;
       Int_t fToyi=0;
 

@@ -58,7 +58,12 @@ namespace HS{
 	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
         while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
-	Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
+
+	  //use number of events set,
+	  //or number =yields (e.g. from previous) fits if not.
+	  Long64_t NtoGen = fNEvents==-1 ? fCurrSetup->SumOfYields() : fNEvents;
+	  
+	  Long64_t nexp=RooRandom::randomGenerator()->Poisson(NtoGen);
 
 	model->Print();
 	fGenData=model->generate(fitvars,nexp);
