@@ -70,7 +70,8 @@ namespace HS{
       fHistIntegrals=other.fHistIntegrals;
       fMaxValue=other.fMaxValue;
       fIntRangeLow=other.fIntRangeLow;
-      fIntRangeHigh=other.fIntRangeHigh;
+
+       fIntRangeHigh=other.fIntRangeHigh;
     }
     RooHSEventsPDF::~RooHSEventsPDF(){
 
@@ -230,7 +231,7 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
     {
-    
+      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
       if(fForceNumInt) return 0; //might be good to check numerical integral sometimes
       if(!fEvTree&&!fForceConstInt) return 0; //no MC events to integrate over
 

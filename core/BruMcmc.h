@@ -116,7 +116,8 @@ namespace HS{
       }
       void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
       void SetParVals(RooArgSet* toThesePars);
-      
+
+      Bool_t Success(){return fChain != nullptr;}
     protected :
       void AddEntryBranch();
       void CleanMakeChain();

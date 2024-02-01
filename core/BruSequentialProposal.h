@@ -44,13 +44,16 @@ namespace HS{
 
       Float_t StepSizeFactor() const {return fScale;}
       void SetIsSequential(Bool_t isit){_isNotSequential= (!isit);}
+
+      virtual void ResetCounter(){fNminScale = 0;}
+      
     private:
  
       Float_t fScale=1;
       Float_t fMinAcc=0.15;
       Float_t fMaxAcc=0.3;
       Float_t fTargetAcc=0.234;
-
+      UShort_t fNminScale = 0;
       Bool_t _isNotSequential=kFALSE;
 
 

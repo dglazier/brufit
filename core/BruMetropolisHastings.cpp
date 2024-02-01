@@ -67,9 +67,13 @@ namespace HS{
       //x.Print("v");
       
       //Check if we have PDF proposal
-      
-      RooStats::PdfProposal* pdfProposal=dynamic_cast<RooStats::PdfProposal*>(fPropFunc);
-      std::unique_ptr<RooStats::SequentialProposal> sp{};
+      auto bseqprop=dynamic_cast<BruSequentialProposal*>(fPropFunc);
+      if(bseqprop==nullptr){
+	std::cerr<<"ERROR BruMetropolisHastings need a BruSequentialProposal "<<std::endl;
+	delete chain;
+	return nullptr;
+      }
+      bseqprop->ResetCounter();
       //std::cout<<"DEBUG RooStats::MarkovChain* BruMetropolisHastings::ConstructChain"<<std::endl; fParameters.Print();
 
       Long64_t totalProposals=0;
@@ -111,27 +115,21 @@ namespace HS{
 	  //	  std::cout<<"WARNING BruMetropolisHastings acceptance not optimal exiting..." <<" current Likelihood "<<CalcNLL(xL)<<" "<<fPropFunc->ClassName()<<" "<<dynamic_cast<RooStats::SequentialProposal*>(fPropFunc)<<std::endl;
 
 	  // x.Print("v");
-	  auto bseqprop=dynamic_cast<BruSequentialProposal*>(fPropFunc);
-	  if(bseqprop!=nullptr){
+	  // auto bseqprop=dynamic_cast<BruSequentialProposal*>(fPropFunc);
+	  //if(bseqprop!=nullptr){
 	    //	    sp.reset(new RooStats::SequentialProposal(fNorm));
 	    //std::cout<<"new seq "<<sp.get()<<std::endl;
 	    //SetProposalFunction(*sp.get());
 	    //std::cout<<"new seq "<<sp.get()<<std::endl;
-	    bseqprop->CheckStepSize(fAcceptance);
-	    snapcount =0;
-	    totcount=0;
-	    continue;
-	  }
-	  else{
-	    std::cerr<<"ERROR BruMetropolisHastings need a BruSequentialProposal "<<std::endl;
-	    // std::cout<<"x "<<std::endl;
-	    // x.Print("v");
-	    // std::cout<<"xprime "<<std::endl;
-	    // xPrime.Print("v");
-	    //	exit(0);
+	  auto ok = bseqprop->CheckStepSize(fAcceptance);
+	  if(ok==kFALSE){//can't get within acceptance
 	    delete chain;
-	    return nullptr;
+	    return nullptr; //return fail
 	  }
+	  snapcount =0;
+	  totcount=0;
+	  continue;
+	
 	
 	  
 
@@ -142,11 +140,7 @@ namespace HS{
 	}
 	if (icount%100 == 1) havePrinted=0;
 
-	//PdfProposal uses a cache, but it samples from
-	//the wrong Pdf parameters so best to reset every proposal
-	if(pdfProposal){
-	   pdfProposal->Reset();
-	}
+
 
 	if(xL==0)    {
 	  RooStats::SetParameters(&x, &fParameters);

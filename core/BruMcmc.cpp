@@ -126,24 +126,28 @@ namespace HS{
       if(fChain){ delete fChain; fChain=nullptr;}
       
       fChain= mh.ConstructChain(); //mh is still owner and will delete
-  
+      cout<<"DEBUG "<<" Got chain "<<fChain<<endl;
       if(fChain==nullptr){
 	if (useDefaultPropFunc) delete fPropFunc;
 	if (usePriorPdf) delete prodPdf;
+	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 
 	fChainAcceptance=mh.GetAcceptance();
 	
 	delete nll;
 	return kFALSE; //unsuccessful
       }
-      
-      if(fChainData){ delete fChainData; fChainData=nullptr;}
-      
+       cout<<"DEBUG "<<" Got chain data 1 "<<fChainData<<endl;
+     
+      if(fChainData!=nullptr){ delete fChainData; fChainData=nullptr;}
+      cout<<"DEBUG "<<" Got chain data 2 "<<fChainData<<" "<<fChain->Size()<<endl;
+     
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
 
-      if(fChainData){
-	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
-	//	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
+      cout<<"DEBUG "<<" Got chain data 3 "<<fChainData<<" "<<fTreeMCMC<<endl;
+     if(fChainData!=nullptr){
+	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
+	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
 	auto saveDir=gDirectory;
 	// if((*gDirectory).IsWritable()==false){
 	//   TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCTemp.root";
@@ -154,10 +158,13 @@ namespace HS{
 	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
 	saveDir->cd();
  	delete fChainData; fChainData=nullptr;
-      }  
-     if(fChain->Size()>fNumBurnInSteps)
-	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
+      }
+     cout<<"DEBUG "<<" Got chain size  "<< fChain->Size() <<" burnin "<< fNumBurnInSteps<<endl;
 
+     if(fChain->Size()>fNumBurnInSteps){
+       fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
+     }
+     
  
       nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
 
@@ -736,6 +743,7 @@ namespace HS{
        }
        
      }
+     
   }
   
 
