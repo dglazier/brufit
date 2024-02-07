@@ -1,4 +1,4 @@
-////Usage: root 'macros/AddIDBranch.C("TreeName","FileName.root")'
+////Usage: root '$BRUFIT/macros/AddIDBranch.C("TreeName","FileName.root")'
 
 void AddIDBranch(TString treename,TString filename, Long64_t initVal=0){
 
