@@ -143,25 +143,26 @@ namespace HS{
       arg=arg-offset;
       fx_off->setVal(arg);
       falpha->setVal(Double_t(alpha));
-      if(fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<0)   cout<<fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<<" "<<arg<<" "<<x<<endl;
+      //The follwoing line was really slowing it down!
+      //if(fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<0)   cout<<fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<<" "<<arg<<" "<<x<<endl;
 
-      return  fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE);
+      return  fHist->weightFast(RooArgSet(*fx_off,*falpha),1,kFALSE,kFALSE);
     } 
 
     Double_t RooHSEventsHistPDF::evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const {
+      
       Double_t mcx=(*vars)[0];
- 
-      return evaluateMC(mcx);  
+      return evaluateMC(mcx);
+      
     }
     Double_t RooHSEventsHistPDF::evaluateMC(Double_t mcx) const {
+      
       Double_t arg=(mcx-fVarMax)*scale+fVarMax;
-      //cout<<"DEBUG RooHSEventsHistPDF::evaluateMC "<<fHist<<" "<<arg<<" "<<fx_off<<" "<<falpha<<" "<<fParent<<endl;
-      // if(fParent) cout<<dynamic_cast<RooHSEventsHistPDF*>(fParent)->GetRootHist()<<endl;
       arg=arg-offset;
       fx_off->setVal(arg);
       falpha->setVal(Double_t(alpha));
-      //cout<<"DEBUG RooHSEventsHistPDF::evaluateMC "<<fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<<" "<<arg<<" "<<mcx<<endl;
-      return  fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE);
+      
+      return  fHist->weightFast(RooArgSet(*fx_off,*falpha),1,kFALSE,kFALSE);
 
   
     }
@@ -266,6 +267,8 @@ namespace HS{
       //import Root TH2 into RooFit 
       fHist = new RooDataHist(fRHist->GetName(),fRHist->GetName(),RooArgSet(*fx_off,*falpha),RooFit::Import(*fRHist));
       //cleanup
+
+  
       delete his1;
     }
     Int_t RooHSEventsHistPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
@@ -276,23 +279,38 @@ namespace HS{
     {
       if(code==1){//sum over 5000 samples of the PDF
 	if(!CheckChange()) return fLast[0];
-	Double_t integral=0;
-	Int_t Nbins=5000;
-	Double_t min=fRHist->GetXaxis()->GetXmin();
-	Double_t max=fRHist->GetXaxis()->GetXmax();
-	Double_t delta=(max-min)/Nbins;
-	auto var=(RooRealVar*)(&(x.arg()));
-	for(Int_t ie=1;ie<=Nbins;ie++){
-	  Double_t val=min+delta*ie;
-	  if(!(var->inRange(val,rangeName))) continue;
+	if(_var==nullptr){
+	  //try to speed it up 
+	  _var=dynamic_cast<const RooRealVar*>(&(x.arg()));
+	  //collect vars needed in integral
+	  _min=fRHist->GetXaxis()->GetXmin();
+	  _max=fRHist->GetXaxis()->GetXmax();
+	  _delta=(_max-_min)/_Nbins;
+	  //find range of bins to integrate over 
+	  for(Int_t ie=1;ie<=_Nbins;++ie){
+	    Double_t val=_min+_delta*ie;
+	    if(!(_var->inRange(val,rangeName))){
+	      if(_minBin>=0){ //must have gone past the range
+		_maxBin=ie-1;
+		break;
+	      }
+	      continue;
+	    }
+	    if(_minBin==-1)_minBin=ie;
+	  }
+	}
+	//now do actual integral
+ 	Double_t integral=0;
+	for(Int_t ie=_minBin;ie<=_maxBin;++ie){
+	  Double_t val=_min+_delta*ie;
 	  integral+=evaluateMC(val);
 	}
-	fLast[0]=integral*delta;
+	fLast[0]=integral*_delta;
     
 	return fLast[0];
       }
-  
-      return 1; 
+      
+      return 1.0; 
     }
     void RooHSEventsHistPDF::ResetTree(){
   
@@ -301,6 +319,7 @@ namespace HS{
 	delete fHist;
 	fHist=nullptr;
 	fRHist->Reset();
+	_var=nullptr;
       }
     }
   }

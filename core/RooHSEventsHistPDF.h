@@ -57,6 +57,15 @@ namespace HS{
       RooGaussian *fOffConstr=nullptr;
       RooGaussian *fScaleConstr=nullptr;
   
+      mutable Double_t _min=0;
+      mutable Double_t _max=0;
+      mutable Double_t _delta=0;
+      mutable const RooRealVar* _var=nullptr;
+      mutable Int_t _minBin=-1;
+      mutable Int_t _maxBin=-1;
+      
+      Int_t _Nbins=5000;
+
     public:
 
       Bool_t SetEvTree(TTree* tree,TString cut,TTree* MCGenTree=nullptr) override;
