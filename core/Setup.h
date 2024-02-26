@@ -134,8 +134,8 @@ namespace HS{
       RooArgList& Yields()  {return fYields;}
       RooArgList& Parameters() {return fParameters;}
       RooArgList& Constants() {return fConstants;}
-      RooArgList& Formulas() {return fFormulas;}
-      RooArgList& ParameterFormulas() {return fParameterFormulas;}
+      const RooArgList& Formulas() const {return fFormulas;}
+      const RooArgList& ParameterFormulas() const {return fParameterFormulas;}
       RooArgList& PDFs()   {return fPDFs;}
       const RooArgList& constPDFs()   const {return fPDFs;}
       RooArgList& Constraints(){return fConstraints;}
@@ -265,8 +265,8 @@ namespace HS{
       strings_t fPDFString;//
       strings_t fFuncVarString;//!
 
-      Bool_t	fErrorsSumW2=kTRUE;
-      Bool_t	fErrorsAsym=kFALSE; //default to this
+      Bool_t	fErrorsSumW2=kTRUE; //default to this
+      Bool_t	fErrorsAsym=kFALSE;
 
       std::map<TString,Bool_t> fConstPars; //
       std::map<TString,Bool_t> fConstPDFPars; //
