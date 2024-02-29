@@ -27,7 +27,7 @@ void LoadBru(TString Selection=""){
     gROOT->SetMacroPath(Form("%s:%s",gROOT->GetMacroPath(),(fitpath).Data()));
     gROOT->SetMacroPath(Form("%s:%s",gROOT->GetMacroPath(),(macpath).Data()));
     gROOT->SetMacroPath(Form("%s:%s",gROOT->GetMacroPath(),(utpath).Data()));
-    if(TString(gSystem->GetBuildCompilerVersion()).Contains("darwin"))
+    if(TString(gSystem->GetBuildCompilerVersion()).Contains("darwin") or TString(gSystem->GetBuildArch()).Contains("macos"))
       gSystem->Load(BRUCODE+"/lib/libbrufit.dylib");
     else
       gSystem->Load(BRUCODE+"/lib/libbrufit.so");
