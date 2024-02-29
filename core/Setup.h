@@ -123,7 +123,7 @@ namespace HS{
       }
       void SetOutDir(TString name){
 	if(!name.BeginsWith("/"))
-	  name = TString(gSystem->Getenv("PWD"))+"/"+name;
+	  name = TString(gSystem->WorkingDirectory())+"/"+name;
 	fOutDir=name;
 	gSystem->Exec(Form("mkdir -p %s",fOutDir.Data()));
       }
@@ -314,4 +314,3 @@ namespace HS{
     
   }//namespace FIT
 }//namespace HS
-
