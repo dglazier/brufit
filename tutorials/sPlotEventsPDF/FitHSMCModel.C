@@ -1,6 +1,6 @@
+//Run with
 //brufit  FitHSMCModel.C
 {
-
   sPlot RF;
   RF.SetUp().SetOutDir("out/");
   ///////////////////////////////Load Variables
@@ -12,30 +12,51 @@
 
 
   //////////////////////////////Make signal PDF
-  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::Signal(Mmiss,alpha[0,0,20],off[0,-2,2],scale[1,0.8,1.2])");
-  RF.SetUp().LoadSpeciesPDF("Signal",1); 
+  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::Signal(Mmiss,smear_Sig[0,0,20],off_Sig[0,-2,2],scale_Sig[1,0.8,1.2])");
+  RF.SetUp().LoadSpeciesPDF("Signal",1);
 
   //////////////////////////////Make background PDF
-  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::BG(Mmiss,alphaB[0,0,5],offB[0,0,0],scaleB[1.0,0.8,1.2])");
+  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::BG(Mmiss,smear_Bkg[0,0,5],off_Bkg[0,0,0],scale_Bkg[1.0,0.8,1.2])");
   RF.SetUp().LoadSpeciesPDF("BG",1);
 
-  
+
   ///////////////////////////Load Data
   RF.LoadData("MyModel","Data.root");
   RF.LoadSimulated("MyModel","SigData.root", "Signal");
   RF.LoadSimulated("MyModel","BGData.root", "BG");
 
-  //or try MCMC algorithm
+  //Run the fit here
+  //Or try an mcmc minimser 1000-># of points, 200->burnin 10 ~ 1/step size
   //auto mcmc=new BruMcmcCovariance(200,100,0.1,0.23,0.16,0.3);
-  //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
+  //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance-based sampling, just perform basic stepping
   //RF.SetMinimiser(mcmc);
 
   Here::Go(&RF);
 
-  new TCanvas;
-  RF.DrawWeighted("M1>>(100,0,10)","Signal");
-  //compare to true signal
-  FiledTree::Read("MyModel","Data.root")->Tree()->Draw("M1","Sig==1","same");
+  auto filedTree = FiledTree::Read("MyModel","Data.root");
+  auto trueTree = filedTree->Tree();
+  TString MmissCut = "((0<=Mmiss)&&(Mmiss<=9.5))";  //Restrict distributions to the same Mmiss range that was used in the fit
+  TCanvas* canv = new TCanvas();
+  canv->Divide(2,2);
+  //Draw signal distributions
+  canv->cd(1);
+  RF.DrawWeighted("M1>>hM1_Sig(100,0,10)","Signal",MmissCut);
+  ((TH1*)gDirectory->Get("hM1_Sig"))->SetLineColor(kRed+1);
+  trueTree->Draw("M1","(Sig==1)&&"+MmissCut,"same hist");
+  canv->cd(2);
+  RF.DrawWeighted("M2>>hM2_Sig(100,0,10)","Signal", MmissCut);
+  ((TH1*)gDirectory->Get("hM2_Sig"))->SetLineColor(kRed+1);
+  trueTree->Draw("M2","(Sig==1)&&"+MmissCut,"same hist");
+  //Draw background distributions
+  canv->cd(3);
+  RF.DrawWeighted("M1>>hM1_Bkg(100,0,10)","BG",MmissCut);
+  ((TH1*)gDirectory->Get("hM1_Bkg"))->SetLineColor(kRed+1);
+  trueTree->Draw("M1","(Sig==-1)&&"+MmissCut,"same hist");
+  canv->cd(4);
+  RF.DrawWeighted("M2>>hM2_Bkg(100,0,10)","BG",MmissCut);
+  ((TH1*)gDirectory->Get("hM2_Bkg"))->SetLineColor(kRed+1);
+  trueTree->Draw("M2","(Sig==-1)&&"+MmissCut,"same hist");
 
-  
+  //Make sure weighted tree is written properly
+  RF.DeleteWeightedTree();
 }
