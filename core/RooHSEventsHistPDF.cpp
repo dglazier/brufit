@@ -38,25 +38,36 @@ namespace HS{
       auto *ra=dynamic_cast<RooRealVar*>(&_alpha);
       auto *rs=dynamic_cast<RooRealVar*>(&_scale);
       auto *ro=dynamic_cast<RooRealVar*>(&_offset);
- 
-   
+      cout<<"RooHSEventsHistPDF::RooHSEventsHistPDF using fudge parameters:"<<endl;
+      std::vector<RooRealVar*> vars = {ra, rs, ro};
+      for(auto& var : vars){
+        if(var->getMax()==var->getMin()){  //turn parameters with zero intervals into constants
+          var->setConstant();
+        }
+        else if(var->isConstant()){  //ensure that constant parameters have zero interval; otherwise RooAbsPdf complains about zero normalization integral
+          var->setMin(var->getVal());
+          var->setMax(var->getVal());
+        }
+        var->Print();
+      }
       //work out hist bin limits when scale paramter used
       Int_t NBins0=rx->getBins();
       Double_t rsmin=1;
       //fOldScale=rs->getVal();
       if(rs->getMin()) rsmin=rs->getMin();
-      else cout<<"THSEventsPDF::THSEventsPDF Warning no scale minimum set take = 1"<<endl;
+      else cout<<"RooHSEventsHistPDF::RooHSEventsHistPDF Warning no scale minimum set take = 1"<<endl;
       Double_t mid=(rx->getMax()+rx->getMin())/2;
       Double_t diff=(rx->getMax()-rx->getMin())/2;
       Double_t rMin=mid-diff/rsmin + ro->getMin(); //additional range for possible tranformation or scaling
       Double_t rMax=mid+diff/rsmin + ro->getMax();
       Int_t NbinX=NBins0/rsmin;
       if(NbinX<10) NbinX=10; //force minimum of 10 bins
+      cout<<"RooHSEventsHistPDF::RooHSEventsHistPDF using binning ("<<NbinX<<", "<<rMin<<", "<<rMax<<") for x-axis variable '"<<_x.GetName()<<"' of PDF '"<<name<<"'"<<endl;
 
       Int_t NAlphBins=500;
       TAxis AlphAxis(NAlphBins,ra->getMin(),ra->getMax());
    
-      if(ra->getMin()==ra->getMax())
+     if(ra->isConstant())
 	fRHist=new TH2D(TString("hmc_model_")+_x.GetName()+name,TString("MC model for ")+_x.GetName(),NbinX,rMin,rMax,1,ra->getMin()-1,ra->getMin()+1);
       else//Note want to centre first alpha bin on 0
 	fRHist=new TH2D(TString("hmc_model_")+_x.GetName()+name,TString("MC model for ")+_x.GetName(),NbinX,rMin,rMax,NAlphBins+1,ra->getMin()-AlphAxis.GetBinCenter(1),ra->getMax()+AlphAxis.GetBinCenter(1));
@@ -68,13 +79,10 @@ namespace HS{
 
       //Mak Gaussian constraints for parameters
       //alpha = gaussian centre on val, width = max/5
-      if(ra->getMax()-ra->getMin())fAlphaConstr=new RooGaussian(TString("AlphaConstr")+GetName(),"AlphaConstr",_alpha,RooFit::RooConst(ra->getVal()),RooFit::RooConst(ra->getMax()/5));
-      else ra->setConstant();
+      if(not ra->isConstant())fAlphaConstr=new RooGaussian(TString("AlphaConstr")+GetName(),"AlphaConstr",_alpha,RooFit::RooConst(ra->getVal()),RooFit::RooConst(ra->getMax()/5));
       //off = gaussian centre on val, width = range/5/2
-      if(ro->getMax()-ro->getMin())fOffConstr=new RooGaussian(TString("OffConstr")+GetName(),"OffConstr",_offset,RooFit::RooConst(ro->getVal()),RooFit::RooConst((ro->getMax()-ro->getMin())/5/2));
-      else ro->setConstant();
-      if(rs->getMax()-rs->getMin())fScaleConstr=new RooGaussian(TString("ScConstr")+GetName(),"ScConstr",_scale,RooFit::RooConst(rs->getVal()),RooFit::RooConst((rs->getMax()-rs->getMin())/5/2));
-      else rs->setConstant();
+      if(not ro->isConstant())fOffConstr=new RooGaussian(TString("OffConstr")+GetName(),"OffConstr",_offset,RooFit::RooConst(ro->getVal()),RooFit::RooConst((ro->getMax()-ro->getMin())/5/2));
+      if(not rs->isConstant())fScaleConstr=new RooGaussian(TString("ScConstr")+GetName(),"ScConstr",_scale,RooFit::RooConst(rs->getVal()),RooFit::RooConst((rs->getMax()-rs->getMin())/5/2));
       // if(fAlphaConstr)fAlphaConstr->Print();
       // if(fOffConstr)fOffConstr->Print();
       // if(fScaleConstr)fScaleConstr->Print();
