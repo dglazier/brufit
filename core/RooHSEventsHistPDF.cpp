@@ -250,8 +250,10 @@ namespace HS{
 	    fRHist->Fill(varj,vAlphb,gausnX.Eval(varj));
 	  }
 	}
-	//Cannot calculate covaraince if pdf==0 for some events
-	//Set every empty bin with very small value to prvent this
+      }
+      //Cannot calculate covariance if pdf==0 for some events
+      //Set every empty bin with very small value to prevent this
+      for(Int_t ia=1;ia<=fRHist->GetNbinsY();ia++){//alpha bins
 	Double_t max_cont=0;
 	for(Int_t jtemp=1;jtemp<=fRHist->GetNbinsX();jtemp++){
 	  Double_t cont=fRHist->GetBinContent(jtemp,ia);
