@@ -231,7 +231,7 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
     {
-      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
+      //      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
       if(fForceNumInt) return 0; //might be good to check numerical integral sometimes
       if(!fEvTree&&!fForceConstInt) return 0; //no MC events to integrate over
 
@@ -538,7 +538,9 @@ namespace HS{
 	    TString newcut=fCut;
 	    newcut.Replace(newcut.Index(fProxSet[i]->GetName())-2,2,"");
 	    newcut.Replace(newcut.Index(TString(fProxSet[i]->GetName())+">"),(newcut.Index(TString(fProxSet[i]->GetName())+"<")-newcut.Index(TString(fProxSet[i]->GetName())+">"))*2-1,"");
+
 	    if(newcut==TString("&&"))newcut="";
+	    if(newcut(0,2)=="&&") newcut.Remove(0,2);
 	    fCut=newcut;
 	    cout<<"RooHSEventsPDF::SetEvTree Ammended cut "<<fCut<<endl;
 	  }
@@ -590,6 +592,7 @@ namespace HS{
 	    catCut+=")";
 	    newcut.ReplaceAll(catCut,"");
 	    if(newcut==TString("&&"))newcut="";
+	    if(newcut(0,2)=="&&") newcut.Remove(0,2);
 	    fCut=newcut;
 	    cout<<"RooHSEventsPDF::SetEvTree Ammended cut "<<fCut<<endl;
 	  }
