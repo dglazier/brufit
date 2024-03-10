@@ -146,7 +146,9 @@ namespace HS{
       //The follwoing line was really slowing it down!
       //if(fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<0)   cout<<fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE)<<" "<<arg<<" "<<x<<endl;
 
-      return  fHist->weightFast(RooArgSet(*fx_off,*falpha),1,kFALSE,kFALSE);
+      return  fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE);
+      //Weight fast seems to give a shift in x...
+      //return  fHist->weightFast(RooArgSet(*fx_off,*falpha),1,kFALSE,kFALSE);
     } 
 
     Double_t RooHSEventsHistPDF::evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const {
@@ -162,7 +164,8 @@ namespace HS{
       fx_off->setVal(arg);
       falpha->setVal(Double_t(alpha));
       
-      return  fHist->weightFast(RooArgSet(*fx_off,*falpha),1,kFALSE,kFALSE);
+      return  fHist->weight(RooArgSet(*fx_off,*falpha),1,kFALSE);
+      //      return  fHist->weightFast(RooArgSet(*fx_off,*falpha),1,kFALSE,kFALSE);
 
   
     }
@@ -221,7 +224,6 @@ namespace HS{
 	  his1->SetBinContent(ix,bmean);
 	  his1->SetBinContent(ix+1,bmean);
 	}
-      if(fUseEvWeights) cout<<fEvWeights[0]<<" "<<fEvWeights[1]<<endl;
       his1->Smooth();
       //Fill first y bin of 2D hist (no smearing)
       for(Int_t jtemp=1;jtemp<=fRHist->GetNbinsX();jtemp++)//First alpha bin, no semaring!
