@@ -51,7 +51,11 @@ namespace HS{
       if (fPOI.getSize() == 0) return kFALSE;
      std::cout<<"proceed"<<endl;
  
-   
+     ProcInfo_t info;
+     gSystem->GetProcInfo(&info);
+     cout<<"1~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"PRocInfo "<<0.000001*info.fMemResident<<" "<<0.000001*info.fMemVirtual<<endl;
       // if a proposal function has not been specified create a default one
       bool useDefaultPropFunc = (fPropFunc == nullptr);
       bool usePriorPdf = (fPriorPdf != nullptr);
@@ -68,6 +72,17 @@ namespace HS{
 
       //   RooAbsReal* nll = prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs));
       auto foptions = fSetup->FitOptions();
+
+      //remove not applicable options      
+      TObject* opt=nullptr;
+      if((opt=foptions.find("Save"))!=nullptr){
+	foptions.Remove(opt);
+      }
+       if((opt=foptions.find("SumW2Error"))!=nullptr){
+	foptions.Remove(opt);
+      }
+
+       
       auto cmd = ConditionalObservables(fConditionalObs);
       foptions.Add(dynamic_cast<RooCmdArg*>(&cmd));
       cmd=Constrain(*constrainedParams);
@@ -81,6 +96,7 @@ namespace HS{
       nll->constOptimizeTestStatistic(RooAbsArg::Activate,false) ;
       
       // add in sumw/sumw2 term
+      RooAbsReal* delnll=nullptr;
       if(fData->isNonPoissonWeighted()&&fCorrectForWeights){
       	Double_t SumW=SumWeights();
       	Double_t SumW2=SumWeights2();
@@ -89,6 +105,7 @@ namespace HS{
 	NllName.ReplaceAll("+","p");
 	nll->SetName(NllName);
       	RooFormulaVar *alphanll=new RooFormulaVar("alphanll",Form("%lf*%s",SumW/SumW2,nll->GetName()),RooArgSet(*nll));
+	delnll=nll;//keep a pointer for deleting
       	nll=alphanll;
       }
  
@@ -100,7 +117,11 @@ namespace HS{
       //auto* sampPDF= dynamic_cast<RooAbsPdf*>(fSetup->Constraints().at(0));    
       //if(sampPDF)fParams->add(*(sampPDF->getParameters(*fData)));
       //RemoveConstantParameters(fParams);
-      fParams->Print("v");
+    gSystem->GetProcInfo(&info);
+     cout<<"2~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"PRocInfo "<<0.000001*info.fMemResident<<" "<<0.000001*info.fMemVirtual<<endl;
+       fParams->Print("v");
       BruMetropolisHastings mh;
       // if(fKeepStart) mh.SetKeepStart();
       // if(fMCMCHelp){
@@ -124,7 +145,11 @@ namespace HS{
        // mh.SetBalance(sampPDF);
       
       if(fChain){ delete fChain; fChain=nullptr;}
-      
+      gSystem->GetProcInfo(&info);
+     cout<<"3~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"PRocInfo "<<0.000001*info.fMemResident<<" "<<0.000001*info.fMemVirtual<<endl;
+     
       fChain= mh.ConstructChain(); //mh is still owner and will delete
       cout<<"DEBUG "<<" Got chain "<<fChain<<endl;
       if(fChain==nullptr){
@@ -135,8 +160,14 @@ namespace HS{
 	fChainAcceptance=mh.GetAcceptance();
 	
 	delete nll;
+	if(delnll) delete delnll;
+
 	return kFALSE; //unsuccessful
       }
+     gSystem->GetProcInfo(&info);
+     cout<<"4~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"PRocInfo "<<0.000001*info.fMemResident<<" "<<0.000001*info.fMemVirtual<<endl;
        cout<<"DEBUG "<<" Got chain data 1 "<<fChainData<<endl;
      
       if(fChainData!=nullptr){ delete fChainData; fChainData=nullptr;}
@@ -172,11 +203,17 @@ namespace HS{
       if (useDefaultPropFunc) delete fPropFunc;
       if (usePriorPdf) delete prodPdf;
       delete nll;
-
+      if(delnll) delete delnll;
+      
+     gSystem->GetProcInfo(&info);
+     cout<<"5~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"<<endl;
+     cout<<"PRocInfo "<<0.000001*info.fMemResident<<" "<<0.000001*info.fMemVirtual<<endl;
+     
+  
       return kTRUE;
     }
     void BruMcmc::CleanMakeChain(){
-   
     }
     ////////////////////////////////////////////////////////
     
