@@ -116,13 +116,18 @@ namespace HS{
  	fData.SetParentName(fname);
  	fData.SetParentTreeName(fBinner.TreeName(name));
      }
-      void ReloadData(const TString& tname,TString fname,TString name){
-	ReloadData(std::move(fname),std::move(name));
+      void ReloadData(const TString& tname,const TString& fname,const TString& name){
+	ReloadData(fname,name);
       }
       
-      void LoadSimulated(const TString& tname,TString fname,const TString& name){
-	fBinner.SplitData(tname,std::move(fname),name);
+      void LoadSimulated(const TString& tname,const TString& fname,const TString& name){
+	fBinner.SplitData(tname,fname,name);
       }
+     void LoadSimulatedWithoutBinning(const TString& tname,const TString& fname,const TString& name){
+       fBinner.SplitData(tname,fname,name); //create maps etc
+       fBinner.SetAllFileNamesTo(fname,name); //but point all bins to same file
+      }
+      
       void ReloadSimulated(const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name);
       }

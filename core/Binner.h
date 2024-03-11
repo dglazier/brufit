@@ -58,7 +58,12 @@ namespace HS{
 	std::cout<<"Binner::FileNames files  named "<<name<<" not found"<<fNameToFiles.size()<<std::endl;
 	return strings_t();
       }
-
+      void SetAllFileNamesTo(const TString& usename,const TString name){
+	for(auto& fname :fNameToFiles[name]){
+	  fname = usename;
+	}
+      }
+      
       const TString BinName(UInt_t i);
       
       UInt_t GetSize() const{return fBinNames.size();}
