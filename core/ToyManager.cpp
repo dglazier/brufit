@@ -184,7 +184,12 @@ namespace HS{
       //Note the entry list probably does not work in the case of
       //multiple PDFS, might need to improve this
       if(SetUp().PDFs().getSize()==1){
+	auto evHPdf=dynamic_cast<RooHSEventsHistPDF*> (&(SetUp().PDFs()[0]));
 	auto evPdf=dynamic_cast<RooHSEventsPDF*> (&(SetUp().PDFs()[0]));
+	if(evHPdf->UsingHistGenerator()==kTRUE){ //use ToyData not eventree
+	  evPdf=nullptr;
+	}
+	
 	if(evPdf!=nullptr)
 	  fit->LoadData(Bins().TreeName(evPdf->GetName()),fToyFileNames);
 	else
