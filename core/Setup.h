@@ -164,6 +164,8 @@ namespace HS{
 	//AddFitOption(RooFit::Minimizer("Minuit2"));
       }
       void RequiredFitOptions(){
+	if(fFitOptions.find("Save")!=nullptr) return;
+	
 	AddFitOption(RooFit::Save(kTRUE));
 	if(fErrorsSumW2) AddFitOption(RooFit::SumW2Error(kTRUE));
 	else if(fErrorsAsym) AddFitOption(RooFit::AsymptoticError(true));
