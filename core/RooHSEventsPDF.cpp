@@ -194,6 +194,7 @@ namespace HS{
       if(!fUseWeightsGen){
 	while(fGeni<fNTreeEntries){
 	  fTreeEntry=IncrementGeni();
+	  if(!CheckRange("")) continue;
 	  value=evaluateMC(&fvecRealGen,&fvecCatGen); //evaluate true values
 	  if(value>fMaxValue*RooRandom::uniform()){//accept
 	    for(Int_t i=0;i<fNvars;i++)
