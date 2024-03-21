@@ -207,6 +207,8 @@ namespace HS{
 	fDoPlotting = kFALSE;
       }
 
+      void DoBinnedFits(Bool_t dbf=kTRUE){fuseBinnedFit=dbf;}
+
       void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
  
      protected:
@@ -250,7 +252,8 @@ namespace HS{
 
       TString fPlotOptions;
       Bool_t fDoPlotting = kTRUE;
-      
+      Bool_t fuseBinnedFit = kFALSE;
+
       //Bool_t fIsSamplingIntegrals=kFALSE;
       
       ClassDefOverride(HS::FIT::FitManager,1);

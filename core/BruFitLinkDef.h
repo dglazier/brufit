@@ -48,6 +48,7 @@
 #pragma link C++ class HS::FIT::RooHSComplex+;
 #pragma link C++ class HS::FIT::RooHSComplexSumSqdTerm+;
 #pragma link C++ class HS::FIT::RooHSEventsHistPDF+;
+#pragma link C++ class HS::FIT::BruEventsHistPeakPDF+;
 #pragma link C++ class HS::FIT::RooHSEventsPDF+;
 #pragma link C++ class HS::FIT::RooMcmc+;
 #pragma link C++ class HS::FIT::RooMcmcSeq+;
