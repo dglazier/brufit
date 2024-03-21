@@ -17,18 +17,11 @@ namespace HS{
       //Zero yield check
       //returns true if single yield left and weights generated
       //else if zero yields it will remove them for sPlot
+      fZeroYields.clear();
       if(ZeroYieldCheck()==kTRUE) return kTRUE;
    
  
-      //Note sPlot is much (10X) faster with tree store
-      //Normal fit is 2X faster with vector...
-      //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      //auto* dataset =dynamic_cast<RooDataSet*>( fCurrDataSet->emptyClone());
-      //dataset->append(*fCurrDataSet.get());
-      //RooAbsData::setDefaultStorageType(RooAbsData::Vector);
-
-      //Note at tested again with 6.24 and Vector store is now faster...
-       RooDataSet* dataset =fCurrDataSet.get();
+      RooDataSet* dataset =fCurrDataSet.get();
 
       
       auto *model=fCurrSetup->Model();
@@ -124,7 +117,11 @@ namespace HS{
 	} //ID not defined just use entry number in dataset
 	else fWeights->FillWeights(ev,eventW);
       }
-      cout<<"sPlot::ExportWeights Done"<<endl;
+      if(fWeights->Size()!=fCurrDataSet->sumEntries()){
+	cout<<"sPlot::ExportWeights Done but mismatch between number of weights and number of data events"<<fWeights->Size()<<" "<<fCurrDataSet->sumEntries()<<" ..... exiting"<<endl;
+	yields.Print("v");
+	exit(0);
+      }
     }
     
     weights_uptr sPlot::MergeWeights(){
@@ -186,6 +183,7 @@ namespace HS{
     }
 
     Bool_t sPlot::ZeroYieldCheck(){
+      
       auto& yields=fCurrSetup->Yields(); //get reference to yields
       auto& pdfs=fCurrSetup->PDFs(); //get reference to yields
       bool removedPdf=false;    
