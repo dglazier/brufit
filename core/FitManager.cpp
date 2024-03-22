@@ -93,7 +93,7 @@ namespace HS{
       //make sure we take current setup values
       //If not it will use the string from Factory() etc,
       auto& currpy = fCurrSetup->ParsAndYields();
-      currpy.assignFast(fSetup.ParsAndYields());
+      currpy.assign(fSetup.ParsAndYields());
       for(auto& par:currpy){//assignFast doesnt do ranges...
 	auto* orig=dynamic_cast<RooRealVar*>(fSetup.ParsAndYields().find(par->GetName()));
 	if(orig!=nullptr){
