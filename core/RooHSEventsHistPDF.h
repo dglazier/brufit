@@ -7,6 +7,7 @@
 
 #include "RooHSEventsPDF.h"
 #include <RooRealProxy.h>
+#include <RooHistPdf.h>
 #include <RooCategoryProxy.h>
 #include <RooAbsReal.h>
 #include <RooAbsCategory.h>
@@ -40,11 +41,14 @@ namespace HS{
       RooRealProxy scale ;
       RooRealProxy alpha ;
 
+      TH1D fGenHist; //for generating
+      
       Int_t fapplySmooth=1; //default smooth
       Int_t fInterpolate=1; //default interpolating
       Int_t fNAlphaBins=200;
       Int_t fNXBins0=100;
       Int_t fNIntSamples=1000;
+      Bool_t fUseHistGenerator=kTRUE;
       
       Double_t evaluate() const override ;
       Double_t evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const override ;
@@ -75,7 +79,10 @@ namespace HS{
   
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
-  
+      void generateEvent(Int_t code) override;
+      void initGenerator(Int_t code) override;
+      void UseHistGenerator() {fUseHistGenerator=kTRUE;}
+      Bool_t UsingHistGenerator() {return fUseHistGenerator;}
       RooGaussian* AlphaConstraint() {return fAlphaConstr;};
       RooGaussian* OffConstraint() {return fOffConstr;};
       RooGaussian* ScaleConstraint() {return fScaleConstr;};

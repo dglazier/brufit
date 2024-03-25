@@ -134,7 +134,7 @@ namespace HS{
       fNAlphaBins=other.fNAlphaBins;
       fNXBins0=other.fNXBins0;
       fNIntSamples=other.fNIntSamples;
-      
+      fUseHistGenerator=other.fUseHistGenerator;
       // if(fEvTree) SetEvTree(fEvTree,fCut);//Needs fProxSet filled first
 
       fRHist->SetDirectory(nullptr);
@@ -151,7 +151,7 @@ namespace HS{
       if(fAlphaConstr) delete fAlphaConstr;
       if(fOffConstr) delete fOffConstr;
       if(fScaleConstr) delete fScaleConstr;
-
+      
     }
     void RooHSEventsHistPDF::MakeSets(){
       fProxSet.clear();
@@ -310,17 +310,13 @@ namespace HS{
     }
 
     void RooHSEventsHistPDF::FillBase1DHist(TH1D& his1){
-      cout<<"RooHSEventsHistPDF::FillBase1DHist"<<endl;
       Long64_t NFT=fNTreeEntries;
        his1.SetDirectory(nullptr);
-      //      cout<<fRHist->GetXaxis()->GetNbins()<<endl;exit(0);
-      //create 1D template of x variable
+        //create 1D template of x variable
       for(Int_t itr=0;itr<NFT;itr++){//loop over events tree
-	// fEvTree->GetEntry(itr);
-	// Double_t tvar=fMCVar[0];
 	fTreeEntry=itr;
 	Double_t tvar=fvecReal[fTreeEntry*fNvars+0];
-	if(itr<10) cout<<itr<<" "<<tvar<<" "<<GetIntegralWeight(itr)<<" "<<his1.FindFixBin(tvar)<<endl;
+	//	if(itr<10) cout<<itr<<" "<<tvar<<" "<<GetIntegralWeight(itr)<<" "<<his1.FindFixBin(tvar)<<endl;
 	his1.Fill(tvar,GetIntegralWeight(itr));
       }
       fTreeEntry=0;
@@ -358,6 +354,48 @@ namespace HS{
 	fHist=nullptr;
 	fRHist->Reset();
       }
+    }
+
+    void RooHSEventsHistPDF::generateEvent(Int_t code){
+      if(fUseHistGenerator){
+	Bool_t inRange = kFALSE;
+	Double_t genx=0;
+	while(inRange==kFALSE){
+	  genx = fGenHist.GetRandom();
+	  auto var=(static_cast<const RooRealVar*>(&x.arg()));
+	  Double_t arg=(genx-fVarMax)/scale+fVarMax;
+	  arg=arg+offset/scale;
+	  if(!var->inRange(arg,"")){continue;}
+	  inRange=kTRUE;
+	  x=arg; 
+	}
+	
+      }
+      else{
+	RooHSEventsPDF::generateEvent(code);
+      }
+    }
+
+    
+     void RooHSEventsHistPDF::initGenerator(Int_t code)
+    {
+      if(fUseHistGenerator==kFALSE){
+	RooHSEventsPDF::initGenerator(code);
+	return;
+      }
+      if(fGenHist.Integral()>0) return;
+      //create 1D hist with current parameters
+      Double_t arg=(x-fVarMax)*scale+fVarMax;
+      arg=arg-offset;
+      fx_off->setVal(arg);
+      falpha->setVal(Double_t(alpha));
+      auto gbin = fRHist->FindFixBin(arg,Double_t(alpha));//global bin
+      Int_t xbin = 0;
+      Int_t abin = 0;
+      Int_t zbin = 0;
+      fRHist->GetBinXYZ(gbin,xbin,abin,zbin);
+      fGenHist = *fRHist->ProjectionX(TString("projX_")+fRHist->GetName(),abin,abin);
+   
     }
   }
 }
