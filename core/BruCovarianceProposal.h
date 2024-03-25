@@ -87,13 +87,19 @@ namespace HS{
 
       Bool_t CheckStepSize(Float_t acceptance) override{
 	//changing step size with covariance gives a "blotchy" posterior
-	// if(BruSequentialProposal::CheckStepSize(acceptance)){
-	//   SetCovariance(_covMatrix*static_cast<Double_t>(TMath::Sqrt(StepSizeFactor())),_xVec);
-	//   return kTRUE;
-	// }
+	if(_tuneCovStep==kFALSE){
+	  //SetCovariance(_covMatrix*static_cast<Double_t>(TMath::Sqrt(StepSizeFactor())),_xVec);
+	  return kTRUE;
+	}
+	auto doExit = BruSequentialProposal::CheckStepSize(acceptance);
+	SetCovariance(_covMatrix*static_cast<Double_t>(TMath::Sqrt(StepSizeFactor())),_xVec);
+	std::cout<< "CheckStepSize "<<_tuneCovStep<<" "<<StepSizeFactor()<<std::endl;
+	//if tuning covariance matrix start again with new step size
 	return kFALSE;
 
     }
+      void TuneCovarianceStep(Bool_t tune){_tuneCovStep=tune;}
+ 
     private:
  
       std::unique_ptr<RooMultiVarGaussian> fPdf={nullptr}; //! the proposal density function
@@ -110,7 +116,8 @@ namespace HS{
       RooArgList _xVec;
       RooArgList _muVec;
        
- 
+      Bool_t _tuneCovStep=kFALSE;
+
       ClassDefOverride(BruCovarianceProposal,1) // A concrete implementation of ProposalFunction, that uniformly samples the parameter space.
  
 
