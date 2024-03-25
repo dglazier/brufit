@@ -78,8 +78,16 @@ namespace HS{
        //This linescales the bin widths dependent on their content
        //We also include the nearest neighbours weighted by 0.5
        //This stops the smallest bin being too small
-       //similar the factor 1.01 stops bincontent = hmax
-       auto binFrac = (4*1.01*hmax-2*peakhist.GetBinContent(i)-peakhist.GetBinContent(i-1)-peakhist.GetBinContent(i-1));
+       //similar the factor 1.1 stops bincontent = hmax
+       Double_t mainpeak =  peakhist.GetBinContent(i);
+       Double_t leftpeak = peakhist.GetBinContent(i-1);
+       if(i==1) leftpeak =0;
+       Double_t rightpeak = peakhist.GetBinContent(i+1);
+       if(i==peakhist.GetNbinsX()) rightpeak  = 0;
+       
+       
+       auto binFrac = (4*1.1*hmax-2*mainpeak-leftpeak-rightpeak);
+       
        //protect from nonsense
        if(binFrac<0)binFrac=2;
        //      cout<<binFrac<<" "<<hist->GetBinContent(i)<<" "<<hist->GetBinCenter(i)<<endl;
@@ -96,18 +104,24 @@ namespace HS{
        lastEdge+=frac*range;
        bins.push_back(lastEdge);
      }
+     
      //now need to fill out rest with inital binning scheme.
      double edge = bins[0];
+     Int_t gradual=3;
      while(edge>xmin0){
-       edge-=binwidth0;
+       //gradually increas bin width over 3 bins
+       double gradfactor = gradual>0 ? 1./gradual-- : 1;
+       edge-=binwidth0*gradfactor;
        //this inserts element at start
        bins.push_back(edge);
        std::rotate(bins.rbegin(), bins.rbegin() + 1, bins.rend());
      }
      edge = bins.back();
-     cout<<"edge "<<edge<<" "<<xmax0<<endl;
+     gradual=3;
      while(edge<xmax0){
-       edge+=binwidth0*2;
+       //gradually increas bin width over 3 bins
+       double gradfactor = gradual>0 ? 1./gradual-- : 1;
+       edge+=binwidth0*gradfactor;
        //this inserts element at back
        bins.push_back(edge);
      }
@@ -120,7 +134,6 @@ namespace HS{
 
      //reconstruct 2D hist scheme
      auto *ra=dynamic_cast<const RooRealVar*>(&alpha.arg());
-     cout<<"BruEventsHistPeakPDF::FillBase1DHist "<<ra<<" "<<his1.GetNbinsX()<<endl;
      Construct2DHist(*his1.GetXaxis(),TAxis(fNAlphaBins,ra->getMin(),ra->getMax()),ra->isConstant());
      //all done
     }
