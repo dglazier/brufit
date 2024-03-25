@@ -57,20 +57,20 @@ namespace HS{
 	auto arg=fitvars.find(tmp->GetName());
 	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
-        while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
-
-	  //use number of events set,
-	  //or number =yields (e.g. from previous) fits if not.
-	  Long64_t NtoGen = fNEvents==-1 ? fCurrSetup->SumOfYields() : fNEvents;
-	  
-	  Long64_t nexp=RooRandom::randomGenerator()->Poisson(NtoGen);
-
+      while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
+	cout<<"ToyManager::Generate() "<<fToyi<<" of "<<fNToys<<endl;
+	//use number of events set,
+	//or number =yields (e.g. from previous) fits if not.
+	Long64_t NtoGen = fNEvents==-1 ? fCurrSetup->SumOfYields() : fNEvents;
+	
+	Long64_t nexp=RooRandom::randomGenerator()->Poisson(NtoGen);
+	
 	model->Print();
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
 	SaveResults();
 	fToyi++;
-     }
+      }
       fToyi=0;
       
     }
@@ -151,7 +151,10 @@ namespace HS{
     }
     ///////////////////////////////////////////////////////////////
     void ToyManager::InitSummary(){
+       
       std::unique_ptr<TFile> resFile{TFile::Open(SetUp().GetOutDir()+GetCurrName()+"/ToySummary.root","recreate")};
+       
+      
       auto initpars=*(dynamic_cast<RooArgSet*>(SetUp().ParsAndYields().selectByAttrib("Constant",kFALSE)));
       cout<<"ToyManager::InitSummary()"<<endl;
       initpars.Print("v");
@@ -164,7 +167,7 @@ namespace HS{
       d.fill();
       d.Print("v");
       d.Write();
-
+     
     }
     ////////////////////////////////////////////////////////////////
     void ToyManager::PreRun(){
@@ -231,6 +234,26 @@ namespace HS{
       return std::move(toy);
     }
 
+    void ToyManager::UseMyToyData(FitManager& fitter){
+      //Get data file names from summary file
+      auto summaryFile = std::unique_ptr<TFile> (TFile::Open(SetUp().GetOutDir()+"/ToySummary.root") );
+      std::vector<TString> *fnames=nullptr;
+      summaryFile->GetObject("ToyFiles", fnames);
+      fToyFileNames =*fnames;
+      fitter.LoadData("ToyData",fToyFileNames);
+      fNToys= fToyFileNames.size();
+
+      //set number of toys
+      fitter.Data().Toys(fNToys);
+
+      //cp my summary file to fitter directory
+      gSystem->Exec(Form("cp %s %s",(SetUp().GetOutDir()+"/ToySummary.root").Data(),(fitter.SetUp().GetOutDir()+"ToySummary.root").Data()));
+
+      //Take the fitter output directory
+      SetUp().SetOutDir(fitter.SetUp().GetOutDir());
+
+    }
+    
     void ToyManager::LoadResult(){
       if(fResultFileName==TString())
 	return;
@@ -263,6 +286,9 @@ namespace HS{
       TChain resChain(Minimiser::ResultTreeName());
       resChain.Add(SetUp().GetOutDir()+Bins().BinName(ibin)+"/Results*.root");
       std::unique_ptr<TFile> resFile{TFile::Open(SetUp().GetOutDir()+Bins().BinName(ibin)+"/ToySummary.root","update")};
+
+      resFile->WriteObject(&fToyFileNames,"ToyFiles");
+ 
       auto tree=resChain.CloneTree();
        
       //Loop over all parameters
@@ -319,15 +345,15 @@ namespace HS{
 	
 
 	hpar->SetNameTitle(parName,parName);
-	hpar->Write();
+	hpar->Write(nullptr,TFile::kOverwrite);
 	hparErr->SetNameTitle(parName+"_err",parName+"_err");
-	hparErr->Write();
+	hparErr->Write(nullptr,TFile::kOverwrite);
 	hpull->SetNameTitle(parName+"_pull",parName+"_pull");
-	hpull->Write();
+	hpull->Write(nullptr,TFile::kOverwrite);
 	hbias->SetNameTitle(parName+"_bias",parName+"_bias");
-	hpull->Write();
+	hpull->Write(nullptr,TFile::kOverwrite);
 	hbiasPull->SetNameTitle(parName+"_biasPull",parName+"_biasPull");
-	hbiasPull->Write();
+	hbiasPull->Write(nullptr,TFile::kOverwrite);
 	
 	cout<<endl<<parName <<" "<<mean<<" +- "<<meanErr<<" sigma "<<rms<<" meanPull "<<meanPull<<" sigmaPull "<<rmsPull<<"\n      bias "<< meanBias << " bias Pull "<<meanBPull<< " sigma "<<rmsBPull<<endl<<endl;
 	
