@@ -190,7 +190,7 @@ namespace HS{
     }
     void RooHSEventsPDF::generateEvent(Int_t code){
       // Info("RooHSEventsPDF::generateEvent","Going to generate starting from %lld with ",fGeni);
-        Double_t value=0;
+      Double_t value=0;
       if(!fUseWeightsGen){
 	while(fGeni<fNTreeEntries){
 	  fTreeEntry=IncrementGeni();
