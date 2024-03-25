@@ -79,9 +79,8 @@ namespace HS{
       }
       
       //create extended max likelihood pdf
-      std::cout<<"DEBUG FitManager::Run()"<<std::endl;fCurrSetup->Parameters().Print("v");
+      //std::cout<<"DEBUG FitManager::Run()"<<std::endl;fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
-		  fCurrSetup->FitOptions().Print("");
       FitTo(); 
 
       return kTRUE;

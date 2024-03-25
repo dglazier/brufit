@@ -177,6 +177,11 @@ namespace HS{
 	return;
       }
       auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
+      if((var->getMax()==var->getMin())){
+	//assume parameters with no range are constants
+	LoadConstant(opt);
+	return;
+      }
       if(!var) {
 	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;
 	return;
