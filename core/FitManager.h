@@ -222,7 +222,7 @@ namespace HS{
       
       Setup fSetup;
       
-      DataEvents fData;
+      DataEvents fData; 
       
       Binner fBinner;
 
@@ -236,7 +236,7 @@ namespace HS{
       std::unique_ptr<RooArgSet> fLastPars=nullptr; //!
       std::unique_ptr<RooArgList> fLastForms=nullptr; //!
 
-      strings_t fCompiledMacros;
+      strings_t fCompiledMacros; //!
   
       Bool_t fRedirect=kFALSE;
 
@@ -248,7 +248,7 @@ namespace HS{
       TString fPrevResultDir;
       TString fPrevResultMini;
       
-      TString fTruthPrefix="gen";
+      TString fTruthPrefix="xxxxxx";
 
       TString fPlotOptions;
       Bool_t fDoPlotting = kTRUE;

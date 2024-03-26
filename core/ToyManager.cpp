@@ -209,6 +209,7 @@ namespace HS{
       std::cout<<"ToyManager::Fitter() "<<std::endl;
   
       fit->Data().Toys(fNToys);
+      fit->SetTruthPrefix("xxxxx"); //so it does not use truth
       return fit;
       //      return std::move(fit);
     }
