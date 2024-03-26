@@ -178,7 +178,9 @@ namespace HS{
     }
     ////////////////////////////////////////////////////////////////
     std::unique_ptr<FitManager> ToyManager::Fitter(){
+      std::cout<<"ToyManager::Fitter() "<<std::endl;
       std::unique_ptr<FitManager> fit{new FitManager(*this)};      
+      std::cout<<"ToyManager::Fitter() "<<fit.get()<<std::endl;
       //      fit->LoadData("ToyData",fToyFileNames);
       //if we have a eventpdf generation, use the original tree
       //filtered by the entry list. If we just use ToyData then
@@ -187,10 +189,13 @@ namespace HS{
       //Note the entry list probably does not work in the case of
       //multiple PDFS, might need to improve this
       if(SetUp().PDFs().getSize()==1){
-	auto evHPdf=dynamic_cast<RooHSEventsHistPDF*> (&(SetUp().PDFs()[0]));
+	std::cout<<"ToyManager::Fitter() "<<std::endl;
+ 	auto evHPdf=dynamic_cast<RooHSEventsHistPDF*> (&(SetUp().PDFs()[0]));
 	auto evPdf=dynamic_cast<RooHSEventsPDF*> (&(SetUp().PDFs()[0]));
-	if(evHPdf->UsingHistGenerator()==kTRUE){ //use ToyData not eventree
-	  evPdf=nullptr;
+	if(evHPdf!=nullptr){ //check if want to generate from histogram template
+	  if(evHPdf->UsingHistGenerator()==kTRUE){ //use ToyData not eventree
+	    evPdf=nullptr;
+	  }
 	}
 	
 	if(evPdf!=nullptr)
@@ -200,7 +205,9 @@ namespace HS{
       }
       else //multiple PDFs must use ToyData
 	fit->LoadData("ToyData",fToyFileNames);
- 
+
+      std::cout<<"ToyManager::Fitter() "<<std::endl;
+  
       fit->Data().Toys(fNToys);
       return fit;
       //      return std::move(fit);
