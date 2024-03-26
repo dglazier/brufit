@@ -211,16 +211,8 @@ namespace HS{
       fit->Data().Toys(fNToys);
       fit->SetTruthPrefix("xxxxx"); //so it does not use truth
       return fit;
-      //      return std::move(fit);
-    }
-    //  std::shared_ptr<FitManager> ToyManager::Fitter(){
-    //   std::shared_ptr<FitManager> fit{new FitManager(*this)};      
-    //   fit->LoadData("ToyData",fToyFileNames);
-    //   fit->Data().Toys(fNToys);
-      
-    //   return std::move(fit);
-    // }
-  
+     }
+   
     ///////////////////////////////////////////////////////////////
     std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,const TString& filename,const TString& resultFile){
        std::unique_ptr<TFile> fitFile{TFile::Open(filename)};
