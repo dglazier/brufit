@@ -117,7 +117,7 @@ namespace HS{
 	} //ID not defined just use entry number in dataset
 	else fWeights->FillWeights(ev,eventW);
       }
-      if(fWeights->Size()!=fCurrDataSet->sumEntries()){
+      if(fWeights->Size()!=fCurrDataSet->numEntries()){
 	cout<<"sPlot::ExportWeights Done but mismatch between number of weights and number of data events"<<fWeights->Size()<<" "<<fCurrDataSet->sumEntries()<<" ..... exiting"<<endl;
 	yields.Print("v");
 	exit(0);
