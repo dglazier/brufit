@@ -234,13 +234,13 @@ namespace HS{
       return std::move(toy);
     }
 
-    void ToyManager::UseMyToyData(FitManager& fitter){
+    void ToyManager::UseMyToyData(FitManager& fitter,const TString& tname){
       //Get data file names from summary file
       auto summaryFile = std::unique_ptr<TFile> (TFile::Open(SetUp().GetOutDir()+"/ToySummary.root") );
       std::vector<TString> *fnames=nullptr;
       summaryFile->GetObject("ToyFiles", fnames);
       fToyFileNames =*fnames;
-      fitter.LoadData("ToyData",fToyFileNames);
+      fitter.LoadData(tname,fToyFileNames);
       fNToys= fToyFileNames.size();
 
       //set number of toys
@@ -289,6 +289,7 @@ namespace HS{
 
       resFile->WriteObject(&fToyFileNames,"ToyFiles");
  
+      if(resChain.GetNtrees()==0) return;
       auto tree=resChain.CloneTree();
        
       //Loop over all parameters
