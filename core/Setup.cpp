@@ -48,8 +48,9 @@ namespace HS{
 	 LoadConstant(conStr);
        for(auto &parStr: other.fParString)
 	 LoadParameter(parStr);
-       for(auto &varStr: other.fVarString)
+       for(auto &varStr: other.fVarString){
 	 LoadVariable(varStr);
+       }
        for(auto &catStr: other.fCatString)
 	 LoadCategory(catStr);
        for(auto &varStr: other.fAuxVarString)
@@ -69,6 +70,8 @@ namespace HS{
 	 SetConstPDFPars(pdf.first,pdf.second);
        for(const auto& par:other.fConstPars)
 	 SetConstPar(par.first,par.second);
+
+       CopyRealProperties(DataVars(),other.fVars);//DataVars called in LoadSpeciesPDF
 
        fErrorsSumW2=other.fErrorsSumW2;
        fErrorsAsym=other.fErrorsAsym;
@@ -123,6 +126,8 @@ namespace HS{
       for(const auto& par:other.fConstPars)
 	SetConstPar(par.first,par.second);
 
+      CopyRealProperties(DataVars(),other.fVars);
+
       gErrorIgnoreLevel = kInfo ;
       RooMsgService::instance().setGlobalKillBelow(level) ;
  
@@ -172,6 +177,11 @@ namespace HS{
 	return;
       }
       auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
+      if((var->getMax()==var->getMin())){
+	//assume parameters with no range are constants
+	LoadConstant(opt);
+	return;
+      }
       if(!var) {
 	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;
 	return;
@@ -600,6 +610,17 @@ namespace HS{
      }
      return fNCParsAndYields;
    }
+    void Setup::CopyRealProperties(RooArgSet& change, const RooArgSet& tothis){
+      for(auto& arg : change){
+	auto rarg = dynamic_cast<RooRealVar*>(arg);
+	if(rarg==nullptr) continue;
+	auto carg = dynamic_cast<RooRealVar*>(tothis.find(arg->GetName()));
+	if(carg==nullptr) continue;
+	
+	rarg->setBins(carg->getBins());
+      }
+      
+    }
 
     void Setup::OrganiseConstraints(){
 

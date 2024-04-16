@@ -60,6 +60,8 @@ namespace HS{
       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const TString& filename,const TString& result="");
       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,FitManager& fit,const TString& result="");
       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,const TString& result="");
+      
+      void UseMyToyData(FitManager& fitter,const TString& tname="ToyData");
 
       void Summarise();
       void Summarise(Int_t ib);

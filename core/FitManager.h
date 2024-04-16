@@ -207,6 +207,8 @@ namespace HS{
 	fDoPlotting = kFALSE;
       }
 
+      void DoBinnedFits(Bool_t dbf=kTRUE){fuseBinnedFit=dbf;}
+
       void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
  
      protected:
@@ -220,7 +222,7 @@ namespace HS{
       
       Setup fSetup;
       
-      DataEvents fData;
+      DataEvents fData; 
       
       Binner fBinner;
 
@@ -234,7 +236,7 @@ namespace HS{
       std::unique_ptr<RooArgSet> fLastPars=nullptr; //!
       std::unique_ptr<RooArgList> fLastForms=nullptr; //!
 
-      strings_t fCompiledMacros;
+      strings_t fCompiledMacros; //!
   
       Bool_t fRedirect=kFALSE;
 
@@ -246,11 +248,12 @@ namespace HS{
       TString fPrevResultDir;
       TString fPrevResultMini;
       
-      TString fTruthPrefix="gen";
+      TString fTruthPrefix="xxxxxx";
 
       TString fPlotOptions;
       Bool_t fDoPlotting = kTRUE;
-      
+      Bool_t fuseBinnedFit = kFALSE;
+
       //Bool_t fIsSamplingIntegrals=kFALSE;
       
       ClassDefOverride(HS::FIT::FitManager,1);

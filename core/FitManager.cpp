@@ -20,6 +20,8 @@ namespace HS{
       fPrevResultDir=other.fPrevResultDir;
       fPrevResultMini=other.fPrevResultMini;
       fYldMaxFactor=other.fYldMaxFactor;
+      fuseBinnedFit=other.fuseBinnedFit;
+      
       //fIsSamplingIntegrals=other.fIsSamplingIntegrals;
     }
 
@@ -32,6 +34,7 @@ namespace HS{
       fPrevResultDir=other.fPrevResultDir;
       fPrevResultMini=other.fPrevResultMini;
       fYldMaxFactor=other.fYldMaxFactor;
+      fuseBinnedFit=other.fuseBinnedFit;
       //fIsSamplingIntegrals=other.fIsSamplingIntegrals;
   
       return *this;
@@ -45,7 +48,9 @@ namespace HS{
       //get dataset fFiti
       fCurrDataSet=std::move(Data().Get(fFiti));
 
-      if(fCurrDataSet->numEntries()==0){
+      cout<<"fCurrDataSet->numEntries() = "<<fCurrDataSet->numEntries()<<endl;
+      // if(fCurrDataSet->numEntries()==0){
+      if(fCurrDataSet->numEntries()<10){  // use higher threshold to remove bins that will fail for sure
 	cout<<"WARNING FitManager::Run no entries in dataset for this bin will move to next...."<<endl;
 	return kFALSE;
       }
@@ -74,7 +79,7 @@ namespace HS{
       }
       
       //create extended max likelihood pdf
-      // std::cout<<"DEBUG FitManager::Run()"<<std::endl;fCurrSetup->Parameters().Print("v");
+      //std::cout<<"DEBUG FitManager::Run()"<<std::endl;fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
       FitTo(); 
 
@@ -87,7 +92,7 @@ namespace HS{
       //make sure we take current setup values
       //If not it will use the string from Factory() etc,
       auto& currpy = fCurrSetup->ParsAndYields();
-      currpy.assignFast(fSetup.ParsAndYields());
+      currpy.assign(fSetup.ParsAndYields());
       for(auto& par:currpy){//assignFast doesnt do ranges...
 	auto* orig=dynamic_cast<RooRealVar*>(fSetup.ParsAndYields().find(par->GetName()));
 	if(orig!=nullptr){
@@ -117,8 +122,16 @@ namespace HS{
     void FitManager::FitTo(){
       //      std::cout<<"DEBUG FitManager::FitTo()"<<std::endl;
       if(!fMinimiser.get()) SetMinimiser(new HS::FIT::Minuit2());
-      fMinimiser->Run(*fCurrSetup,*fCurrDataSet);
-      
+
+      if(fuseBinnedFit==kFALSE){
+	fMinimiser->Run(*fCurrSetup,*fCurrDataSet);
+      }
+      else{
+	auto binnedData = fCurrDataSet->binnedClone();
+	fMinimiser->Run(*fCurrSetup,*binnedData);
+	delete binnedData;
+	
+      }
       ///////////////////////////
       //Plot best fit and return
       if(fDoPlotting) PlotDataModel();

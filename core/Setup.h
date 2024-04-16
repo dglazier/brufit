@@ -86,6 +86,8 @@ namespace HS{
       RooArgSet& FitVarsAndCats();
       RooArgSet& ParsAndYields();
       RooArgSet& NonConstParsAndYields();
+      void CopyRealProperties(RooArgSet& change, const RooArgSet& tothis);
+      
       const realvars_t& AuxVars()const {return fAuxVars;}
 	
       RooAbsPdf* Model()  const {return fModel;}
@@ -187,7 +189,13 @@ namespace HS{
       
       void RandomisePars();
       void OrganiseConstraints();
-      
+
+      RooRealVar* GetVar(const TString& name){
+	return (dynamic_cast<RooRealVar*>(DataVars().find(name)));
+      }
+      RooRealVar* GetPar(const TString& name){
+	return (dynamic_cast<RooRealVar*>(fParameters.find(name)));
+      }
       void SetParVal(const TString& par,Double_t val,Bool_t co=kFALSE){
 	if(dynamic_cast<RooRealVar*>(fParameters.find(par))==nullptr){
 	  std::cerr<<"Error Setup::SetParVal invalid parameter"<<par<<std::endl;

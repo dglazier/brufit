@@ -190,10 +190,11 @@ namespace HS{
     }
     void RooHSEventsPDF::generateEvent(Int_t code){
       // Info("RooHSEventsPDF::generateEvent","Going to generate starting from %lld with ",fGeni);
-        Double_t value=0;
+      Double_t value=0;
       if(!fUseWeightsGen){
 	while(fGeni<fNTreeEntries){
 	  fTreeEntry=IncrementGeni();
+	  if(!CheckRange("")) continue;
 	  value=evaluateMC(&fvecRealGen,&fvecCatGen); //evaluate true values
 	  if(value>fMaxValue*RooRandom::uniform()){//accept
 	    for(Int_t i=0;i<fNvars;i++)
