@@ -20,7 +20,9 @@ namespace HS{
       fPrevResultDir=other.fPrevResultDir;
       fPrevResultMini=other.fPrevResultMini;
       fYldMaxFactor=other.fYldMaxFactor;
-      fIsSamplingIntegrals=other.fIsSamplingIntegrals;
+      fuseBinnedFit=other.fuseBinnedFit;
+      
+      //fIsSamplingIntegrals=other.fIsSamplingIntegrals;
     }
 
     FitManager&  FitManager::operator=(const FitManager& other){
@@ -32,19 +34,23 @@ namespace HS{
       fPrevResultDir=other.fPrevResultDir;
       fPrevResultMini=other.fPrevResultMini;
       fYldMaxFactor=other.fYldMaxFactor;
-      fIsSamplingIntegrals=other.fIsSamplingIntegrals;
+      fuseBinnedFit=other.fuseBinnedFit;
+      //fIsSamplingIntegrals=other.fIsSamplingIntegrals;
   
       return *this;
     }
     
     Bool_t FitManager::Run(){
+      fSetup.RequiredFitOptions();
       
       CreateCurrSetup();
      
       //get dataset fFiti
       fCurrDataSet=std::move(Data().Get(fFiti));
 
-      if(fCurrDataSet->numEntries()==0){
+      cout<<"fCurrDataSet->numEntries() = "<<fCurrDataSet->numEntries()<<endl;
+      // if(fCurrDataSet->numEntries()==0){
+      if(fCurrDataSet->numEntries()<10){  // use higher threshold to remove bins that will fail for sure
 	cout<<"WARNING FitManager::Run no entries in dataset for this bin will move to next...."<<endl;
 	return kFALSE;
       }
@@ -73,7 +79,7 @@ namespace HS{
       }
       
       //create extended max likelihood pdf
-      //fCurrSetup->Parameters().Print("v");
+      //std::cout<<"DEBUG FitManager::Run()"<<std::endl;fCurrSetup->Parameters().Print("v");
       fCurrSetup->TotalPDF();
       FitTo(); 
 
@@ -85,13 +91,22 @@ namespace HS{
       fCurrSetup->SetTitle(GetCurrTitle());
       //make sure we take current setup values
       //If not it will use the string from Factory() etc,
-      fCurrSetup->ParsAndYields().assignFast(fSetup.ParsAndYields());
+      auto& currpy = fCurrSetup->ParsAndYields();
+      currpy.assign(fSetup.ParsAndYields());
+      for(auto& par:currpy){//assignFast doesnt do ranges...
+	auto* orig=dynamic_cast<RooRealVar*>(fSetup.ParsAndYields().find(par->GetName()));
+	if(orig!=nullptr){
+	  dynamic_cast<RooRealVar*>(par)->setMin(orig->getMin());
+	  dynamic_cast<RooRealVar*>(par)->setMax(orig->getMax());
+	}
+      }
 
       //Look to see if taking previous fit results as initial pars
       if(fUsePrevResult){
 	LoadPrevResult(fPrevResultDir,fPrevResultMini);
       }
     }
+
     /////////////////////////////////////////////////////////////
     void FitManager::RunAll(){
 
@@ -105,12 +120,21 @@ namespace HS{
 
     ////////////////////////////////////////////////////////////
     void FitManager::FitTo(){
+      //      std::cout<<"DEBUG FitManager::FitTo()"<<std::endl;
       if(!fMinimiser.get()) SetMinimiser(new HS::FIT::Minuit2());
-      fMinimiser->Run(*fCurrSetup,*fCurrDataSet);
-      
+
+      if(fuseBinnedFit==kFALSE){
+	fMinimiser->Run(*fCurrSetup,*fCurrDataSet);
+      }
+      else{
+	auto binnedData = fCurrDataSet->binnedClone();
+	fMinimiser->Run(*fCurrSetup,*binnedData);
+	delete binnedData;
+	
+      }
       ///////////////////////////
       //Plot best fit and return
-      PlotDataModel();
+      if(fDoPlotting) PlotDataModel();
 
     }
     void FitManager::RunOne(Int_t ifit){
@@ -132,9 +156,9 @@ namespace HS{
       
       for(Int_t ip=0;ip<pdfs.getSize();ip++){
 	auto pdf=dynamic_cast<RooHSEventsPDF*>( &pdfs[ip]);
-
 	if(pdf!=nullptr){
-	
+	  //SetTruthprefix
+	  pdf->SetTruthPrefix(fTruthPrefix);
 	  if(fBinner.FileNames(pdf->GetName()).size()==0)
 	    continue;
 	  //Open tree files for getting events
@@ -161,6 +185,7 @@ namespace HS{
 	    ip--;
 	  }
 	  else{ //use it and give it the simulated tree
+	    
 	    pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
 	    pdf->SetEvTree(tree.get(),fCurrSetup->Cut(),mcgentree.get());
 
@@ -176,12 +201,16 @@ namespace HS{
 	      fCurrSetup->AddGausConstraint(histspdf->OffConstraint());
 	      fCurrSetup->AddGausConstraint(histspdf->ScaleConstraint());
 	    }
-	    cout<<"FitManager IsSamplingIntegrals "<<fIsSamplingIntegrals<<" "<<endl;
+	    //cout<<"FitManager IsSamplingIntegrals "<<fIsSamplingIntegrals<<" "<<endl;
 	    //if sampling PDF create constraint for fit
-	    if(fIsSamplingIntegrals==kTRUE){
-	      pdf->SetIsSamplingIntegral();
+	    //if(fIsSamplingIntegrals==kTRUE){
+	    // pdf->SetIsSamplingIntegral();
 	      /////fCurrSetup->AddGausConstraint(pdf->GetIntegralPDF()->getPDF());
-	    }
+	    //}
+
+	    pdf->MakeAssertPostiveData();
+	    pdf->AssertPositivePDF();//cache it
+
 	  }
 	  //keep the simulated tree alive until Reset()
 	  fFiledTrees.push_back(std::move(filetree));	
@@ -229,17 +258,19 @@ namespace HS{
 	auto newPars = fCurrSetup->ParsAndYields();
 	auto* resAll = result->get(); //get all result info
 	auto* resPars=resAll->selectCommon(newPars); //just select pars and yieds
-       	newPars.assignFast(*resPars); //set values to results
+       	newPars.assign(*resPars); //set values to results
 	cout<<"FitManager::LoadResult setting values from fit results "<<resultFile<<" : "<<endl;
 	newPars.Print("v");
 	//	delete result;result=nullptr;
       }
     }
     void FitManager::WriteThis(){
+      cout<<"FitManager::WriteThis() "<<endl;
       auto file=TFile::Open(fSetup.GetOutDir()+"HSFit.root","recreate");
       if(!fMinimiser.get()) SetMinimiser(new HS::FIT::Minuit2());
       file->WriteObject(this,"HSFit");
       file->WriteObject(fMinimiser.get(),fMinimiserType);
+      cout<<"FitManager::WriteThis() 2"<<endl;
 
       if(fCompiledMacros.size()){
 	auto* macList=new TList();
@@ -249,7 +280,8 @@ namespace HS{
 	  macList->Add(new TObjString(macro));
 	file->WriteObject(macList,"HS_COMPILEDMACROS");
       }
-      delete file;
+       cout<<"FitManager::WriteThis() 3"<<endl;
+     delete file;
     }
     void FitManager::RedirectOutput(const TString& log){
       const char* mess=Form("text ouput will be sent to file %s",log.Data());
@@ -262,11 +294,12 @@ namespace HS{
     }
 
     void FitManager::SaveResults(){
-     
+      auto saveDir = gDirectory;
       auto outFile=fMinimiser->SaveInfo();
       if(fPlots.size())fPlots.back()->Write(); //just save the last one
-      //outfile is unique_ptr so will be deleted and saved here
+      saveDir->cd();
     }
+
 
   }//namespace FIT
 }//namespace HS

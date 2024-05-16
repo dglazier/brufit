@@ -9,7 +9,7 @@ namespace HS{
   namespace FIT{
     
     RooComponentsPDF::RooComponentsPDF(const char *name, const char *title,Double_t base,const RooArgList& obsList,const vector<RooArgList> compList)
-      :  HS::FIT::RooHSEventsPDF(name,title), fBaseLine(base)
+      :  HS::FIT::RooHSEventsPDF(name,title), fBaseLine(base),fActualObs{"ActualObs","Actual observables", this},fActualCats{"ActualCats","Actual categories", this},fActualComps{"ActualComps","Actual components", this}
       
     {
 
@@ -89,6 +89,7 @@ namespace HS{
 	fComponents.push_back(std::move(vterms));
       }
 
+      // fParSet=other.fParSet;
       fNObs=other.fNObs;
       fNCats=other.fNCats;
       fNComps=other.fNComps;
@@ -104,6 +105,7 @@ namespace HS{
 
       // fRecalcComponent=other.fRecalcComponent;
       // fFirstCalculation=other.fFirstCalculation;
+      fMCAPDepTerm=other.fMCAPDepTerm;
     } 
     void RooComponentsPDF::MakeSets(){
       //roorealvars
@@ -124,19 +126,32 @@ namespace HS{
       
       for(auto &comp: fComponents)
 	for(auto &term: comp){
-	  fParSet.push_back(term.get()); //par set just used to check change
 	  //get the RooRealVar for this Proxy term
 	  auto  argTerm=fActualComps.find(term->GetName());
 	  //get its variables, if any
 	  auto vars=argTerm->getVariables();
 	  TIter iter=vars->createIterator();
+	  
 	  while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
 	    //if new variable and not observable
 	    //include it as parameter
 	    if(!fActualObs.contains(*arg)&&!fActualCats.contains(*arg)&&!fParameters.contains(*arg)){
 	      fParameters.add(*arg);
+	      //new RooRealProxy(arg->GetName(),arg->GetName(),this,*dynamic_cast<RooAbsReal*>(arg));
+	      _myVarProxies.push_back(std::unique_ptr<RooRealProxy>{new RooRealProxy(arg->GetName(),arg->GetName(),this,*dynamic_cast<RooAbsReal*>(arg))});
+	      fParSet.push_back(_myVarProxies.back().get());
 	    }
 	  }
+	  //don't forget to check if this term is a parameter itself!
+	  if(vars->getSize()==0){
+	    if(!fActualObs.contains(*argTerm)&&!fActualCats.contains(*argTerm)&&!fParameters.contains(*argTerm)){
+	      fParameters.add(*argTerm);
+	      //new RooRealProxy(arg->GetName(),arg->GetName(),this,*dynamic_cast<RooAbsReal*>(arg));
+	      _myVarProxies.push_back(std::unique_ptr<RooRealProxy>{new RooRealProxy(argTerm->GetName(),argTerm->GetName(),this,*dynamic_cast<RooAbsReal*>(argTerm))});
+	      fParSet.push_back(_myVarProxies.back().get());
+	    }
+	  }
+	  
 	}
       InitSets();
     }
@@ -154,32 +169,33 @@ namespace HS{
 
     Double_t RooComponentsPDF::evaluateData() const 
     {
-      //cout<<"RooComponentsPDF::evaluateData() "<<endl;
       Double_t val=fBaseLine;
        for(auto &comp: fComponents){
 	Double_t product=1;
 	for(auto &term: comp){
-	  // cout<<"term "<<term->GetName()<<" "<< *term.get()<<endl;
+	  //cout<<"term "<<term->GetName()<<" "<< *term.get()<<endl;
 	  product*= *term.get(); //take the product of all the terms for this component
 	}
-	//	cout<<"product "<<product<<endl;
+	//if(_assertPostive)	cout<<"product "<<product<<endl;
 	val+=product; //add them to total
       }
-
+       // cout<<"RooComponentsPDF::evaluateData() "<<val<<endl;
+ 
        return val;
     }
     
-    void RooComponentsPDF::RedirectServersToPdf(){
-      cout<<"                 RooComponentsPDF::RedirectServersToPdf()"<<endl;
+    void RooComponentsPDF::RedirectServersToPdf() const{
+      // cout<<"RooComponentsPDF::RedirectServersToPdf() "<<endl;
       //point the terms to the integral events rather than data events
       for(UInt_t icomp=0;icomp<fNComps;icomp++){
 	for(const auto &term:fDependentTermProxy[icomp]){
 	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
 	  unconstTerm->recursiveRedirectServers(fIntegrateSet);
+	  //  cout<<"RooComponentsPDF::RedirectServersToPdf() "<<unconstTerm->GetName()<<" "<<unconstTerm->getVal()<<endl;
 	}	
       }	
     }
-    void RooComponentsPDF::RedirectServersToData(){
+    void RooComponentsPDF::RedirectServersToData() const{
       //point the terms back to the data events rather than integral events
       for(UInt_t icomp=0;icomp<fNComps;icomp++){
 	for(const auto &term:fDependentTermProxy[icomp]){
@@ -193,35 +209,100 @@ namespace HS{
     void RooComponentsPDF::HistIntegrals(const char* rangeName) const{
    //point the terms to the integral events rather than data events
       for(UInt_t icomp=0;icomp<fNComps;icomp++){
-	for(const auto &term:fDependentTermProxy[icomp]){
-	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
-	  unconstTerm->recursiveRedirectServers(fIntegrateSet);
-	}
+      	for(const auto &term:fDependentTermProxy[icomp]){
+      	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
+      	  unconstTerm->recursiveRedirectServers(fIntegrateSet);
+      	}
       }
-       RooHSEventsPDF::HistIntegrals(rangeName);
-
-      //point the terms back to the data events rather than integral events
+     
+      RooHSEventsPDF::HistIntegrals(rangeName);
+     
+      //   point the terms back to the data events rather than integral events
       for(UInt_t icomp=0;icomp<fNComps;icomp++){
-	for(const auto &term:fDependentTermProxy[icomp]){
-	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
-	  unconstTerm->recursiveRedirectServers(fActualObs);
-	}
+      	for(const auto &term:fDependentTermProxy[icomp]){
+      	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
+      	  unconstTerm->recursiveRedirectServers(fActualObs);
+      	}
       }
 
     }
+    Double_t RooComponentsPDF::cacheMCAP(const vector<Float_t> *vars,const  vector<Int_t> *cats) const
+    {
+      fMCAPDepTerm.resize(fNapd);
+      //loop over all events
+      for(Long64_t iev=0;iev<fNapd;++iev){
+	//read in observable value for this event
+	for(Int_t ii=0;ii<fNvars;ii++){
+	  //  cout<<vars->at(iev*fNvars+ii)<<" ";
+	  fIntegrateObs[ii]->setVal(vars->at(iev*fNvars+ii));
+	}
+	for(Int_t ii=0;ii<fNcats;ii++){
+	  fIntegrateCats[ii]->setIndex(cats->at(iev*fNcats+ii));
+	}
+      
+	//cout<<endl;
+
+	Double_t val=fBaseLine;
+	Int_t icomp=0;
+	for(auto &comp: fComponents){
+	  Double_t depprod=1; //product of dependent terms for caching
+	  for(auto&term :fDependentTermProxy[icomp]){
+	    depprod*=*term;
+	    //  cout<<"dependent term "<<term->GetName()<<" "<< *term<<" "<<endl;
+	  }
+	  fMCAPDepTerm[iev].push_back(depprod);
+
+	  ///cechk
+	  Double_t product=1;
+	  for(auto &term: comp){
+	    // cout<<"term "<<term->GetName()<<" "<< *term.get()<<" "<<endl;
+	  
+	    product*= *term.get(); //take the product of all the terms for this component
+	  }
+	  //cout<<"cotribution "<<product<<endl;
+	  val+=product; //add them to total
+	  ++icomp;
+	}
+	//	std::cout<<"RooComponentsPDF::cacheMCAP() "<<iev<<" "<<val<<std::endl;
+      }
+      return 0.;
+    }
+ Double_t RooComponentsPDF::evaluateMCAP() const
+    {
+        
+      Double_t val=fBaseLine;
+      Int_t icomp=0;
+     
+
+      for(auto &comp: fComponents){
+	Double_t product= fMCAPDepTerm[fTreeEntry][icomp];
+ 	for(auto&term :fIndependentTermProxy[icomp]){
+	  product*= *term;
+	}
+	val+=product; //add them to total
+  	++icomp;
+    }
+      
+      return val;
+      
+      //  return evaluateData();
+    }
+    
     Double_t RooComponentsPDF::evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const
     {
-      // cout<< "RooComponentsPDF::evaluateMC"<<endl;
+      if(_assertPostive) return evaluateMCAP();
       //read in observable value for this event
       for(Int_t ii=0;ii<fNvars;ii++){
 	//cout<<vars->at(fTreeEntry*fNvars+ii)<<" ";
 	fIntegrateObs[ii]->setVal(vars->at(fTreeEntry*fNvars+ii));
-      }
+	//	std::cout<<fIntegrateObs[ii]->GetName()<<" "<<fIntegrateObs[ii]->getVal();
+       }
       for(Int_t ii=0;ii<fNcats;ii++){
 	fIntegrateCats[ii]->setIndex(cats->at(fTreeEntry*fNcats+ii));
+ 	//std::cout<<fIntegrateCats[ii]->GetName()<<" "<<fIntegrateCats[ii]->getIndex();
       }
-      //cout<<endl;
-      return evaluateData();
+      // cout<<endl;
+       return evaluateData();
     }
     Bool_t RooComponentsPDF::isDirectGenSafe(const RooAbsArg& arg) const {
       if(fActualObs.find(arg.GetName())) return kTRUE;
@@ -248,16 +329,16 @@ namespace HS{
       //three super terms
       
         //Initiliase components cache
-      //fDependentTerm.resize(fNComps);
+     
       fDependentTermProxy.resize(fNComps);
       fDependentTermParams.resize(fNComps);
       fPrevParVals.resize(fNComps);
       fCacheCompDepIntegral.resize(fNComps);
       fCacheCompDepSigmaIntegral.resize(fNComps);
       
-      //fIndependentTerm.resize(fNComps);
+     
       fIndependentTermProxy.resize(fNComps);
-      //fParameterTerm.resize(fNComps);
+    
       UInt_t icomp=0;
       for(auto &comp: fComponents){
 	fCacheCompDepIntegral[icomp]=1;
@@ -322,7 +403,17 @@ namespace HS{
     {
        if(code!=1) return RooHSEventsPDF::analyticalIntegral(code,rangeName);
        if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
+  
+       //if(code==1)
+	if(!CheckChange()) return fLast[0];
+       //if(code==1){
+	// std::cout<<" RooComponentsPDF::analyticalIntegral "<<_NIntegralCalls++<<" "<<fLast[0]<<std::endl;
 
+       auto check= AssertPositivePDF();
+       if(check==kFALSE) return fLast[0]=0;
+       
+       //std::cout<<" RooComponentsPDF::analyticalIntegral "<<_NIntegralCalls++<<" "<<fLast[0]<<std::endl;
+       
        //make sure all components calculated
        if(fFirstCalculation==kTRUE) DoFirstIntegrations();
        
@@ -372,6 +463,11 @@ namespace HS{
  	integral=integral2;
       }
       */
+      // if(integral<0)
+      //    std::cout<<"DEBUG RooHSComponentsPDF::integral "<<integral<<" "<<expectedEvents(fIntegrateSet)<<std::endl;
+
+      fLast[0]=integral;
+
        return integral;
     }
      
@@ -380,11 +476,12 @@ namespace HS{
       SetLowHighVals(ilow,ihigh);
          //point the terms to the integral events rather than data events
       for(const auto& icomp:fRecalcComponent){
-	for(const auto &term:fDependentTermProxy[icomp]){
-	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
-	  unconstTerm->recursiveRedirectServers(fIntegrateSet);
-	}
+      	for(const auto &term:fDependentTermProxy[icomp]){
+      	  auto unconstTerm=const_cast<RooAbsReal*>(&term->arg());
+      	  unconstTerm->recursiveRedirectServers(fIntegrateSet);
+      	}
       }
+     
       fWeightedBaseLine=0;
       //Loop over events and recalcaulte partial integrals
       //that depend on parameters that have changed
@@ -396,7 +493,7 @@ namespace HS{
 	fWeightedBaseLine+=GetIntegralWeight(ie);
       }
       fWeightedBaseLine/=accepted;//normalise to number of events to prevent huge integrals
-      cout<<"RooComponentsPDF::CalcWeightedBaseLine "<<fWeightedBaseLine<<endl;
+      //cout<<"RooComponentsPDF::CalcWeightedBaseLine "<<fWeightedBaseLine<<endl;
     }
 
     //////////////////////////////////////////////////////////////////
@@ -541,37 +638,61 @@ namespace HS{
       }
       return product; 
     }
-  Double_t RooComponentsPDF::sampleIntegral() const{
+  // Double_t RooComponentsPDF::sampleIntegral() const{
 
-    //Note fWeightedBaseLine has 0 variance, so does not contribute to sigma
-    Double_t sumVariance=0.;
-    Double_t sumIntegral=0;
+  //   //Note fWeightedBaseLine has 0 variance, so does not contribute to sigma
+  //   Double_t sumVariance=0.;
+  //   Double_t sumIntegral=0;
    
-    for(UInt_t icomp=0;icomp<fNComps;++icomp){
+  //   for(UInt_t icomp=0;icomp<fNComps;++icomp){
 
-      auto integral = componentIntegral(icomp);
-      sumIntegral+=integral;
-      sumVariance+=(componentVariance(icomp));
+  //     auto integral = componentIntegral(icomp);
+  //     sumIntegral+=integral;
+  //     sumVariance+=(componentVariance(icomp));
     
-    }
+  //   }
 
-    auto sigma = TMath::Sqrt((sumVariance-sumIntegral*sumIntegral)/fNUsedForIntegral);
+  //   auto sigma = TMath::Sqrt((sumVariance-sumIntegral*sumIntegral)/fNUsedForIntegral);
  
-    fIntegralPDF->setMeanSigma(sumIntegral+fWeightedBaseLine,sigma);
-    auto result= fIntegralPDF->sample();
-    return result;
-  }
+  //   fIntegralPDF->setMeanSigma(sumIntegral+fWeightedBaseLine,sigma);
+  //   auto result= fIntegralPDF->sample();
+  //   return result;
+  // }
 
     
-  Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+    Bool_t RooComponentsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
       auto val = RooHSEventsPDF::SetEvTree(tree,cut,MCGenTree);
 
-    //Cant do this here as need to call ProtoVars first !
+      //Cant do this here as need to call ProtoVars first !
       //Caclulate current value of component integrals
       // for(UInt_t icomp=0;icomp<fNComps;icomp++)
       // 	fRecalcComponent.push_back(icomp);
       //     RecalcComponentIntegrals(0,"");
       return val;
     }
+  
+
+    Bool_t RooComponentsPDF::CheckChange() const{
+      //Note analytical integral is const funtion so can only change data members
+      //which are pointed to something, thus need Double_t *fLast
+      //and construct a N-D array where we can change elements
+
+      //std::cout<<"RooHSEventsPDF::CheckChange() "<<fParameters.size()<<" "<<fNpars<<std::endl;
+      Bool_t hasChanged=false;
+      for(Int_t i=1;i<fNpars+1;i++)
+	if(fLast[i]!=(static_cast<RooRealVar*>((fParameters[i-1]))->getVal())){
+	  hasChanged=true;
+	  //std::cout<<"RooHSEventsPDF::CheckChange() "<<fParameters[i-1]->GetName()<<" "<<fLast[i]<<" to "<<static_cast<RooRealVar*>(fParameters[i-1])->getVal()<<std::endl;
+	}
+  
+      if(hasChanged){
+	for(Int_t i=1;i<fNpars+1;i++){
+	  fLast[i]=static_cast<RooRealVar*>((fParameters[i-1]))->getVal();
+	  
+	}
+      }
+	
+      return hasChanged;
+    }   
   }
 }

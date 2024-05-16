@@ -1,9 +1,9 @@
 #include "PlotResults.h"
 #include "RooHSEventsPDF.h"
 #include "RooMcmc.h"
-#include <RooPlot.h>
 #include <RooMsgService.h>
 #include <TCanvas.h>
+#include <TROOT.h>
 #include <TDirectory.h>
 
 namespace HS{
@@ -12,6 +12,18 @@ namespace HS{
     PlotResults::PlotResults(const Setup *setup,const RooDataSet* data,const TString& tag,const TString& opt):fPlotOptions{opt}{
 
       using namespace RooFit;
+      //stop plots being deleted when current directory is deleted
+      RooPlot::AddDirectory(false);
+
+      Bool_t IsBatch=gROOT->IsBatch();
+      if(fPlotOptions.Contains("goff")==kTRUE) gROOT->SetBatch(kTRUE);
+
+      Bool_t DoSmooth = kFALSE;
+      Double_t prec =1E-6; 
+      if(fPlotOptions.Contains("smooth")==kTRUE){
+	prec=1E-2;
+	DoSmooth=kTRUE ;
+      }
       //cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
       //fCanvases->SetOwner();
       fCanvases->SetName(TString("RFPlots")+setup->GetName());
@@ -39,22 +51,30 @@ namespace HS{
 
 	const auto& pdfs = setup->constPDFs();
 
-	for(Int_t ic=0;ic<pdfs.getSize();ic++)
-	  model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(1E-2));
+	if(pdfs.getSize()>1){ //only draw components if >1
+	  for(Int_t ic=0;ic<pdfs.getSize();ic++){
+	    model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(prec));
+	  }
+	}
 
 	
-	model->plotOn(frame,LineColor(kRed)) ;
-	//	model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
+      	if(DoSmooth) model->plotOn(frame,LineColor(kRed)) ;
+	else model->plotOn(frame,LineColor(kRed),Precision(prec)) ;
+	
+	//	model->getParameters(data)->Print("v");
+	//	std::cout<<"PlotOn  "<<model->expectedEvents(model->getObservables(data))<<std::endl;
+       	//model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
 	
 	model->paramOn(frame,
-		       Layout(0.1, 0.4, 0.9),
-		       Format("NEU",AutoPrecision(2)),
-		       ShowConstants()); //show fit parameters
+		       Layout(0.1, 0.2, 0.9),
+		       Format("NEU",AutoPrecision(2))); //show fit parameters
 	
 	
 	frame->SetTitle(TString("Fit components for ")+var->GetName());
 
 	frame->Draw();
+	fRooPlots.push_back(rooplot_uptr{frame});//keep it live
+	
 	canvas->SetTheta(frame->chiSquare()); //Save Chi2 as theta variable in TCanvas. Retrieve with TCanvas::GetTheta().
 	auto level = RooMsgService::instance().globalKillBelow();
 	RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR) ;
@@ -65,14 +85,23 @@ namespace HS{
 	halfCanvas->Divide(1,2);
 	halfCanvas->cd(1);
 	
-	auto hres=roohist_uptr(frame->residHist());
+	roohist_uptr hres;
+	if(DoSmooth) hres=roohist_uptr(frame->residHist());
+	else{
+	  // switch off averaging, otherwise fit of MC data with true templates does not show perfect agreement
+	  hres=roohist_uptr(frame->residHist(nullptr, nullptr, false, false));
+	}
 	hres->Draw();
      	fRooHists.push_back(std::move(hres));//keep it live
-
+	
 	//Pull distributions
 	halfCanvas->cd(2);
-	
-	auto hpull=roohist_uptr(frame->pullHist());
+
+	roohist_uptr hpull;
+	if(DoSmooth) hpull=roohist_uptr(frame->pullHist());
+	else{
+	  hpull=roohist_uptr(frame->pullHist(nullptr, nullptr, false));
+	}
 	hpull->Draw();
 	fRooHists.push_back(std::move(hpull));//keep it live
 	//////////////////////////////////////////////
@@ -82,13 +111,14 @@ namespace HS{
 
 	canvas->Modified();
 	canvas->Update();
-	canvas->Draw("");
+	if(fPlotOptions.Contains("goff")==kFALSE)canvas->Draw("");
 
 
      }
 
       //Turn off plotting in RooHSEventsPDF
       RooHSEventsPDF::SetIsPlotting(kFALSE);
+      if(fPlotOptions.Contains("goff")==kTRUE) gROOT->SetBatch(IsBatch);
 
      }
 

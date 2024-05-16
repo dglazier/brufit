@@ -41,7 +41,11 @@ namespace HS{
       fvecCatGen=other.fvecCatGen;
       fNTreeEntries=other.fNTreeEntries;
       fTreeEntryNumber=other.fTreeEntryNumber;
-    
+      
+      fAssertPosDataReal=other.fAssertPosDataReal;
+      fAssertPosDataCats=other.fAssertPosDataCats;
+      fNapd =other.fNapd;
+      
       if(other.fEvTree)fEvTree=other.fEvTree;
       fNInt=other.fNInt;
       fGeni=other.fGeni;
@@ -56,17 +60,18 @@ namespace HS{
       fInWeightCut=other.fInWeightCut;
       fIsValid=other.fIsValid;
       fUseEvWeights=other.fUseEvWeights;
-      if(other.fUseSamplingIntegral){
-	fUseSamplingIntegral=other.fUseSamplingIntegral;
-	fIntegralPDF=other.fIntegralPDF;
-      }
+      // if(other.fUseSamplingIntegral){
+      // 	fUseSamplingIntegral=other.fUseSamplingIntegral;
+      // 	fIntegralPDF=other.fIntegralPDF;
+      // }
       fWgtsConf=other.fWgtsConf;
 									     
       fEvWeights=other.fEvWeights;
       fHistIntegrals=other.fHistIntegrals;
       fMaxValue=other.fMaxValue;
       fIntRangeLow=other.fIntRangeLow;
-      fIntRangeHigh=other.fIntRangeHigh;
+
+       fIntRangeHigh=other.fIntRangeHigh;
     }
     RooHSEventsPDF::~RooHSEventsPDF(){
 
@@ -96,7 +101,7 @@ namespace HS{
 	delete fInWeights;
       }
       for(auto & i : fVarSet)
-	delete i;
+      	delete i;
       fVarSet.clear();
       }
 
@@ -156,7 +161,9 @@ namespace HS{
 	  for(Int_t i=0;i<fNTreeEntries;i++){
 	    fTreeEntry=i;
 	    value=evaluateMC(&fvecRealGen,&fvecCatGen);
-       
+	    if(value<0){ std::cout<<" RooHSEventsPDF::initGenerator -ve intensity !!! "<<value<<" while max was "<<fMaxValue<<std::endl;exit(0);}
+	    
+	    //	    std::cout<<"RooHSEventsPDF::initGenerator "<<value<<" "<<i<<std::endl;
 	    if(value>fMaxValue)fMaxValue=value*1.01;//make it a little larger
 	  }
  
@@ -183,10 +190,11 @@ namespace HS{
     }
     void RooHSEventsPDF::generateEvent(Int_t code){
       // Info("RooHSEventsPDF::generateEvent","Going to generate starting from %lld with ",fGeni);
-        Double_t value=0;
+      Double_t value=0;
       if(!fUseWeightsGen){
 	while(fGeni<fNTreeEntries){
 	  fTreeEntry=IncrementGeni();
+	  if(!CheckRange("")) continue;
 	  value=evaluateMC(&fvecRealGen,&fvecCatGen); //evaluate true values
 	  if(value>fMaxValue*RooRandom::uniform()){//accept
 	    for(Int_t i=0;i<fNvars;i++)
@@ -224,7 +232,7 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
     {
-    
+      //      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
       if(fForceNumInt) return 0; //might be good to check numerical integral sometimes
       if(!fEvTree&&!fForceConstInt) return 0; //no MC events to integrate over
 
@@ -253,6 +261,7 @@ namespace HS{
     /*******************************************/
     Double_t RooHSEventsPDF::analyticalIntegralForSampling(const char* rangeName) const
     {
+  
       Double_t integral=0;
       Long64_t accepted=0;
       Long64_t all=0;
@@ -300,7 +309,8 @@ namespace HS{
     {
        if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
        Long64_t NEv=0;
-  
+       
+ 
       //In case changed for generation
   
       Double_t integral=0.;
@@ -308,9 +318,12 @@ namespace HS{
       //only recalculate if a par changes when all variables included(ie code=1)
       if(code==1)
 	if(!CheckChange()) return fLast[0];
- 
       if(code==1){
-	if(fUseSamplingIntegral==kFALSE){
+	auto check= AssertPositivePDF();
+	if(check==kFALSE) return fLast[0]=0;
+	//cout<<"RooHSEventsPDF::analyticalIntegral was it OK "<<check<<endl;
+
+	   //	if(fUseSamplingIntegral==kFALSE){
 	  Long64_t accepted=0;
 	  Long64_t ilow=0;
 	  Long64_t ihigh=0;
@@ -327,7 +340,7 @@ namespace HS{
 	
 	  //normalise integral by number of events accepted
 	  integral/=accepted;
-	}
+	  
 	//Needs fixed to componentsPDF method
 	//else{//use sampled method
 	  //	  integral = analyticalIntegralForSampling(rangeName);
@@ -340,10 +353,13 @@ namespace HS{
 	Int_t vindex=code-2;
 	Double_t vval=*(fProxSet[vindex]);
 	integral=fHistIntegrals[vindex].Interpolate(vval);
+	if(integral<0) integral=0;
+	//std::cout<<"DEBUG RooHSEventsPDF::integral "<<integral<<std::endl;
+	return integral;
       }
       // Set Last[0] so we can just return that if no parameter changes
       fLast[0]=integral;
-
+      //std::cout<<"DEBUG RooHSEventsPDF::integral "<<fLast[0]<<std::endl;
       return fLast[0];
     }
 
@@ -355,10 +371,12 @@ namespace HS{
 	for(Long64_t ie=0;ie<fNTreeEntries;ie++){
 	  fTreeEntry=ie;
 	  if(!CheckRange(TString(rangeName).Data())) continue;
+          // cout << "evaluateMC: " << evaluateMC(&fvecReal,&fvecCat) << " GetIntegralWeight: " << GetIntegralWeight(ie) << endl;
+
 	  integral+=evaluateMC(&fvecReal,&fvecCat)*GetIntegralWeight(ie);
 	  nev++;
 	}
-	cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << endl;
+	cout << "RooHSEventsPDF::unnormalisedIntegral #MC=" << nev << ". Integral=" << integral << endl;
       }
       else if(code==2 && fHasMCGenTree){
 	for(Long64_t ie=0;ie<fNMCGenTreeEntries;ie++){
@@ -366,7 +384,7 @@ namespace HS{
 	  integral+=evaluateMC(&fvecRealMCGen,&fvecCatMCGen);
 	  nMC++;
 	}
-	cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << endl;
+	cout << "RooHSEventsPDF::unnormalisedIntegral #GEN= " << nMC << ". Integral=" << integral  << endl;
       }
       else{
 	return 0;
@@ -380,7 +398,7 @@ namespace HS{
       Long64_t ilow=0;
       Long64_t ihigh=0;
       SetLowHighVals(ilow,ihigh);
-      // cout<<"RooHSEventsPDF::HistIntegrals"<<endl;
+      //  cout<<"RooHSEventsPDF::HistIntegrals"<<endl;
       for(Int_t i=0;i<fNvars;i++){
 	auto  arg=dynamic_cast<const RooRealVar*>(&fProxSet[i]->arg());
 	if(arg)
@@ -440,9 +458,13 @@ namespace HS{
       //which are pointed to something, thus need Double_t *fLast
       //and construct a N-D array where we can change elements
 
+      // std::cout<<"RooHSEventsPDF::CheckChange() "<<fParSet.size()<<std::endl;
       Bool_t hasChanged=false;
       for(Int_t i=1;i<fNpars+1;i++)
-	if(fLast[i]!=(*(fParSet[i-1]))) hasChanged=true;
+	if(fLast[i]!=(*(fParSet[i-1]))){
+	  hasChanged=true;
+	  //  std::cout<<"RooHSEventsPDF::CheckChange() "<<fParSet[i-1]->GetName()<<" "<<fLast[i]<<" to "<<(*(fParSet[i-1]))<<std::endl;
+	}
       if(hasChanged){
 	for(Int_t i=1;i<fNpars+1;i++){
 	  fLast[i]=*(fParSet[i-1]);
@@ -453,9 +475,11 @@ namespace HS{
     }
  
     Bool_t RooHSEventsPDF::SetEvTree(TTree* tree,TString cut,TTree* MCGenTree){
+
+
       if(!tree->GetEntries())return kFALSE;
-      Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s",tree->GetName(),cut.Data());
-      cout<<"RooHSEventsPDF::SetEvTree "<<this<<endl;
+      Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s and %lld events",tree->GetName(),cut.Data(), tree->GetEntries());
+
       //Set the cut
       //Note weight cut can be set with WEIGHT@expr in factory constructor
       if(cut==TString())
@@ -515,7 +539,9 @@ namespace HS{
 	    TString newcut=fCut;
 	    newcut.Replace(newcut.Index(fProxSet[i]->GetName())-2,2,"");
 	    newcut.Replace(newcut.Index(TString(fProxSet[i]->GetName())+">"),(newcut.Index(TString(fProxSet[i]->GetName())+"<")-newcut.Index(TString(fProxSet[i]->GetName())+">"))*2-1,"");
+
 	    if(newcut==TString("&&"))newcut="";
+	    if(newcut(0,2)=="&&") newcut.Remove(0,2);
 	    fCut=newcut;
 	    cout<<"RooHSEventsPDF::SetEvTree Ammended cut "<<fCut<<endl;
 	  }
@@ -567,6 +593,7 @@ namespace HS{
 	    catCut+=")";
 	    newcut.ReplaceAll(catCut,"");
 	    if(newcut==TString("&&"))newcut="";
+	    if(newcut(0,2)=="&&") newcut.Remove(0,2);
 	    fCut=newcut;
 	    cout<<"RooHSEventsPDF::SetEvTree Ammended cut "<<fCut<<endl;
 	  }
@@ -726,7 +753,7 @@ namespace HS{
 	fMCGenTree->ResetBranchAddresses();
   	fMCGenTree->Reset();
       }
-
+      Info("RooHSEventsPDF::SetEvTree"," with name %s and cut  = %s and kept %lld events",tree->GetName(),cut.Data(), fNTreeEntries);
        return fBranchStatus;
     }
     
@@ -736,8 +763,9 @@ namespace HS{
       if(fInWeights) delete fInWeights;
       fInWeights=nullptr;
       fInWeights=new Weights();
-      fInWeights->LoadSaved(fWgtsConf.File(),fWgtsConf.ObjName());
-      // fWgtSpecies = fWgtsConf.Species();
+
+      fInWeights->LoadSavedDisc(fWgtsConf.File(),fWgtsConf.ObjName());
+
       if(fInWeights->GetSpeciesID(fWgtsConf.Species())==-1){
 	cout<<"ERROR RooHSEventsPDF::LoadInWeights() requested species "<<fWgtsConf.Species()<<" not found in given weights"<<endl;
 	fInWeights->Print();
@@ -754,15 +782,16 @@ namespace HS{
       // fNInt=nint;//REOMVE FOR NOW nint is not used
       fNInt=fNTreeEntries;//just use all entries
       //scale Ntests by Ndimensions
-      Ntests=TMath::Power((Double_t)Ntests,(Double_t)fParSet.size());
+      //   Ntests=TMath::Power((Double_t)Ntests,(Double_t)fParSet.size());
+      Ntests=(Ntests*fParSet.size());
 
       Info("RooHSEventsPDF::CheckIntegralParDep","Going to run %d calculations of integral with random parameters",Ntests);
   
       RooRealVar integral("integral","integral",0,0,2);
       integral.setError(sqrt(fNInt)/fNInt); //Error needs to be set before entering in ds
       RooDataSet ds("intds","intds",RooArgSet(integral));
-      //want to set random paramter values
-      //loop over each paramter and calculate integral
+      //want to set random parameter values
+      //loop over each parameter and calculate integral
       vector<Double_t> SavedPars;
       for(auto & ip : fParSet){//first save parameters
         auto par=(dynamic_cast<const RooRealVar*>(&(ip->arg())));
@@ -809,7 +838,6 @@ namespace HS{
       new TCanvas();
       framePull->Draw();
   
- 
       //numerical check gives constant integral, can force const for fit speed
       fConstInt=mean.getVal();
       fNInt=saveNint;
@@ -917,5 +945,104 @@ namespace HS{
       fIntRangeHigh=(ir+1)*range;
 
     }
+
+    void RooHSEventsPDF::MakeAssertPostiveData(){
+      //   RooArgSet vars = VarSet(0);
+      auto saveTreeEntry=fTreeEntry;
+      fTreeEntry=0;
+
+      auto NVars=fProxSet.size();
+      fAssertPosDataReal.resize(fNapd*NVars);
+
+      auto NCats=fCatSet.size();
+      fAssertPosDataCats.resize(fNapd*NCats);
+
+       for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+	
+	UInt_t ivar=0;
+	for(auto v:fProxSet){
+	  //	  cout<<"RooHSEventsPDF::MakeAssertPostiveData() "<<iapd<<" "<<v->GetName()<<std::endl;
+	  auto vr = dynamic_cast<const RooRealVar*>(&v->arg());
+	  if(vr!=nullptr){
+	    fAssertPosDataReal[fTreeEntry*NVars+ivar]=(gRandom->Uniform(vr->getMin(""),vr->getMax("")));
+	    ++ivar;
+	  }
+	}
+	UInt_t icat=0;
+	for(auto v:fCatSet){
+	  auto vc = dynamic_cast<const RooCategory*>(&v->arg());
+	
+	  if(vc!=nullptr){
+	    auto catstate = gRandom->Integer(vc->size());
+	    auto val = vc->getOrdinal(catstate).second;
+	   
+	    fAssertPosDataCats[fTreeEntry*NCats+icat]=val;
+	    ++icat;
+	  }
+	}
+	
+	fTreeEntry++;
+      }
+       // cout<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<" "<<fAssertPosDataCats[0]<<std::endl;exit(0);
+      fTreeEntry=saveTreeEntry;
+    }
+   // void RooHSEventsPDF::MakeAssertPostiveData(){
+   //    RooArgSet vars = VarSet(0);
+   //    auto saveTreeEntry=fTreeEntry;
+   //    fTreeEntry=0;
+   //    auto NVarsAndCats=vars.getSize();
+   //    fAssertPosDataReal.resize(fNapd*NVarsAndCats);
+   //    cout<<"RooHSEventsPDF::MakeAssertPostiveData() "<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<std::endl;
+   //    for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+	
+   // 	//whatabout categories !!!
+   // 	UInt_t ivar=0;
+   // 	for(auto v:vars){
+   // 	  cout<<"RooHSEventsPDF::MakeAssertPostiveData() "<<iapd<<" "<<v->GetName()<<std::endl;
+   // 	  auto vr = dynamic_cast<RooRealVar*>(v);
+   // 	  if(vr!=nullptr){
+   // 	    fAssertPosDataReal[fTreeEntry*NVarsAndCats+ivar]=(gRandom->Uniform(vr->getMin(""),vr->getMax("")));
+
+   // 	  }
+   // 	  else{//category
+   // 	    auto vc = dynamic_cast<RooCategory*>(v);
+   // 	    auto catstate = gRandom->Integer(vc->size());
+   // 	    auto val = vc->getOrdinal(catstate).second;
+   // 	    fAssertPosDataCat[fTreeEntry*NVarsAndCats+ivar]=val;
+   // 	  }
+   // 	  ++ivar;
+   // 	}
+   // 	fTreeEntry++;
+   //    }
+   //    //cout<<fAssertPosDataReal.size()<<" "<<fAssertPosDataReal[0]<<std::endl;
+   //    fTreeEntry=saveTreeEntry;
+   //  }
+    Bool_t RooHSEventsPDF::AssertPositivePDF() const{
+      //make sure this PDF is >=0 for its full allowed range
+      // std::cout<<"RooHSEventsPDF::AssertPositivePDF()"<<std::endl;
+      InitAssertPositiveCheck() ;
+      //std::cout<<"RooHSEventsPDF::AssertPositivePDF() done init"<<std::endl;
+      auto saveTreeEntry=fTreeEntry;
+      fTreeEntry=0;
+      // cout<<"RooHSEventsPDF::AssertPositivePDF()"<<endl;
+      for(Long64_t iapd = 0 ;iapd<fNapd; ++iapd ){
+       	auto val = evaluateMC(&fAssertPosDataReal,&fAssertPosDataCats);
+	++fTreeEntry;
+	if(val<-1E-4){ //some tolerance
+	  //  cout<<"RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve. "<<val<<" "<<fTreeEntry<<endl;
+	  logEvalError("RooHSEventsPDF::AssertPositivePDF() PDF cannot be -ve...");
+	  fTreeEntry=saveTreeEntry;
+	  FinishAssertPositiveCheck(); 
+	  return kFALSE;
+	}
+      }
+      fTreeEntry=saveTreeEntry;
+      //std::cout<<"RooHSEventsPDF::AssertPositivePDF() done "<<std::endl;
+       FinishAssertPositiveCheck() ;
+     
+      return kTRUE;
+    }
+
+    
   }
 }

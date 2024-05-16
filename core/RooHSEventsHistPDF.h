@@ -7,6 +7,7 @@
 
 #include "RooHSEventsPDF.h"
 #include <RooRealProxy.h>
+#include <RooHistPdf.h>
 #include <RooCategoryProxy.h>
 #include <RooAbsReal.h>
 #include <RooAbsCategory.h>
@@ -26,7 +27,7 @@ namespace HS{
       
       RooHSEventsHistPDF() =default ; 
        
-      RooHSEventsHistPDF(const char *name, const char *title, RooAbsReal& _x,RooAbsReal& _alpha,RooAbsReal& _offset, RooAbsReal& _scale);
+      RooHSEventsHistPDF(const char *name, const char *title, RooAbsReal& _x,RooAbsReal& _alpha,RooAbsReal& _offset, RooAbsReal& _scale, Int_t applySmooth=1, Int_t interp=1, Int_t xbins=100, Int_t nsamp=1000, Int_t abins=200);
       
       RooHSEventsHistPDF(const RooHSEventsHistPDF& other, const char* name=nullptr) ;
       TObject* clone(const char* newname) const override { return new RooHSEventsHistPDF(*this,newname); }
@@ -39,7 +40,16 @@ namespace HS{
       RooRealProxy offset ;
       RooRealProxy scale ;
       RooRealProxy alpha ;
-  
+
+      TH1D fGenHist; //for generating
+      
+      Int_t fapplySmooth=1; //default smooth
+      Int_t fInterpolate=1; //default interpolating
+      Int_t fNAlphaBins=200;
+      Int_t fNXBins0=100;
+      Int_t fNIntSamples=1000;
+      Bool_t fUseHistGenerator=kTRUE;
+      
       Double_t evaluate() const override ;
       Double_t evaluateMC(const vector<Float_t> *vars,const  vector<Int_t> *cats) const override ;
       Double_t evaluateMC(Double_t mcx) const ;
@@ -58,20 +68,34 @@ namespace HS{
       RooGaussian *fScaleConstr=nullptr;
   
     public:
-
+     
       Bool_t SetEvTree(TTree* tree,TString cut,TTree* MCGenTree=nullptr) override;
-      void CreateHistPdf();
+      virtual void CreateHistPdf();
+      virtual void  FillBase1DHist(TH1D& his1);
+      void CheckForNegativeBins(TH1D& his1);
+      void Construct2DHist(TAxis xaxis,TAxis AlphAxis,Bool_t isAlphaConst);
+      
       virtual void ResetTree();
   
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
-  
+      void generateEvent(Int_t code) override;
+      void initGenerator(Int_t code) override;
+      void UseHistGenerator() {fUseHistGenerator=kTRUE;}
+      Bool_t UsingHistGenerator() {return fUseHistGenerator;}
       RooGaussian* AlphaConstraint() {return fAlphaConstr;};
       RooGaussian* OffConstraint() {return fOffConstr;};
       RooGaussian* ScaleConstraint() {return fScaleConstr;};
 
       TH2* GetRootHist() {return fRHist;}
-      ClassDefOverride(HS::FIT::RooHSEventsHistPDF,1); // Your description goes here...
+
+      std::vector<Double_t> GetBinVector(const TAxis& ax){
+	std::vector<Double_t> xedges(ax.GetNbins());
+	ax.GetLowEdge(xedges.data());
+	xedges.push_back(ax.GetXmax());
+	return xedges;
+      }
+        ClassDefOverride(HS::FIT::RooHSEventsHistPDF,1); // Your description goes here...
     };//Class
 
     

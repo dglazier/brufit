@@ -14,25 +14,31 @@ namespace HS{
 
 
     Setup::Setup():TNamed(){
+      // RequiredFitOptions();
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      DefaultFitOptions();
-
+      //DefaultFitOptions();
       //to flush anything which is not owned elsewhere
       fNeedToDeleteThis.SetOwner();
     }
     Setup::Setup(const TString& name):TNamed(name,name){
       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      DefaultFitOptions();
+      //DefaultFitOptions();
+      //RequiredFitOptions();
       fNeedToDeleteThis.SetOwner();
     }
     
     Setup::Setup(const Setup& other):TNamed(other.fName,other.fName){
-      //   cout<<"****************************COPY "<<fIDBranchName<<" "<<fVars.getSize()<< " "<< other.fFormString.size()<<endl;
+
+      gErrorIgnoreLevel = kFatal;
+      auto level = RooMsgService::instance().globalKillBelow();
+      RooMsgService::instance().setGlobalKillBelow(RooFit::INFO) ;
+
       //       fWS={"HSWS"};
       fNeedToDeleteThis.SetOwner();
-       fFitOptions=other.fFitOptions;
-       fConstraints=other.fConstraints;   
-       fAddCut=other.fAddCut;
+      fFitOptions=other.fFitOptions;
+      //RequiredFitOptions(); //make sure we have required options
+      fConstraints=other.fConstraints;   
+      fAddCut=other.fAddCut;
        fVarCut=""; //contructed from LoadAuxVar
        fDataOnlyCut=other.fDataOnlyCut;
        fIDBranchName=other.fIDBranchName;
@@ -42,8 +48,9 @@ namespace HS{
 	 LoadConstant(conStr);
        for(auto &parStr: other.fParString)
 	 LoadParameter(parStr);
-       for(auto &varStr: other.fVarString)
+       for(auto &varStr: other.fVarString){
 	 LoadVariable(varStr);
+       }
        for(auto &catStr: other.fCatString)
 	 LoadCategory(catStr);
        for(auto &varStr: other.fAuxVarString)
@@ -63,19 +70,35 @@ namespace HS{
 	 SetConstPDFPars(pdf.first,pdf.second);
        for(const auto& par:other.fConstPars)
 	 SetConstPar(par.first,par.second);
-      
+
+       CopyRealProperties(DataVars(),other.fVars);//DataVars called in LoadSpeciesPDF
+
+       fErrorsSumW2=other.fErrorsSumW2;
+       fErrorsAsym=other.fErrorsAsym;
+
+       
+       gErrorIgnoreLevel = kInfo ;
+       RooMsgService::instance().setGlobalKillBelow(level) ;
+       
    }
 
     Setup& Setup::operator=(const Setup& other){
-      fNeedToDeleteThis.SetOwner();
-      fFitOptions=other.fFitOptions;
+      gErrorIgnoreLevel = kFatal;
+      auto level = RooMsgService::instance().globalKillBelow();
+      RooMsgService::instance().setGlobalKillBelow(RooFit::INFO) ;
+      
+
+    fNeedToDeleteThis.SetOwner();
+    fFitOptions=other.fFitOptions;
       fConstraints=other.fConstraints;
       fAddCut=other.fAddCut;
       fVarCut=""; //contructed from LoadAuxVar
       fIDBranchName=other.fIDBranchName;
       fOutDir=other.fOutDir;
       //fWS={"HSWS"};
-      
+      fErrorsSumW2=other.fErrorsSumW2;
+      fErrorsAsym=other.fErrorsAsym;
+ 
      //constants first so can overide parameters
       for(auto &conStr: other.fConstString)
 	LoadConstant(conStr);
@@ -103,7 +126,11 @@ namespace HS{
       for(const auto& par:other.fConstPars)
 	SetConstPar(par.first,par.second);
 
-  
+      CopyRealProperties(DataVars(),other.fVars);
+
+      gErrorIgnoreLevel = kInfo ;
+      RooMsgService::instance().setGlobalKillBelow(level) ;
+ 
       return *this;
     }
  
@@ -133,6 +160,7 @@ namespace HS{
     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
     /// Add a fit parameter X between -1 and 1
     void Setup::LoadParameterOnTheFly(const TString& opt){
+      cout<<"Setup::LoadParameterOnTheFly "<<opt<<endl;
       //Find parameter name i.e. up to '['
       auto parName=TString(opt(0,opt.First('[')));
       if( ArgListContainsName(fParameters,parName) )
@@ -140,8 +168,7 @@ namespace HS{
       if( ArgListContainsName(fConstants,parName) )
 	return; //already loaded
       
-      //cout<<"LoadParameterOnTheFly   "<<opt<<endl;
-       //replaceAll -ve signs in name with "neg"
+        //replaceAll -ve signs in name with "neg"
       TString varname = opt;
 
       if(opt.Contains(',')==false){
@@ -150,6 +177,11 @@ namespace HS{
 	return;
       }
       auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
+      if((var->getMax()==var->getMin())){
+	//assume parameters with no range are constants
+	LoadConstant(opt);
+	return;
+      }
       if(!var) {
 	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;
 	return;
@@ -207,6 +239,7 @@ namespace HS{
     /// Load a formulaVar e.g s.LoadFormula("name=@v1[1,0,2]+@v2[]");
     ///
     void Setup::LoadFormula(TString formu){
+      //std::cout<<" Setup::LoadFormula "<<formu<<std::endl;
       auto parName=TString(formu(0,formu.First('=')));
       if( ArgListContainsName(fConstants,parName) )
 	return; //already loaded as constant (constants overide all else)
@@ -238,7 +271,7 @@ namespace HS{
       RooFormulaVar fovar(name,formu,rooPars) ;
 
       //fovar.Print();
-      fWS.import(fovar);
+      fWS.import(fovar,RooFit::Silence());
       if(fWS.function(name)){
 	fFormulas.add(*fWS.function(name));
 	if(fovar.getObservables(fVars)->getSize()==0
@@ -339,10 +372,22 @@ namespace HS{
     }
     ///////////////////////////////////////////////////////////
     /// Create PDF, parameters formulas and functions from PdfParser
-    void Setup::ParserPDF(const TString& str, PdfParser& parse){
+    void Setup::ParserPDF(TString str, PdfParser& parse){
+      //Look for possible weights
+      TString wopt;
+      if(str.Contains("WEIGHTS@")){
+	str.ReplaceAll("WEIGHTS@","$"); //$ should be a safe character!!!!
+
+	wopt=str(str.First("$")+1,str.Sizeof()-str.First("$"));
+	str=str(0,str.First("$"));
+	
+	wopt.Prepend("WEIGHTS@");
+      }
+
+      
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
-      std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+       std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
       //LoadConstants first so can overide parameters or functions with constants
       auto cons = parse.GetConstants();
       for(auto& con:cons)
@@ -350,7 +395,8 @@ namespace HS{
       //Load Parameters
       auto pars = parse.GetParameters();
       for(auto& par:pars)
-	LoadParameterOnTheFly(par);
+	LoadParameter(par);
+      //LoadParameterOnTheFly(par);
       //LoadFormulas
       auto forms = parse.GetFormulas();
       for(auto& form:forms)
@@ -358,7 +404,7 @@ namespace HS{
         //LoadFunctionVars
       auto funs = parse.GetFunctions();
       for(auto& fun:funs){
-	//	cout<<"Load Function var "<<fun<<endl;
+	//	cout<<"DEBUG Load Function var "<<fun<<endl;
 	LoadFunctionVar(fun);
 	
       }
@@ -367,8 +413,9 @@ namespace HS{
       tpdf.ReplaceAll("H_0_0_0_0[0,-1,1]","H_0_0_0_0[1]");
       pdfString=tpdf.Data();
       
-     std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
-      FactoryPDF(pdfString);
+      std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+     
+      FactoryPDF(pdfString+wopt);
     }
     ///////////////////////////////////////////////////////////
     ///Set this PDF to be included in extended ML fit
@@ -402,7 +449,7 @@ namespace HS{
       opt.ReplaceAll("RooComponentsPDF::","");
       opt.ReplaceAll(" ","");
       TString pdfName=opt(0,opt.First("("));
-      //  fWS.Print();
+      // fWS.Print();
       //cout<<"ComponentsPDF "<<pdfName<<endl;
       //Get baseline
       TString	sbaseLine=opt(opt.First("(")+1,opt.First(",")-opt.First("(")-1);
@@ -418,7 +465,7 @@ namespace HS{
 
       //cout<<"Observable String "<<sobs<<endl;
       for(Int_t i=0;i<obsStrings->GetEntries();i++ ){
-	//cout<<"      "<<obsStrings->At(i)->GetName()<<endl;
+	//cout<<"   obs i    "<<i<<" "<<obsStrings->At(i)->GetName()<<endl;
 	obsList.add(*varsAndCatsAndPars.find(obsStrings->At(i)->GetName()));
       }
       delete obsStrings;
@@ -437,15 +484,18 @@ namespace HS{
       Int_t ic=0;
       //cout<<"Components String "<<scomps<<endl;
       for(Int_t i=0;i<compStrings->GetEntries();i++ ){
-	//	cout<<"      "<<compStrings->At(i)->GetName()<<endl;
+	auto compo = TString(compStrings->At(i)->GetName());
+	compo.ReplaceAll(";","*");
+	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
 	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
 	TString term = compStrings->At(i)->GetName();
 	auto termStrings=term.Tokenize(";");
 	for( Int_t j=0;j<termStrings->GetEntries();j++ ){
-	  //	  cout<<"                 "<<termStrings->At(j)->GetName()<<endl;
+	  //  	  cout<<"  TERM               "<<termStrings->At(j)->GetName()<<endl;
 	  
 	  TString sarg = termStrings->At(j)->GetName();
 	  TString vname =sarg;
+	  //cout<<"DEBUG "<<vname<<endl;
 	  if(sarg.Contains("=")){//look for formula
 	    LoadFormula(sarg);//Load formula
 	    vname=sarg(0,sarg.First("=")); //get the var name
@@ -472,18 +522,23 @@ namespace HS{
 	  else if( dynamic_cast<RooCategory*>(fWS.cat(vname))) termList.add(*fWS.cat(vname));
 	  else if ( dynamic_cast<RooFormulaVar*>(fWS.function(vname))) termList.add(*fWS.function(vname));
 	  else if ( dynamic_cast<RooAbsReal*>(fWS.function(vname))) termList.add(*fWS.function(vname)); //for function vars
-	  else Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
+	  else{
+	    fWS.Print("v");
+	    Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
+	  }
 	}
-	//termList.Print("v");
+	//std::cout <<" term list "<<std::endl;termList.Print("v");
 	compsLists.push_back(termList);//add this term to the components list
 	delete termStrings;
       }
       delete compStrings;
+      //std::cout<<"Create "<<pdfName<<std::endl;
       //create pdf and import to workspace
       auto pdf=new RooComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
       fNeedToDeleteThis.Add(pdf);
-      
+      //std::cout<<"Import "<<pdf->GetName()<<std::endl;
       fWS.import(*pdf);
+      //std::cout<<"Imported "<<pdf->GetName()<<std::endl;
       return pdf;
     }
     //////////////////////////////////////////////////////////
@@ -536,7 +591,7 @@ namespace HS{
       return fVarsAndCats;
     }
    RooArgSet& Setup::ParsAndYields(){
-     fParsAndYields.clear();//DEBUG
+     //    fParsAndYields.clear();//DEBUG
       if(fParsAndYields.getSize())
 	return fParsAndYields;
       fParsAndYields.add(fParameters);
@@ -555,6 +610,17 @@ namespace HS{
      }
      return fNCParsAndYields;
    }
+    void Setup::CopyRealProperties(RooArgSet& change, const RooArgSet& tothis){
+      for(auto& arg : change){
+	auto rarg = dynamic_cast<RooRealVar*>(arg);
+	if(rarg==nullptr) continue;
+	auto carg = dynamic_cast<RooRealVar*>(tothis.find(arg->GetName()));
+	if(carg==nullptr) continue;
+	
+	rarg->setBins(carg->getBins());
+      }
+      
+    }
 
     void Setup::OrganiseConstraints(){
 

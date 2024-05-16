@@ -11,7 +11,7 @@ namespace HS{
 
 
  
-    RooHSSphHarmonic::RooHSSphHarmonic(const char* name, const char* title, RooAbsReal& ctheta, RooAbsReal& phi, int l, int m,Double_t factor)
+    RooHSSphHarmonic::RooHSSphHarmonic(const char* name, const char* title, RooAbsReal& ctheta, RooAbsReal& phi, int l, int m,int factor)
       : RooHSComplex(name, title)
       , _ctheta("ctheta", "ctheta", this, ctheta)
       , _phi("phi", "phi", this, phi)

@@ -25,8 +25,15 @@
   RF.LoadSimulated("MyModel","SigData.root", "Signal");
   RF.LoadSimulated("MyModel","BGData.root", "BG");
 
+  RF.SetUp().ErrorsWrong();//"naive" error calculation, much faster
+  // RF.SetUp().AddFitOption(RooFit::NumCPU(4));
+
+ //or try MCMC algorithm
+  //auto mcmc=new BruMcmcCovariance(200,100,0.1,0.23,0.16,0.3);
+  //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
+  //RF.SetMinimiser(mcmc);
+
   Here::Go(&RF);
-  //Proof::Go(&RF,4); //run proof with 4 workers
 
   new TCanvas;
   RF.DrawWeighted("M1>>(100,0,10)","Signal");

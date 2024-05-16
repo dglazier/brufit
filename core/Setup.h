@@ -68,7 +68,7 @@ namespace HS{
 
 
       void FactoryPDF(TString opt);
-      void ParserPDF(const TString& str, PdfParser& parse);
+      void ParserPDF(TString str, PdfParser& parse);
       void LoadVariable(const TString& opt);
       void LoadCategory(const TString& opt);
       void LoadAuxVar(const TString& opt);
@@ -86,6 +86,8 @@ namespace HS{
       RooArgSet& FitVarsAndCats();
       RooArgSet& ParsAndYields();
       RooArgSet& NonConstParsAndYields();
+      void CopyRealProperties(RooArgSet& change, const RooArgSet& tothis);
+      
       const realvars_t& AuxVars()const {return fAuxVars;}
 	
       RooAbsPdf* Model()  const {return fModel;}
@@ -134,8 +136,8 @@ namespace HS{
       RooArgList& Yields()  {return fYields;}
       RooArgList& Parameters() {return fParameters;}
       RooArgList& Constants() {return fConstants;}
-      RooArgList& Formulas() {return fFormulas;}
-      RooArgList& ParameterFormulas() {return fParameterFormulas;}
+      const RooArgList& Formulas() const {return fFormulas;}
+      const RooArgList& ParameterFormulas() const {return fParameterFormulas;}
       RooArgList& PDFs()   {return fPDFs;}
       const RooArgList& constPDFs()   const {return fPDFs;}
       RooArgList& Constraints(){return fConstraints;}
@@ -159,17 +161,47 @@ namespace HS{
       RooLinkedList FitOptions(){return fFitOptions;}
       
       void DefaultFitOptions(){
-	AddFitOption(RooFit::SumW2Error(kTRUE));
-	//AddFitOption(RooFit::NumCPU(4));
-	AddFitOption(RooFit::Save(kTRUE));
 	AddFitOption(RooFit::Warnings(kFALSE));
 	//AddFitOption(RooFit::Minos(kFALSE));
 	//AddFitOption(RooFit::Minimizer("Minuit2"));
       }
+      void RequiredFitOptions(){
+	if(fFitOptions.find("Save")!=nullptr) return;
+	
+	AddFitOption(RooFit::Save(kTRUE));
+	if(fErrorsSumW2) AddFitOption(RooFit::SumW2Error(kTRUE));
+	else if(fErrorsAsym) AddFitOption(RooFit::AsymptoticError(true));
+	
+      }
+
+      void ErrorsSumW2(){
+	fErrorsSumW2=kTRUE;
+	fErrorsAsym=kFALSE;
+      }
+      void ErrorsAsymp(){
+	fErrorsSumW2=kFALSE;
+	fErrorsAsym=kTRUE;
+      }
+      void ErrorsWrong(){
+	fErrorsSumW2=kFALSE;
+	fErrorsAsym=kFALSE;
+      }
+      
       void RandomisePars();
       void OrganiseConstraints();
-      
+
+      RooRealVar* GetVar(const TString& name){
+	return (dynamic_cast<RooRealVar*>(DataVars().find(name)));
+      }
+      RooRealVar* GetPar(const TString& name){
+	return (dynamic_cast<RooRealVar*>(fParameters.find(name)));
+      }
       void SetParVal(const TString& par,Double_t val,Bool_t co=kFALSE){
+	if(dynamic_cast<RooRealVar*>(fParameters.find(par))==nullptr){
+	  std::cerr<<"Error Setup::SetParVal invalid parameter"<<par<<std::endl;
+	  exit(0);
+	}
+      
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setVal(val);
 	(dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
 	fConstPars[par]=co;
@@ -204,50 +236,53 @@ namespace HS{
     private:
  
       //note fWS owns all of these vector pointers
-      realvars_t fFitVars;      
-      realvars_t fAuxVars;      
+      realvars_t fFitVars; 
+      realvars_t fAuxVars;
       catvars_t  fFitCats;
       RooArgSet fVars;
       RooArgSet fCats; //only categories
-      RooArgSet fPars;//!
-      RooArgSet fFuncVars;//!
+      RooArgSet fPars;
+      RooArgSet fFuncVars; 
       RooArgList fFormulas;//! CANT WRITE formulas ArgSet!
       RooArgList fParameterFormulas;//! CANT WRITE formulas ArgSet!
       RooArgSet fVarsAndCats;
       RooArgSet fParsAndYields;
-      RooArgSet fNCParsAndYields; //Non constant parameters and yields
-      RooArgList fYields;//species yields
-      RooArgList fPDFs;//species pdfs
-      RooArgList fParameters;//model parameters
+      RooArgSet fNCParsAndYields;//Non constant parameters and yields
+      RooArgList fYields; //species yields
+      RooArgList fPDFs; //species pdfs
+      RooArgList fParameters; //model parameters
       RooArgList fConstants;//model constants
-      RooArgList fConstraints;//constraints on  parameters
-      RooLinkedList fFitOptions;//
-      vector< std::unique_ptr<RandomConstrained> >_parConstraints;//! pdf constraints on parameters
+      RooArgList fConstraints; //constraints on  parameters
+      RooLinkedList fFitOptions; //
+      vector< std::unique_ptr<RandomConstrained> >_parConstraints;// pdf constraints on parameters
       
       RooAbsPdf* fModel=nullptr; //!owned by workspace
  
-      RooWorkspace fWS;
-      TString fVarCut;
-      TString fAddCut;
-      TString fIDBranchName="UID";
-      TString fOutDir;
-      TString fDataOnlyCut;
-      TList fNeedToDeleteThis;
+      RooWorkspace fWS; //
+      TString fVarCut; //
+      TString fAddCut; //
+      TString fIDBranchName="UID";//
+      TString fOutDir;//
+      TString fDataOnlyCut;//
+      TList fNeedToDeleteThis;//
       
-      strings_t fVarString;
-      strings_t fCatString;
-      strings_t fParString;
-      strings_t fConstString;
-      strings_t fFormString;
-      strings_t fAuxVarString;
-      strings_t fPDFString;
-      strings_t fFuncVarString;
+      strings_t fVarString;//
+      strings_t fCatString;//
+      strings_t fParString;//
+      strings_t fConstString;//
+      strings_t fFormString;//
+      strings_t fAuxVarString;//
+      strings_t fPDFString;//
+      strings_t fFuncVarString;//!
 
-      std::map<TString,Bool_t> fConstPars;
-      std::map<TString,Bool_t> fConstPDFPars;
+      Bool_t	fErrorsSumW2=kTRUE; //default to this
+      Bool_t	fErrorsAsym=kFALSE;
 
-      std::vector<std::pair<TString,Float_t> > fSpecString;
-      std::map<TString,TString> fPDFInWeights;
+      std::map<TString,Bool_t> fConstPars; //
+      std::map<TString,Bool_t> fConstPDFPars; //
+
+      std::vector<std::pair<TString,Float_t> > fSpecString;//
+      std::map<TString,TString> fPDFInWeights;//
       TString fYld="Yld_";//yield variable prepend
 
       ClassDefOverride(HS::FIT::Setup,1);

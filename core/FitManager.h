@@ -13,12 +13,12 @@
 #include "CornerPlot.h"
 #include "CornerFullPlot.h"
 #include "RooMcmc.h"
+#include "BruMcmc.h"
 #include "Data.h"
 #include "Binner.h"
 #include "Minimiser.h"
 #include <TNamed.h>
 #include <RooMinimizer.h>
-#include <RooMinuit.h>
 #include <RooAbsData.h>
 #include <RooFitResult.h>
 
@@ -85,14 +85,12 @@ namespace HS{
       virtual void FitTo();
       
       virtual void Reset(){
-	//	fData.Reset(fFiti);
-	cout<<"REMOVE FILEDTREE "<<fFiledTrees.size()<<endl;
-	// for(auto& ft:fFiledTrees){
-	//   ft.reset();
-	// }
 	fFiledTrees.clear();
+
+	//Keep last results
+	fLastPars.reset(dynamic_cast<RooArgSet*>(fCurrSetup->ParsAndYields().snapshot()));
+	fLastForms.reset(dynamic_cast<RooArgList*>(fCurrSetup->Formulas().snapshot()));
 	
-	cout<<"REMOVED FILEDTREE "<<endl;
 	fCurrSetup.reset();
 	fCurrDataSet.reset();
       }
@@ -104,7 +102,9 @@ namespace HS{
       void LoadData(const TString& tname,const strings_t& fnames){
 	 fData.Load(fSetup,tname,fnames);
       }
-      void LoadData(const TString& tname,const TString& fname,const TString& name="Data"){
+      //  void LoadData(const TString& tname,const TString& fname,const TString& name="Data"){
+      void LoadData(const TString& tname,const TString& fname){
+	const TString name="Data";
 	fBinner.SplitData(tname,fname,name);
 	LoadData(fBinner.TreeName(name),fBinner.FileNames(name));
 	fData.SetParentName(fname);
@@ -116,13 +116,18 @@ namespace HS{
  	fData.SetParentName(fname);
  	fData.SetParentTreeName(fBinner.TreeName(name));
      }
-      void ReloadData(const TString& tname,TString fname,TString name){
-	ReloadData(std::move(fname),std::move(name));
+      void ReloadData(const TString& tname,const TString& fname,const TString& name){
+	ReloadData(fname,name);
       }
       
-      void LoadSimulated(const TString& tname,TString fname,const TString& name){
-	fBinner.SplitData(tname,std::move(fname),name);
+      void LoadSimulated(const TString& tname,const TString& fname,const TString& name){
+	fBinner.SplitData(tname,fname,name);
       }
+     void LoadSimulatedWithoutBinning(const TString& tname,const TString& fname,const TString& name){
+       fBinner.SplitData(tname,fname,name); //create maps etc
+       fBinner.SetAllFileNamesTo(fname,name); //but point all bins to same file
+      }
+      
       void ReloadSimulated(const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name);
       }
@@ -130,11 +135,15 @@ namespace HS{
 	fBinner.ReloadData(fname,name);
       }
       
-      void LoadGenerated(const TString& tname,TString fname,const TString& name){
-	TString buffer = fBinner.GetCut();
-	fBinner.RemoveAllCuts();
-	fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
-	fBinner.AddCut(buffer);
+      void LoadGenerated(const TString& tname,TString fname,const TString& name, Bool_t ignoreCuts=kFALSE){
+            if(ignoreCuts)
+                  fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
+            else{
+                  TString buffer = fBinner.GetCut();
+                  fBinner.RemoveAllCuts();
+                  fBinner.SplitData(tname,std::move(fname),name+"__MCGen");
+                  fBinner.AddCut(buffer);
+            }
       }
       void ReloadGenerated(const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name+"__MCGen");
@@ -163,6 +172,10 @@ namespace HS{
 	  { 
 	    fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<RooMcmc*>(fMinimiser.get()),fPlotOptions})));
 	  }
+	else if(dynamic_cast<BruMcmc*>(fMinimiser.get())){
+	  fPlots.push_back((std::unique_ptr<MCMCPlotResults>(new MCMCPlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),dynamic_cast<BruMcmc*>(fMinimiser.get()),fPlotOptions})));
+
+	}
 	else
 	  fPlots.push_back((std::unique_ptr<PlotResults>(new PlotResults{fCurrSetup.get(),fCurrDataSet.get(),GetCurrName()+GetCurrTitle(),fPlotOptions})));
       }
@@ -177,19 +190,39 @@ namespace HS{
 
       void SetPlotOptions(const TString& opt){fPlotOptions=opt;}
       void SetYieldMaxFactor(Double_t factor){fYldMaxFactor=factor;}
-      void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
-      
+      //void SetIsSamplingIntegrals(){fIsSamplingIntegrals=kTRUE;}
+
+      const RooArgSet* GetFitParameters() {
+	if(fLastPars.get()==nullptr)//not fit, just use setup values
+	  fLastPars.reset(dynamic_cast<RooArgSet*>(fSetup.ParsAndYields().snapshot()));
+	return fLastPars.get();
+     }
+      const RooArgList* GetFitFormulas() {
+	if(fLastForms.get()==nullptr)//not fit, just use setup values
+	  fLastForms.reset(dynamic_cast<RooArgList*>(fSetup.Formulas().snapshot()));
+	return fLastForms.get();
+      }
+
+      void TurnOffPlotting(){
+	fDoPlotting = kFALSE;
+      }
+
+      void DoBinnedFits(Bool_t dbf=kTRUE){fuseBinnedFit=dbf;}
+
+      void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
+ 
      protected:
       std::unique_ptr<Setup> fCurrSetup={}; //!
       std::unique_ptr<RooDataSet> fCurrDataSet={}; //!
       
       virtual void SaveResults();
-       
+      //virtual void PlotSavedResults();
+      
     private:
       
       Setup fSetup;
       
-      DataEvents fData;
+      DataEvents fData; 
       
       Binner fBinner;
 
@@ -200,7 +233,10 @@ namespace HS{
       std::vector<plotresult_uptr> fPlots;//!
       RooFitResult* fResult=nullptr;//!
       
-      strings_t fCompiledMacros;
+      std::unique_ptr<RooArgSet> fLastPars=nullptr; //!
+      std::unique_ptr<RooArgList> fLastForms=nullptr; //!
+
+      strings_t fCompiledMacros; //!
   
       Bool_t fRedirect=kFALSE;
 
@@ -212,9 +248,13 @@ namespace HS{
       TString fPrevResultDir;
       TString fPrevResultMini;
       
-      TString fPlotOptions;
+      TString fTruthPrefix="xxxxxx";
 
-      Bool_t fIsSamplingIntegrals=kFALSE;
+      TString fPlotOptions;
+      Bool_t fDoPlotting = kTRUE;
+      Bool_t fuseBinnedFit = kFALSE;
+
+      //Bool_t fIsSamplingIntegrals=kFALSE;
       
       ClassDefOverride(HS::FIT::FitManager,1);
      };

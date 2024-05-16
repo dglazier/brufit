@@ -34,7 +34,7 @@ namespace FIT{
 		Bool_t Run() override;
 		void SaveResults() override;
 
-		void LoadFitResult();
+		Bool_t LoadFitResult();
 
 		void SetBeamEnergyBinLimits(std::vector<Double_t> limits){fBeamEnergyBinLimits = limits;};
 		void SetBeamEnergyBinLimits(TString bin);

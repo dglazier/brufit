@@ -17,18 +17,11 @@ namespace HS{
       //Zero yield check
       //returns true if single yield left and weights generated
       //else if zero yields it will remove them for sPlot
+      fZeroYields.clear();
       if(ZeroYieldCheck()==kTRUE) return kTRUE;
    
  
-      //Note sPlot is much (10X) faster with tree store
-      //Normal fit is 2X faster with vector...
-      //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      //auto* dataset =dynamic_cast<RooDataSet*>( fCurrDataSet->emptyClone());
-      //dataset->append(*fCurrDataSet.get());
-      //RooAbsData::setDefaultStorageType(RooAbsData::Vector);
-
-      //Note at tested again with 6.24 and Vector store is now faster...
-       RooDataSet* dataset =fCurrDataSet.get();
+      RooDataSet* dataset =fCurrDataSet.get();
 
       
       auto *model=fCurrSetup->Model();
@@ -44,7 +37,7 @@ namespace HS{
 
        CreateWeights();
        
- 
+       // cout<<"HS::FIT::sPlot::Run Done "<<endl;
        return kTRUE;
    }
     
@@ -124,9 +117,15 @@ namespace HS{
 	} //ID not defined just use entry number in dataset
 	else fWeights->FillWeights(ev,eventW);
       }
+      if(fWeights->Size()!=fCurrDataSet->numEntries()){
+	cout<<"sPlot::ExportWeights Done but mismatch between number of weights and number of data events"<<fWeights->Size()<<" "<<fCurrDataSet->sumEntries()<<" ..... exiting"<<endl;
+	yields.Print("v");
+	exit(0);
+      }
     }
     
     weights_uptr sPlot::MergeWeights(){
+      std::cout<<"sPlot::MergeWeights() "<<std::endl;
       //in addition combine the weights into 1 and load them
       weights_uptr wts(new Weights("HSsWeights"));
       //Note the output file cannot contain the word Weights (because of Merge), hence Tweights!
@@ -143,7 +142,7 @@ namespace HS{
     }
 
     void sPlot::WeightedTree(){
-      if(!fWeights.get()){
+       if(!fWeights.get()){
 	if(Bins().GetSize()>0)
 	  fWeights = MergeWeights();
 	else{
@@ -184,6 +183,7 @@ namespace HS{
     }
 
     Bool_t sPlot::ZeroYieldCheck(){
+      
       auto& yields=fCurrSetup->Yields(); //get reference to yields
       auto& pdfs=fCurrSetup->PDFs(); //get reference to yields
       bool removedPdf=false;    

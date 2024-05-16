@@ -24,9 +24,18 @@
 #pragma link C++ class HS::FIT::FitSelector+;
 #pragma link C++ class HS::FIT::HSMetropolisHastings+;
 #pragma link C++ class HS::FIT::HSSequentialProposal+;
+#pragma link C++ class HS::FIT::BruMetropolisHastings+;
+#pragma link C++ class HS::FIT::BruSequentialProposal+;
+#pragma link C++ class HS::FIT::BruCovarianceProposal+;
+#pragma link C++ class HS::FIT::BruMcmc+;
+#pragma link C++ class HS::FIT::BruMcmcSeq+;
+#pragma link C++ class HS::FIT::BruMcmcSeqHelper+;
+#pragma link C++ class HS::FIT::BruMcmcCovariance+;
 #pragma link C++ class HS::FIT::Minimiser+;
 #pragma link C++ class HS::FIT::Minuit+;
 #pragma link C++ class HS::FIT::Minuit2+;
+#pragma link C++ class HS::FIT::AmpMinuit2+;
+#pragma link C++ class HS::FIT::AmpMcmc+;
 #pragma link C++ class HS::FIT::PdfParser+;
 #pragma link C++ class HS::FIT::PlotResults+;
 #pragma link C++ class HS::FIT::MCMCPlotResults+;
@@ -39,6 +48,7 @@
 #pragma link C++ class HS::FIT::RooHSComplex+;
 #pragma link C++ class HS::FIT::RooHSComplexSumSqdTerm+;
 #pragma link C++ class HS::FIT::RooHSEventsHistPDF+;
+#pragma link C++ class HS::FIT::BruEventsHistPeakPDF+;
 #pragma link C++ class HS::FIT::RooHSEventsPDF+;
 #pragma link C++ class HS::FIT::RooMcmc+;
 #pragma link C++ class HS::FIT::RooMcmcSeq+;
@@ -47,6 +57,7 @@
 #pragma link C++ class HS::FIT::RooMcmcGaus+;
 #pragma link C++ class HS::FIT::RooMcmcSeqCov+;
 #pragma link C++ class HS::FIT::RooMcmcSeqThenCov+;
+#pragma link C++ class HS::FIT::RooMcmcSeqThenRMS+;
 #pragma link C++ class HS::FIT::Setup+;
 #pragma link C++ class HS::FIT::sPlot+;
 #pragma link C++ class HS::FIT::ToyManager+;
@@ -63,6 +74,8 @@
 #pragma link C++ class HS::FIT::RooHSDWignerProductIm+;
 #pragma link C++ class HS::FIT::RooHSDWignerProductRe+;
 #pragma link C++ class HS::FIT::GaussianConstraint+;
+#pragma link C++ class HS::FIT::PhotoTwoSpin0Amps+;
+#pragma link C++ class HS::FIT::PhotoSpin1Spin0Amps+;
 #pragma link C++ defined_in "PredefinedParsers.h";
 //#pragma link C++ class HS::FIT::+;
 

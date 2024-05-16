@@ -7,8 +7,9 @@
 
 #include "FitManager.h"
 #include "FitSelector.h"
-#include "TProof.h"
-#include "TString.h"
+#include <TProof.h>
+#include <TBenchmark.h>
+#include <TString.h>
 #include <vector>
 #include <algorithm>
 
@@ -28,16 +29,22 @@ namespace HS{
 	}
 	static void Go(FitManager* fm){
 	  if(!fm) return;
+	  gBenchmark->Start("go");
 	  fm->RunAll();
- 	
+ 	  gBenchmark->Stop("go");
+	  gBenchmark->Print("go");
+	
 	};
 	static void One(const std::shared_ptr<FitManager>& fm,Int_t ifit){
 	  One(fm.get(),ifit);
 	}
 	static void One(FitManager* fm,Int_t ifit){
 	  if(!fm) return;
+	  gBenchmark->Start("go");
 	  fm->RunOne(ifit);
-	
+	  gBenchmark->Stop("go");
+	  gBenchmark->Print("go");
+
 	};
   
       }; //class Here
@@ -66,10 +73,13 @@ namespace HS{
 	  for(auto& macro : gCompilesList)
 	    proof->Load(Form("%s++",macro.Data()),kTRUE);
 	  }
+	  gBenchmark->Start("goProof");
 	  
 	  FitSelector selector;
 	  selector.SetFitManager(fm);
 	  gProof->Process(&selector,fm->GetN());
+	  gBenchmark->Stop("goProof");
+	  gBenchmark->Print("goProof");
  	}
 	
       }; //class Proof

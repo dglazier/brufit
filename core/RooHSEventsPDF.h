@@ -81,7 +81,8 @@ namespace HS{
       Bool_t fBranchStatus=kTRUE;
       Bool_t fIsIntegrating=kFALSE;
       Bool_t fIsClone=kFALSE;
-      Bool_t fForceConstInt=kFALSE;
+      ///      Bool_t fForceConstInt=kFALSE;
+      Bool_t fForceConstInt=kTRUE;
       Bool_t fForceNumInt=kFALSE;
       Bool_t fUseWeightsGen=kFALSE;
       Bool_t fUseEvWeights=kFALSE;
@@ -102,7 +103,11 @@ namespace HS{
       vector< RooRealProxy* > fParSet;
       vector<Bool_t> fIsCat;
   
-    
+      //  std::shared_ptr<RooDataSet> fAssertPosData={nullptr};
+      vector<Float_t> fAssertPosDataReal;
+      vector<Int_t> fAssertPosDataCats;
+      Long64_t fNapd = 10000;
+      
       Double_t fMaxValue=0; //max value of function for accept/reject
       Long64_t fGeni=0; //index for tree generation
       TString fTruthPrefix="gen";
@@ -110,7 +115,7 @@ namespace HS{
       Bool_t fIsPlotting=kFALSE;
       Bool_t fUseSamplingIntegral=kFALSE;
 
-      std::shared_ptr<GaussianConstraint> fIntegralPDF;
+      // std::shared_ptr<GaussianConstraint> fIntegralPDF;//!
       
       void InitSets();
       RooArgSet VarSet(Int_t iset) const;
@@ -125,21 +130,25 @@ namespace HS{
 	return RooRandom::gaussian()*sigma + integral;
       }
       
-    public:
-
-      void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
-      void SetIsSamplingIntegral(){
-	fUseSamplingIntegral=kTRUE;
-	fIntegralPDF=std::make_shared<GaussianConstraint>(TString("GCfor")+GetName());
-	cout<<" SetIsSamplingIntegral() "<<fIntegralPDF.get()<<" "<<this <<" "<<fIsClone<<endl;
-      }
-      RooRealVar* GetSamplingIntegralVar(){
-	if(fUseSamplingIntegral==kTRUE)
-	  return &(fIntegralPDF->getRooVar());
-	else return nullptr;
-      }
+     public:
+      void MakeAssertPostiveData();
+      Bool_t AssertPositivePDF() const;
+      virtual void InitAssertPositiveCheck() const{};
+      virtual void FinishAssertPositiveCheck() const{};
       
-      GaussianConstraint* GetIntegralPDF(){return fIntegralPDF.get();}
+      void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
+      // void SetIsSamplingIntegral(){
+      // 	fUseSamplingIntegral=kTRUE;
+      // 	fIntegralPDF=std::make_shared<GaussianConstraint>(TString("GCfor")+GetName());
+      // 	cout<<" SetIsSamplingIntegral() "<<fIntegralPDF.get()<<" "<<this <<" "<<fIsClone<<endl;
+      // }
+      // RooRealVar* GetSamplingIntegralVar(){
+      // 	if(fUseSamplingIntegral==kTRUE)
+      // 	  return &(fIntegralPDF->getRooVar());
+      // 	else return nullptr;
+      // }
+      
+      // GaussianConstraint* GetIntegralPDF(){return fIntegralPDF.get();}
       
       Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const override;
       Double_t analyticalIntegral(Int_t code,const char* rangeName) const override;
@@ -168,7 +177,7 @@ namespace HS{
       }
        
       
-      Bool_t CheckChange() const; //Have any fit parameters changed since last integral?
+      virtual Bool_t CheckChange() const; //Have any fit parameters changed since last integral?
       Bool_t CheckRange(const char* rangeName) const; //only integrate EvTree over specifed variable range
 
       void SetNInt(Long64_t n){fNInt=n;}

@@ -61,6 +61,7 @@ namespace HS{
       //from shard library
       TClassTable::AddAlternate("HS::FIT::RooHSEventsPDF","RooHSEventsPDF");
       TClassTable::AddAlternate("HS::FIT::RooHSEventsHistPDF","RooHSEventsHistPDF");
+      TClassTable::AddAlternate("HS::FIT::BruEventsHistPeakPDF","BruEventsHistPeakPDF");
       TClassTable::AddAlternate("HS::FIT::RooComponentsPDF","RooComponentsPDF");
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonic","RooHSSphHarmonic");
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicIm","RooHSSphHarmonicIm");

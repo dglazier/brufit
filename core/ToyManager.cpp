@@ -44,29 +44,32 @@ namespace HS{
 
       auto fitvars=fCurrSetup->FitVarsAndCats();
   
-      RooRandom::randomGenerator()->SetSeed(0);//random seed
+     RooRandom::randomGenerator()->SetSeed(0);//random seed
+     //RooRandom::randomGenerator()->SetSeed(111);//random seed
 
       // Long64_t nexp=RooRandom::randomGenerator()->Poisson(model->expectedEvents(fitpars));
  
  
-      //fitvars.Print("v");
+      fitvars.Print("v");
       auto iter=fitvars.iterator();
       const RooAbsArg *tmp=nullptr;
       while ((tmp = dynamic_cast<RooAbsArg*>(iter.Next()))){
 	auto arg=fitvars.find(tmp->GetName());
 	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
-      cout<<"ToyManager::Generate() "<<fNToys<<endl;
-
       while(fToyi<fNToys){//Note we do not parallelise toy generation, just run sequentially here
-	Long64_t nexp=RooRandom::randomGenerator()->Poisson(fCurrSetup->SumOfYields());
-
+	cout<<"ToyManager::Generate() "<<fToyi<<" of "<<fNToys<<endl;
+	//use number of events set,
+	//or number =yields (e.g. from previous) fits if not.
+	Long64_t NtoGen = fNEvents==-1 ? fCurrSetup->SumOfYields() : fNEvents;
+	
+	Long64_t nexp=RooRandom::randomGenerator()->Poisson(NtoGen);
+	
+	model->Print();
 	fGenData=model->generate(fitvars,nexp);
 	fGenData->SetName("ToyData");
-	cout<<"ToyManager::Generate() Save"<<fToyi<<endl;
 	SaveResults();
 	fToyi++;
-	cout<<"ToyManager::Generate() done "<<fToyi<<endl;
       }
       fToyi=0;
       
@@ -94,14 +97,25 @@ namespace HS{
 	branches[ib]=tree->Branch(catName,&branchVal[ib],catName+"/I");
 	ib++;
       }
-        
+      //add ID branch
+      auto id = fCurrSetup->WS().var(fCurrSetup->GetIDBranchName());
+      TBranch *idbranch=nullptr;
+      if(id!=nullptr)
+	idbranch = tree->Branch(fCurrSetup->GetIDBranchName(),&fIDval,fCurrSetup->GetIDBranchName()+"/D");
+      
       //Now loop over dataset
       for(Int_t entry=0;entry<numEntries;entry++){
 	auto vars=fGenData->get(entry);
 	ib=0;
+	//extra for categories
 	for(auto& branch: branches){
 	  branchVal[ib++]=vars->getCatIndex(branch->GetName());
 	  branch->Fill();
+	}
+	//extra for new ID branch
+	if(id!=nullptr){
+	  idbranch->Fill();
+	  ++fIDval;
 	}
       }
       tree->Write();
@@ -137,7 +151,10 @@ namespace HS{
     }
     ///////////////////////////////////////////////////////////////
     void ToyManager::InitSummary(){
+       
       std::unique_ptr<TFile> resFile{TFile::Open(SetUp().GetOutDir()+GetCurrName()+"/ToySummary.root","recreate")};
+       
+      
       auto initpars=*(dynamic_cast<RooArgSet*>(SetUp().ParsAndYields().selectByAttrib("Constant",kFALSE)));
       cout<<"ToyManager::InitSummary()"<<endl;
       initpars.Print("v");
@@ -150,7 +167,7 @@ namespace HS{
       d.fill();
       d.Print("v");
       d.Write();
-
+     
     }
     ////////////////////////////////////////////////////////////////
     void ToyManager::PreRun(){
@@ -161,20 +178,41 @@ namespace HS{
     }
     ////////////////////////////////////////////////////////////////
     std::unique_ptr<FitManager> ToyManager::Fitter(){
+      std::cout<<"ToyManager::Fitter() "<<std::endl;
       std::unique_ptr<FitManager> fit{new FitManager(*this)};      
-      fit->LoadData("ToyData",fToyFileNames);
-      fit->Data().Toys(fNToys);
-      return fit;
-      //      return std::move(fit);
-    }
-    //  std::shared_ptr<FitManager> ToyManager::Fitter(){
-    //   std::shared_ptr<FitManager> fit{new FitManager(*this)};      
-    //   fit->LoadData("ToyData",fToyFileNames);
-    //   fit->Data().Toys(fNToys);
-      
-    //   return std::move(fit);
-    // }
+      std::cout<<"ToyManager::Fitter() "<<fit.get()<<std::endl;
+      //      fit->LoadData("ToyData",fToyFileNames);
+      //if we have a eventpdf generation, use the original tree
+      //filtered by the entry list. If we just use ToyData then
+      //there can be some events outwith Dataset limits due to
+      //resolution effects and generating with truth
+      //Note the entry list probably does not work in the case of
+      //multiple PDFS, might need to improve this
+      if(SetUp().PDFs().getSize()==1){
+	std::cout<<"ToyManager::Fitter() "<<std::endl;
+ 	auto evHPdf=dynamic_cast<RooHSEventsHistPDF*> (&(SetUp().PDFs()[0]));
+	auto evPdf=dynamic_cast<RooHSEventsPDF*> (&(SetUp().PDFs()[0]));
+	if(evHPdf!=nullptr){ //check if want to generate from histogram template
+	  if(evHPdf->UsingHistGenerator()==kTRUE){ //use ToyData not eventree
+	    evPdf=nullptr;
+	  }
+	}
+	
+	if(evPdf!=nullptr)
+	  fit->LoadData(Bins().TreeName(evPdf->GetName()),fToyFileNames);
+	else
+	  fit->LoadData("ToyData",fToyFileNames);
+      }
+      else //multiple PDFs must use ToyData
+	fit->LoadData("ToyData",fToyFileNames);
+
+      std::cout<<"ToyManager::Fitter() "<<std::endl;
   
+      fit->Data().Toys(fNToys);
+      fit->SetTruthPrefix("xxxxx"); //so it does not use truth
+      return fit;
+     }
+   
     ///////////////////////////////////////////////////////////////
     std::shared_ptr<ToyManager> ToyManager::GetFromFit(Int_t N,const TString& filename,const TString& resultFile){
        std::unique_ptr<TFile> fitFile{TFile::Open(filename)};
@@ -196,6 +234,26 @@ namespace HS{
       return std::move(toy);
     }
 
+    void ToyManager::UseMyToyData(FitManager& fitter,const TString& tname){
+      //Get data file names from summary file
+      auto summaryFile = std::unique_ptr<TFile> (TFile::Open(SetUp().GetOutDir()+"/ToySummary.root") );
+      std::vector<TString> *fnames=nullptr;
+      summaryFile->GetObject("ToyFiles", fnames);
+      fToyFileNames =*fnames;
+      fitter.LoadData(tname,fToyFileNames);
+      fNToys= fToyFileNames.size();
+
+      //set number of toys
+      fitter.Data().Toys(fNToys);
+
+      //cp my summary file to fitter directory
+      gSystem->Exec(Form("cp %s %s",(SetUp().GetOutDir()+"/ToySummary.root").Data(),(fitter.SetUp().GetOutDir()+"ToySummary.root").Data()));
+
+      //Take the fitter output directory
+      SetUp().SetOutDir(fitter.SetUp().GetOutDir());
+
+    }
+    
     void ToyManager::LoadResult(){
       if(fResultFileName==TString())
 	return;
@@ -228,6 +286,10 @@ namespace HS{
       TChain resChain(Minimiser::ResultTreeName());
       resChain.Add(SetUp().GetOutDir()+Bins().BinName(ibin)+"/Results*.root");
       std::unique_ptr<TFile> resFile{TFile::Open(SetUp().GetOutDir()+Bins().BinName(ibin)+"/ToySummary.root","update")};
+
+      resFile->WriteObject(&fToyFileNames,"ToyFiles");
+ 
+      if(resChain.GetNtrees()==0) return;
       auto tree=resChain.CloneTree();
        
       //Loop over all parameters
@@ -235,12 +297,20 @@ namespace HS{
       cout<<" ToyManager::Summarise() Initial Parameters"<<endl;
       if(!parsData.get()) return;
       auto pars=parsData->get();
-      pars->Print("v");
+      // pars->Print("v");
       // auto pars = SetUp().ParsAndYields();   
       TIter iter=pars->createIterator();
       while(auto* arg=dynamic_cast<RooRealVar*>(iter())){	
 	TString parName=arg->GetName();
 	Double_t val=arg->getValV();
+	//in casre a -ve sign on the name replace with minus for drawing
+	if(parName.Contains("-")){
+	  auto oldName=parName;
+	  parName.ReplaceAll("-","minus");
+	  tree->GetBranch(oldName)->SetName(parName);
+	  tree->GetBranch(oldName+"_err")->SetName(parName+"_err");
+	  
+	}
 	
 	tree->Draw(parName,"","goff");
 	//parameter
@@ -276,15 +346,15 @@ namespace HS{
 	
 
 	hpar->SetNameTitle(parName,parName);
-	hpar->Write();
+	hpar->Write(nullptr,TFile::kOverwrite);
 	hparErr->SetNameTitle(parName+"_err",parName+"_err");
-	hparErr->Write();
+	hparErr->Write(nullptr,TFile::kOverwrite);
 	hpull->SetNameTitle(parName+"_pull",parName+"_pull");
-	hpull->Write();
+	hpull->Write(nullptr,TFile::kOverwrite);
 	hbias->SetNameTitle(parName+"_bias",parName+"_bias");
-	hpull->Write();
+	hpull->Write(nullptr,TFile::kOverwrite);
 	hbiasPull->SetNameTitle(parName+"_biasPull",parName+"_biasPull");
-	hbiasPull->Write();
+	hbiasPull->Write(nullptr,TFile::kOverwrite);
 	
 	cout<<endl<<parName <<" "<<mean<<" +- "<<meanErr<<" sigma "<<rms<<" meanPull "<<meanPull<<" sigmaPull "<<rmsPull<<"\n      bias "<< meanBias << " bias Pull "<<meanBPull<< " sigma "<<rmsBPull<<endl<<endl;
 	

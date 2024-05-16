@@ -60,12 +60,15 @@ namespace HS{
       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const TString& filename,const TString& result="");
       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,FitManager& fit,const TString& result="");
       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,const TString& result="");
+      
+      void UseMyToyData(FitManager& fitter,const TString& tname="ToyData");
 
       void Summarise();
       void Summarise(Int_t ib);
       void PreRun() override;
       void LoadResult();
       void InitSummary();
+      void SetNEvents(Long64_t N){fNEvents=N;}
       
       static const TString InitialParsName(){return "InitialParameters";}
 
@@ -78,7 +81,8 @@ namespace HS{
 
       TString fResultOutDir;
       TString fResultFileName;
-      
+      Double_t fIDval=0;
+      Long64_t fNEvents=-1;
       Int_t fNToys=1;
       Int_t fToyi=0;
 

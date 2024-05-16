@@ -33,13 +33,23 @@
 
   gBenchmark->Start("timer");
   //Or try an mcmc minimser 1000-># of points, 200->burnin 10 ~ 1/step size
-  //RF.SetMinimiser(new RooMcmcSeq(1000,200,10));
+  //auto mcmc=new BruMcmcCovariance(200,100,0.1,0.23,0.16,0.3);
+  //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
+  //RF.SetMinimiser(mcmc);
+
   // Here::Go(&RF);
   Proof::Go(&RF,5); //run proof with 4 workers
   gBenchmark->Stop("timer");
   gBenchmark->Print("timer");
 
+  gBenchmark->Start("timer2");
   new TCanvas;
   RF.DrawWeighted("Mmiss>>(100,0,10)","Signal");
+  new TCanvas;
+  RF.DrawWeighted("M1>>(100,0,10)","Signal");
+  gBenchmark->Stop("timer2");
+  gBenchmark->Print("timer2");
+  //compare to true signal
+  FiledTree::Read("MyModel","Data.root")->Tree()->Draw("M1","Sig==1","same");
 
 }
