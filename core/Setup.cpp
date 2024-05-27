@@ -8,6 +8,7 @@
 #include <RooDataSet.h>
 #include <TRandom.h>
 
+#include <RooFitLegacy/RooCatTypeLegacy.h>
 
 namespace HS{
   namespace FIT{
