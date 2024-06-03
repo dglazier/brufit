@@ -117,7 +117,7 @@ namespace HS{
       for(auto par:forms){
 	auto rpar  = dynamic_cast<RooFormulaVar*>(par);
 	if(rpar==nullptr) continue;
-	TString sform(rpar->formula().GetTitle());
+	TString sform(rpar->GetTitle());
 	cout<<rpar->GetName()<<" = "<<sform<<endl;
 	}
       cout<<"PhotoSpin1Spin0Amps::PrintModel() : Summation "<<endl;

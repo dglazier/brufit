@@ -19,6 +19,9 @@
 #include <algorithm> 
 #include <random>
 
+#include <RooFitResult.h>
+#include <RooFitLegacy/RooCatTypeLegacy.h>
+
 
 namespace HS{
   namespace FIT{
