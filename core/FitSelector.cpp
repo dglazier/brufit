@@ -50,8 +50,15 @@ namespace HS{
 
        
       if(!fInput) fInput=new TList();
-      TNamed *outdir=new TNamed("HSOUTDIR",fFitManager->SetUp().GetOutDir().Data());
-      fInput->Add(outdir);
+      auto outdir=dynamic_cast<TNamed*>(fInput->FindObject("HSOUTDIR"));
+      if(outdir) {
+        // reuse already existing entry for output directory
+        outdir->SetTitle(fFitManager->SetUp().GetOutDir().Data());
+      } else {
+        // create new entry for output directory
+        outdir=new TNamed("HSOUTDIR",fFitManager->SetUp().GetOutDir().Data());
+        fInput->Add(outdir);
+      }
       fFitManager->PreRun();
     }
 
