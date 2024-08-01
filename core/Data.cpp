@@ -37,7 +37,7 @@ namespace HS{
     void DataEvents::Load(Setup &setup,const TString& tname,const strings_t& files)
     {
       fSetup=&setup;
-      cout<<"DataEvents::Load "<<tname<<" with "<<files.size()<<" files"<<endl;
+      cout<<"DataEvents::Load "<<tname<<" with "<<files.size()<<" files"<<" boot : "<<fBootStrap.get()<<" "<<fNBoots<<endl;
       //check if bootstrapping
       if(fBootStrap.get()){
 	LoadBootStrap(tname,files);

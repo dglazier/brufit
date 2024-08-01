@@ -388,7 +388,7 @@ namespace HS{
       
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
-       std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+      //std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
       //LoadConstants first so can overide parameters or functions with constants
       auto cons = parse.GetConstants();
       for(auto& con:cons)

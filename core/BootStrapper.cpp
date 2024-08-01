@@ -56,9 +56,10 @@ namespace HS{
      
 	TString newFileName=tree->GetDirectory()->GetName();
 	TDirectory* saveDir=gDirectory;
-	TString filename = TString(gSystem->DirName(newFileName))+Form("Boot%d.root",iboot);
+	//TString filename = TString(gSystem->DirName(newFileName))+Form("Boot%d.root",iboot);
+	TString filename = fOutDir+Form("Boot%d.root",iboot);
 	//create file to save tree to first (so can be memory resident)
-	std::cout<<"BootStrapper::DivideData() create file "<< filename<<std::endl;
+	std::cout<<"BootStrapper::DivideData() create file "<< filename<<" dir "<<newFileName<<std::endl;
 	auto bootFile=std::unique_ptr<TFile>{TFile::Open(filename,"recreate")};
 	//create a new tree bootstrapped to the original
 	auto bt = BootStrapTree(tree);
