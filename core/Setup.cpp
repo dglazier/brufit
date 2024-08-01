@@ -161,7 +161,7 @@ namespace HS{
     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
     /// Add a fit parameter X between -1 and 1
     void Setup::LoadParameterOnTheFly(const TString& opt){
-      cout<<"Setup::LoadParameterOnTheFly "<<opt<<endl;
+      // cout<<"Setup::LoadParameterOnTheFly "<<opt<<endl;
       //Find parameter name i.e. up to '['
       auto parName=TString(opt(0,opt.First('[')));
       if( ArgListContainsName(fParameters,parName) )
@@ -487,7 +487,7 @@ namespace HS{
       for(Int_t i=0;i<compStrings->GetEntries();i++ ){
 	auto compo = TString(compStrings->At(i)->GetName());
 	compo.ReplaceAll(";","*");
-	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
+	//cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
 	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
 	TString term = compStrings->At(i)->GetName();
 	auto termStrings=term.Tokenize(";");
