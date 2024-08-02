@@ -58,24 +58,25 @@
 
   //********************************************
   //Perform fit with default Minuit2 minimiser
-  // Here::Go(&Fitter);
+  //Here::Go(&Fitter);
  
   //********************************************
-  //Perform fit 20 times Minuit2 minimiser
+  //Perform fit 10 times Minuit2 minimiser
   //All results are saved in same Results file in the TTree ResultTreeBru
   //Fitter.SetMinimiser(new AmpMinuit2(&config,10));
-  //Here::Go(&Fitter);
-  
+  Here::Go(&Fitter);
+  //Proof::Go(&Fitter,1);
+
   //********************************************
   //Perform "fit" with an MCMC sampler
   // a tree MCMCTree is included in the Results*.root file
   //most basic sequential proposal (Nsamples,burnin,step size, desired acceptance, min acceptance, max acceptance)
   //auto mcmc=new BruMcmcSeqHelper(2000,1000,0.1,0.23,0.16,0.3);
   //brufit covariance matric based proposal
-  auto mcmc=new BruMcmcCovariance(10000,1000,0.1,0.23,0.16,0.3);
+  //auto mcmc=new BruMcmcCovariance(10000,1000,0.1,0.23,0.16,0.3);
   ////mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
-  Fitter.SetMinimiser(mcmc);
-  Here::Go(&Fitter);
+  //Fitter.SetMinimiser(mcmc);
+  //Here::Go(&Fitter);
  
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains

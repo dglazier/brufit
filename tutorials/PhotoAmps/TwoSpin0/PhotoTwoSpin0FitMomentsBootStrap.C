@@ -22,6 +22,7 @@
   //We want to run a standard fit first to
   //bootstrap around. Give name of Results directory and minimiser here
   Fitter.InitPrevResult("fitBruMoments","HSAmpMinuit2");
+  // Fitter.InitPrevResult("/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/PhotoAmps/TwoSpin0/fitBruMoments","HSAmpMinuit2"); //NOTE : running with PROOF requires full directory path!!
 
   //load simulated data for normalisation integral
   //treename, filename, PDF name
@@ -50,7 +51,7 @@
 
   //set some fitter options
   Fitter.SetUp().AddFitOption(RooFit::PrintEvalErrors(-1));//suppress error messaages
-  Fitter.SetUp().AddFitOption(RooFit::NumCPU(6)); //number of CPUs to split likelihood calc.
+  //Fitter.SetUp().AddFitOption(RooFit::NumCPU(6)); //number of CPUs to split likelihood calc.
   
   //default error strategy for Minuit fits is asymptotically correct approach
   //https://arxiv.org/abs/1911.01303, but this may be slow
@@ -58,13 +59,14 @@
   //Fitter.SetUp().ErrorSumW2();//sumW2 correction if using weights
 
   //some plotter options
-  // Fitter.TurnOffPlotting();
+  Fitter.TurnOffPlotting();
   // Fitter.SetPlotOptions("MCMC"); //Make MCMC related plots
   // Fitter.SetPlotOptions("goff"); //save plots but do not show (batch)
 
   //********************************************
   //Perform fit with default Minuit2 minimiser
   Here::Go(&Fitter);
+  //Proof::Go(&Fitter,10);
  
   //********************************************
   //Perform fit 10 times Minuit2 minimiser
