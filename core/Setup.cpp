@@ -44,7 +44,8 @@ namespace HS{
        fDataOnlyCut=other.fDataOnlyCut;
        fIDBranchName=other.fIDBranchName;
        fOutDir=other.fOutDir;
-       //constants first so can overide parameters
+
+      //constants first so can overide parameters
        for(auto &conStr: other.fConstString)
 	 LoadConstant(conStr);
        for(auto &parStr: other.fParString)
@@ -60,6 +61,12 @@ namespace HS{
 	 LoadFormula(formStr);
        for(auto &funcStr: other.fFuncVarString)
 	 LoadFunctionVar(funcStr);
+
+       
+       //PDF parser setup ! before FactoryPDF
+       if(other.fParserPDFString.Length()>0){
+	 ParserPDF(other.fParserPDFString, *(other.fParserPDFparser) );
+       }
        for(auto &pdfStr: other.fPDFString)
 	 FactoryPDF(pdfStr);
 
@@ -100,7 +107,7 @@ namespace HS{
       fErrorsSumW2=other.fErrorsSumW2;
       fErrorsAsym=other.fErrorsAsym;
  
-     //constants first so can overide parameters
+       //constants first so can overide parameters
       for(auto &conStr: other.fConstString)
 	LoadConstant(conStr);
       for(auto &parStr: other.fParString)
@@ -116,9 +123,13 @@ namespace HS{
     	LoadFormula(formStr);
       for(auto &funcStr: other.fFuncVarString)
 	 LoadFunctionVar(funcStr);
+      //PDF parser setup ! before FactoryPDF
+      if(other.fParserPDFString.Length()>0){
+	 ParserPDF(other.fParserPDFString, *(other.fParserPDFparser) );
+       }
       for(auto &pdfStr: other.fPDFString)
     	FactoryPDF(pdfStr);
-      for(auto &specStr: other.fSpecString)
+     for(auto &specStr: other.fSpecString)
     	LoadSpeciesPDF(specStr.first,specStr.second);
       
       //const parameters
@@ -374,6 +385,9 @@ namespace HS{
     ///////////////////////////////////////////////////////////
     /// Create PDF, parameters formulas and functions from PdfParser
     void Setup::ParserPDF(TString str, PdfParser& parse){
+      fParserPDFString=str;
+      fParserPDFparser=&parse;
+      
       //Look for possible weights
       TString wopt;
       if(str.Contains("WEIGHTS@")){
@@ -388,7 +402,7 @@ namespace HS{
       
       //Get the FactoryPDF string and create functions etc
       auto pdfString=parse.ConstructPDF(str.Data());
-      //std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+      //       std::cout<<"Setup::ParserPDF string1 "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
       //LoadConstants first so can overide parameters or functions with constants
       auto cons = parse.GetConstants();
       for(auto& con:cons)
@@ -414,7 +428,7 @@ namespace HS{
       tpdf.ReplaceAll("H_0_0_0_0[0,-1,1]","H_0_0_0_0[1]");
       pdfString=tpdf.Data();
       
-      std::cout<<"Setup::ParserPDF string "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+      //std::cout<<"Setup::ParserPDF string2 "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
      
       FactoryPDF(pdfString+wopt);
     }
@@ -464,7 +478,7 @@ namespace HS{
       varsAndCatsAndPars.add(Parameters());
       varsAndCatsAndPars.add(Formulas());
 
-      //cout<<"Observable String "<<sobs<<endl;
+      //cout<<"Setup::ComponentsPDF Observable String "<<sobs<<endl;
       for(Int_t i=0;i<obsStrings->GetEntries();i++ ){
 	//cout<<"   obs i    "<<i<<" "<<obsStrings->At(i)->GetName()<<endl;
 	obsList.add(*varsAndCatsAndPars.find(obsStrings->At(i)->GetName()));
@@ -483,16 +497,17 @@ namespace HS{
       auto compStrings=scomps.Tokenize(":");
       vector<RooArgList> compsLists;
       Int_t ic=0;
+      //fWS.Print();
       //cout<<"Components String "<<scomps<<endl;
       for(Int_t i=0;i<compStrings->GetEntries();i++ ){
 	auto compo = TString(compStrings->At(i)->GetName());
 	compo.ReplaceAll(";","*");
-	//cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
+	//	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
 	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
 	TString term = compStrings->At(i)->GetName();
 	auto termStrings=term.Tokenize(";");
 	for( Int_t j=0;j<termStrings->GetEntries();j++ ){
-	  //  	  cout<<"  TERM               "<<termStrings->At(j)->GetName()<<endl;
+	  //cout<<"  TERM               "<<termStrings->At(j)->GetName()<<endl;
 	  
 	  TString sarg = termStrings->At(j)->GetName();
 	  TString vname =sarg;
@@ -505,7 +520,7 @@ namespace HS{
 	    LoadParameterOnTheFly(sarg);
 	    vname=sarg(0,sarg.First("[")); //get the par name
 	  }
-	  // else cout<<"Will look for "<<vname<<endl;
+	  else cout<<"Will look for "<<vname<<endl;
 	  if( dynamic_cast<RooRealVar*>(fWS.var(vname))){
 	    auto fitVars=FitVarsAndCats();
 	    if(fitVars.find(vname)){

@@ -141,7 +141,7 @@ namespace HS{
       Bool_t _UseI3=kFALSE;
       Bool_t _UseI12=kTRUE;
       Bool_t _HelicityIsCat=kFALSE;
-
+      ComponentsPdfParser  _parser;
     };
     
   }

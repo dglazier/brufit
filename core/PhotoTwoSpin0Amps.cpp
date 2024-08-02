@@ -140,11 +140,13 @@ namespace HS{
     void PhotoTwoSpin0Amps::LoadModelPDF(Long64_t Nevents){
       //Nevents in case this is a toy generator
       //  ComponentsPdfParser  parser = PolarisedSphHarmonicMoments("AngularDist","trucosThGJ","truphiGJ","truphiCM","trucosThCM",_Lmax*2,0,_Lmax*2);
-      ComponentsPdfParser  parser = PolarisedSphHarmonicMoments();
+      // ComponentsPdfParser  parser = PolarisedSphHarmonicMoments();
+      _parser = PolarisedSphHarmonicMoments();
+      
       //std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF got a parser"<<std::endl;
       auto level = RooMsgService::instance().globalKillBelow();
       RooMsgService::instance().setGlobalKillBelow(RooFit::DEBUG) ;
-      _Setup->ParserPDF(_Sum,parser);
+      _Setup->ParserPDF(_Sum,_parser);
       //dynamic_cast<RooHSEventsPDF*>(_Setup->WS().pdf("PWA"))->SetConstInt();
       // std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF loaded parser"<<std::endl;
       _Setup->LoadSpeciesPDF(GetName(),Nevents); //100000 events

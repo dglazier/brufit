@@ -274,6 +274,8 @@ namespace HS{
       strings_t fAuxVarString;//
       strings_t fPDFString;//
       strings_t fFuncVarString;//!
+      TString fParserPDFString;//
+      PdfParser* fParserPDFparser=nullptr;//
 
       Bool_t	fErrorsSumW2=kTRUE; //default to this
       Bool_t	fErrorsAsym=kFALSE;

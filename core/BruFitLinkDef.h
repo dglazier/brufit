@@ -12,6 +12,7 @@
 #pragma link C++ class HS::FIT::Binner+;
 #pragma link C++ class HS::FIT::BinTree+;
 #pragma link C++ class HS::FIT::Bins+;
+#pragma link C++ class HS::FIT::PdfParser+;
 #pragma link C++ class HS::FIT::ComponentsPdfParser+;
 #pragma link C++ class HS::FIT::PROCESS::Loader+;
 #pragma link C++ class HS::FIT::PROCESS::Here+;
