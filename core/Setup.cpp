@@ -520,7 +520,7 @@ namespace HS{
 	    LoadParameterOnTheFly(sarg);
 	    vname=sarg(0,sarg.First("[")); //get the par name
 	  }
-	  else cout<<"Will look for "<<vname<<endl;
+	  //else cout<<"Will look for "<<vname<<endl;
 	  if( dynamic_cast<RooRealVar*>(fWS.var(vname))){
 	    auto fitVars=FitVarsAndCats();
 	    if(fitVars.find(vname)){
