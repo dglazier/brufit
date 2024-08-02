@@ -1,4 +1,4 @@
-//brufit  FitHSMCModelBins.C
+//brufit  FitPeakHistBinsBoot.C
 {
   //PROOF needs full paths!
   
