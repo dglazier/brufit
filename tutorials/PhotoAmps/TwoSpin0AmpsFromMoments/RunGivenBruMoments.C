@@ -5,8 +5,8 @@ void RunGivenBruMoments(){
   gRandom->SetSeed(0);
   
   //Define amplitudes (in additional file)
-  auto& setup = ConfigureAmpsNoValues(2,1,1);
-  setup.Formulas().Print();
+  auto& setup = ConfigureAmpsNoValues(2,1,1);//(Lmax,MMax,Nref)
+  setup.SetParVal("aphi_0_0",0,kTRUE); //fix S real
 
   //Fix with moments from ConfigureAmpsSPJune.C
   MomentHelper moments;

@@ -6,7 +6,10 @@ void RunGivenMoments(){
   
   //Define amplitudes (in additional file)
   auto& setup = ConfigureAmpsNoValues();
-  setup.Formulas().Print();
+  // setup.Formulas().Print();
+  
+  setup.SetParVal("aphi_0_0",0,kTRUE); //fix S real
+  setup.SetParVal("bphi_0_0",0,kTRUE); //fix S real
 
   //Fix with moments from ConfigureAmpsSPJune.C
   MomentHelper moments;
@@ -33,7 +36,6 @@ void RunGivenMoments(){
   //  ignore_observables = do not include the following polarised moments
   //                       i.e. alpha = 0,1,2, or 3 => H_0,H_1,H_2,H_3
   m2pw::EquationSolver solver{setup,0.0,{"H_3"}}; //ignore H_3
-  //  m2pw::EquationSolver solver{setup,0.05,{"H_3","H_2","H_1"}};
   solver.SetEquationValues(moments);
   solver.Print("v");
 

@@ -53,13 +53,15 @@ HS::FIT::Setup& ConfigureAmpsSPJune(){
   // P+0- polar 0.23762 0.53551   = b_1_0 bphi_1_0
   // P-1+ polar 0.37141 -2.38804  = a_1_-1 aphi_1_-1
   // P-1- polar 0.53776 -0.62676  = b_1_-1 bphi_1_-1
+
+  //Note setting with kTRUE => will be constant
   Generator->SetUp().SetParVal("aphi_0_0",0,kTRUE); //fix S real
-  Generator->SetUp().SetParVal("aphi_1_1",2.71276,kTRUE); //P1 real
+  Generator->SetUp().SetParVal("aphi_1_1",2.71276,kFALSE); //P1
   Generator->SetUp().SetParVal("aphi_1_0",-1.77094,kFALSE); //P0
   Generator->SetUp().SetParVal("aphi_1_-1",-2.38804,kFALSE); //P-1
 
-  Generator->SetUp().SetParVal("bphi_0_0",0,kFALSE); //fix S real
-  Generator->SetUp().SetParVal("bphi_1_1",-0.77666,kTRUE); //P1 real
+  Generator->SetUp().SetParVal("bphi_0_0",0,kTRUE); //fix S real
+  Generator->SetUp().SetParVal("bphi_1_1",-0.77666,kFALSE); //P1
   Generator->SetUp().SetParVal("bphi_1_0",0.53551,kFALSE); //P0
   Generator->SetUp().SetParVal("bphi_1_-1",-0.62676,kFALSE); //P-1
 

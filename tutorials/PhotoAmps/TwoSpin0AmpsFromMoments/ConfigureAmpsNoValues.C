@@ -3,7 +3,7 @@
 #include "ToyManager.h"
 #include "PhotoTwoSpin0Amps.h"
 
-HS::FIT::Setup& ConfigureAmpsNoValues(UInt_t Lmax=1,UInt_t Mmax=1,UInt_t Ref=1){
+HS::FIT::Setup& ConfigureAmpsNoValues(UInt_t Lmax=1,UInt_t Mmax=1,UInt_t Ref=2){
 
   using namespace HS::FIT;
   

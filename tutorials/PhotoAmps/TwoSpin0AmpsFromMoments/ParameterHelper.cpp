@@ -140,7 +140,7 @@ namespace m2pw{
    
   }
   ////////////////////////////////////////////////////////////
-  ///Put parameters in nominal ranges [0,1],[-2pi,2pi]
+  ///Put parameters in nominal ranges [0,1],[-pi,pi]
   void ParameterHelper::RerangeParameters(){
     for(UInt_t i=0;i<_currentVals.size();++i){
       if(IsMagnitude(i)==kFALSE){
@@ -305,8 +305,7 @@ namespace m2pw{
     isynch=0;
     std::cout<<"\t ParameterHelper::Print() constant parameters :" <<std::endl;
     for(auto name :_constNames){
-      std::cout<<"\t\t"<<name<<" = "<<_constVals[isynch]
-	       <<" is mag "<<_isMagnitude[isynch]<<std::endl;
+      std::cout<<"\t\t"<<name<<" = "<<_constVals[isynch]<<std::endl;
       isynch++;
     }
   }//Print
