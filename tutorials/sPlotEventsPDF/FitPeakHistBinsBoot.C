@@ -1,4 +1,4 @@
-//brufit  FitHSMCModelBins.C
+//brufit  FitPeakHistBinsBoot.C
 {
   //PROOF needs full paths!
   
@@ -51,8 +51,8 @@
   //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
   //RF.SetMinimiser(mcmc);
 
-  //Here::Go(&RF);
-  Proof::Go(&RF,12); //run proof with 4 workers
+  Here::Go(&RF);
+  //Proof::Go(&RF,8); //run proof with 8 workers
   gBenchmark->Stop("timer");
   gBenchmark->Print("timer");
 

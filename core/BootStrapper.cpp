@@ -38,7 +38,6 @@ namespace HS{
 	boot_tree->Fill();
       }
        
-      boot_tree->Print();
       return boot_tree;//its root so we must just return the ptr, the file owns it so will delete when file goes out of scope...
     }
     
@@ -50,16 +49,19 @@ namespace HS{
       
     }
     void BootStrapper::DivideData(TTree* tree){
-      
+      // fCurrSetup->GetOutDir().Data(),GetCurrName().Data(),GetCurrTitle().Data()
       //loop over number of boots
       for(Int_t iboot=0;iboot<fNBoots;iboot++){
      
 	TString newFileName=tree->GetDirectory()->GetName();
 	TDirectory* saveDir=gDirectory;
-	//TString filename = TString(gSystem->DirName(newFileName))+Form("Boot%d.root",iboot);
-	TString filename = fOutDir+Form("Boot%d.root",iboot);
+	TString filename = TString(gSystem->DirName(newFileName))+Form("/Boot%d.root",iboot);
+	if(filename.Contains(fOutDir)==kFALSE){
+	  filename = fOutDir+Form("Boot%d.root",iboot);
+	}
+	
 	//create file to save tree to first (so can be memory resident)
-	std::cout<<"BootStrapper::DivideData() create file "<< filename<<" dir "<<newFileName<<std::endl;
+	std::cout<<"BootStrapper::DivideData() create file "<< filename<<" "<<filename.Contains(fOutDir)<<std::endl;
 	auto bootFile=std::unique_ptr<TFile>{TFile::Open(filename,"recreate")};
 	//create a new tree bootstrapped to the original
 	auto bt = BootStrapTree(tree);
