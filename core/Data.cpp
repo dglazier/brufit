@@ -52,7 +52,6 @@ namespace HS{
     
     void DataEvents::LoadBootStrap(const TString& tname,strings_t files)
     {
-      cout<<"DataEvents::LoadBootStrap("<<tname <<" "<<files.size()<<endl;
       fBootStrap->SetOutDir(fSetup->GetOutDir());
       fFileNames.clear();
       //Loop over all the filenames (e.g different bins) and split the data
