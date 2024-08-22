@@ -28,13 +28,13 @@
   RF.SetUp().LoadSpeciesPDF("BG",1);
 
   ////////////////////////////Make Bins
-  RF.Bins().LoadBinVar("Eg",5,3,4);
+  //RF.Bins().LoadBinVar("Eg",5,3,4);
 
   ////////////////////////////Make Bootstrap(before LoadData)
-  RF.Data().BootStrap(10);
+  RF.Data().BootStrap(2);
   //We want to run a standard fit first to
   //bootstrap around. Give name of Results directory and minimiser here
-  RF.InitPrevResult("/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/sPlotEventsPDF/outPeakHistBins","HSMinuit2");
+  // RF.InitPrevResult("/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/sPlotEventsPDF/outPeakHistBins","HSMinuit2");
   
   ///////////////////////////Load Data
   RF.LoadData("MyModel","Data.root");
