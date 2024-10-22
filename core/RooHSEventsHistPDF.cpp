@@ -69,9 +69,11 @@ namespace HS{
       Int_t NbinX=NBins0/rsmin;
       if(NbinX<10) NbinX=10; //force minimum of 10 bins
       cout<<"RooHSEventsHistPDF::RooHSEventsHistPDF using binning ("<<NbinX<<", "<<rMin<<", "<<rMax<<") for x-axis variable '"<<_x.GetName()<<"' of PDF '"<<name<<"'"<<endl;
+
    
       Construct2DHist(TAxis(NbinX,rMin,rMax),TAxis(fNAlphaBins,ra->getMin(),ra->getMax()),ra->isConstant());
       
+
       fRHist->SetDirectory(nullptr);
 
          

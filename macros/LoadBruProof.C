@@ -23,17 +23,16 @@ void LoadBruProof(Int_t Nworkers=1,TString Selection=""){
   TString BRUCODE=gSystem->Getenv("BRUFIT");
   TString fitpath=BRUCODE+"/core";
   TString libpath=BRUCODE+"/lib";
+  TString libext=(TString(gSystem->GetBuildCompilerVersion()).Contains("darwin") or TString(gSystem->GetBuildArch()).Contains("macos"))
+                  ? ".dylib" : ".so";
 
   if(!TString(gInterpreter->GetIncludePath()).Contains(fitpath)){
     gInterpreter->AddIncludePath(fitpath);
     gROOT->SetMacroPath(Form("%s:%s",gROOT->GetMacroPath(),(fitpath).Data()));
-    if(TString(gSystem->GetBuildCompilerVersion()).Contains("darwin"))
-      gSystem->Load(BRUCODE+"/lib/libbrufit.dylib");
-    else
-      gSystem->Load(BRUCODE+"/lib/libbrufit.so");
+    gSystem->Load(BRUCODE+"/lib/libbrufit"+libext);
   }
 
-  gSystem->Load("libProof.so");
+  gSystem->Load("libProof");
   TProof *proof =nullptr;
   if(!gProof)
     proof = TProof::Open("://lite");
@@ -53,7 +52,7 @@ void LoadBruProof(Int_t Nworkers=1,TString Selection=""){
     sandbox=gEnv->GetValue("ProofLite.Sandbox","");
   }
   gSystem->Exec(Form("cp $BRUFIT/lib/libbrufit_rdict.pcm %s/cache/.",sandbox.Data()));
-  gProof->Load(TString(gSystem->Getenv("ROOTSYS"))+"/lib/libRooStats.so",kTRUE);
-  gProof->Load(BRUCODE+"/lib/libbrufit.so",kTRUE);
+  gProof->Load(gSystem->DynamicPathName("libRooStats"),kTRUE);
+  gProof->Load(BRUCODE+"/lib/libbrufit"+libext,kTRUE);
 
 }
