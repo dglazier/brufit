@@ -4,7 +4,7 @@
   ///////////////////////////////Load Variables
   RF.SetUp().LoadVariable("Phi[-180,180]"); 
   RF.SetUp().LoadVariable("Pol[0,1]"); 
-  RF.SetUp().LoadCategory("PolState[Polp=1]");//,Pol0=0,Polm=-1]"); 
+  RF.SetUp().LoadCategory("PolState[Polp=1,Pol0=0,Polm=-1]"); 
   RF.SetUp().SetIDBranchName("fgID");
 
   //Make Components PDF of 1 + A*Pol*PolState*cos(2Phi)

@@ -146,13 +146,13 @@ TString SimplifyAll(TString moment){
   //iterate until all terms combined together
   while (1){
     changed  = Simplify(target);
-    cout<<"target "<<target <<endl;
-    cout<<"changed "<<changed<<endl<<endl;
+    //cout<<"target "<<target <<endl;
+    //cout<<"changed "<<changed<<endl<<endl;
     if(changed==target) break;
     target = changed;
     count++;
   }
-  cout<<"SimplifyAll interations "<<count<<endl;
+  //  cout<<"SimplifyAll interations "<<count<<endl;
   return target;
 }
   /*///////////////////////////////////////////////////////////////////////////
@@ -446,10 +446,10 @@ TString SimplifyAll(TString moment){
     for(int ic=0;ic<sumTotal.Length();ic++)
       copySum+=sumTotal[ic];
     
-    auto simplified = sumTotal;
+    //auto simplified = sumTotal;
     //auto simplified = Simplify(sumTotal);
-    //auto simplified = SimplifyAll(sumTotal);
-    cout<<"PhotoLoader moment = "<<simplified<<endl;
+    auto simplified = SimplifyAll(sumTotal);
+    //cout<<"PhotoLoader moment = "<<simplified<<endl;
     return simplified;
 
   }

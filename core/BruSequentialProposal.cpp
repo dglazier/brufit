@@ -49,11 +49,20 @@ namespace HS{
 	//in case no event accepted start with correcting for 1%
 	Double_t acc = acceptance >0 ? acceptance:0.01;
 	fScale *= (acc)/(fTargetAcc);
-	if(fScale<1E-6) fScale = 1E-6; //lower limit to scale
+	if(fScale<1E-6){
+	  fScale = 1E-6; //lower limit to scale
+	  fNminScale++;
+	}
  	std::cout<<"BruSequentialProposal::CheckStepSize Changed to "<<fScale<<"(min 1E-6)) from "<<(fTargetAcc)/acc*fScale<<std::endl;
+
+	if(fNminScale>10){
+	  fNminScale=0;//reset
+	  std::cerr<<"BruSequentialProposal::CheckStepSize cannot get within allowed acceptance limits. Must be stuck. Will exit."<<std::endl;
+	  return kFALSE;
+	}
 	return kTRUE;
       }
-      return kFALSE;
+      return kTRUE;
     }
     ////////////////////////////////////////////////////////////////////////////////
     /// Return the probability of proposing the point x1 given the starting

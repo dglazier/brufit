@@ -42,9 +42,15 @@ namespace HS{
 	_Setup->LoadVariable(var);
 	_PolPhi=var(0,var.First('['));
       }
+      
       void SetPolarisation(const TString& var){
+	//keep for backward compatability
 	_Setup->LoadVariable(var);
-	_Polarisation=var(0,var.First('['));
+	_PolLin=var(0,var.First('['));
+      }
+      void SetPolLin(const TString& var){
+	_Setup->LoadVariable(var);
+	_PolLin=var(0,var.First('['));
       }
      void SetPolCirc(const TString& var){
 	_Setup->LoadVariable(var);
@@ -66,10 +72,9 @@ namespace HS{
      }
       void SetConstPolarisation(const TString& var){ //e.g. Pol[0.5]
 	_Setup->LoadConstant(var);
-	//	_Polarisation=var(0,var.First('['));
 	//extract numerical value for polairsation
-	_Polarisation=var(var.First('[')+1,var.First(']')-var.First('[')-1);
-	_constPol=kTRUE;
+	_PolLin=var(var.First('[')+1,var.First(']')-var.First('[')-1);
+	_constLinPol=kTRUE;
       }
       
       void SetLmax(Int_t lm){
@@ -94,6 +99,9 @@ namespace HS{
       void IgnoreLinearPol(){
 	_UseI12=kFALSE;
       }
+      void IgnoreUnPol(){
+	_UseI0=kFALSE;
+      }
       
       std::string  ConfigureMoments() override;
       
@@ -117,7 +125,7 @@ namespace HS{
       std::string _DecayAngleCosTh;
       std::string _DecayAnglePhi;
       std::string _PolPhi;
-      std::string _Polarisation;
+      std::string _PolLin;
       std::string _PolCirc;
       std::string _BeamHelicity;
       std::string _Sum;
@@ -128,11 +136,12 @@ namespace HS{
       Int_t _Nref=2;
       Bool_t _OnlyEven=kFALSE;
       Bool_t _NegativeM=kTRUE;
-      Bool_t _constPol=kFALSE;
+      Bool_t _constLinPol=kFALSE;
+      Bool_t _UseI0=kTRUE;
       Bool_t _UseI3=kFALSE;
       Bool_t _UseI12=kTRUE;
       Bool_t _HelicityIsCat=kFALSE;
-
+      ComponentsPdfParser  _parser;
     };
     
   }

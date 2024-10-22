@@ -15,7 +15,7 @@ namespace HS{
   namespace FIT{
     using namespace RooFit;
 
-    CornerPlot::CornerPlot(Setup *setup, RooMcmc *mcmc, TList* canvases)
+    CornerPlot::CornerPlot(Setup *setup, BruMcmc *mcmc, TList* canvases)
     {
       auto myStyle = TStyle{*gStyle};
       myStyle.SetName("MCMCStyle");
@@ -27,6 +27,12 @@ namespace HS{
       myStyle.SetTitleSize(0.2, "t");
       myStyle.SetLabelSize(0.125, "xy");
       myStyle.SetNdivisions(4, "xy");
+  myStyle.SetPadTopMargin(0.0);
+  myStyle.SetPadRightMargin(0.0);
+  myStyle.SetPadBottomMargin(0.0);
+  myStyle.SetPadLeftMargin(0.0);
+  myStyle.SetPadBorderSize(0);
+  myStyle.SetCanvasBorderSize(0);
 
       auto defStyle=gStyle;
       gStyle=&myStyle;
@@ -66,10 +72,10 @@ namespace HS{
 		{
 		  auto can = canvas->cd(Npars*counter+int_counter); 
 		  can->SetBorderSize(0);
-		  can->SetTopMargin(0.0);
-		  can->SetBottomMargin(0.1);
-		  can->SetLeftMargin(0.19);
-		  can->SetRightMargin(0.01);
+		  // can->SetTopMargin(0.0);
+		  // can->SetBottomMargin(0.1);
+		  // can->SetLeftMargin(0.19);
+		  // can->SetRightMargin(0.01);
 		      
 		  if(ipar->isConstant()==kFALSE && setup->IsParSetConst(ipar->GetName())==kFALSE){
 		    TString DrawParInd1 = CheckForNegatives(ipar->GetName());
@@ -80,6 +86,7 @@ namespace HS{
 		      
 		    tree->Draw(DrawParInd,"","",tree->GetEntries()-burnIn,burnIn);
 		    auto hist=dynamic_cast<TH1*>(gDirectory->FindObject(histname));
+		    std::cout<<"CornerPlot "<<hist->GetEntries()<<" "<< hist->GetMean()<<" "<<hist->GetRMS()<<std::endl;
 		    if(hist!=nullptr){
 
 		      Double_t mean = hist->GetMean();
@@ -89,7 +96,6 @@ namespace HS{
 		      TString DrawParFin = DrawParInd1 + ">>"+histname+"range";
 		      tree->Draw(DrawParFin,"","",tree->GetEntries()-burnIn,burnIn); 
 		      hist2.DrawCopy();
-
 		      //need to let ROOT delete line
 		      auto* line = new TLine{mean,0,mean, hist->GetMaximum()};
 		      line->SetLineColor(kRed);
@@ -105,9 +111,9 @@ namespace HS{
   		  auto can = canvas->cd(Npars*counter+int_counter);
 		  can->SetBorderSize(0);
 		  can->SetTopMargin(0);
-		  can->SetBottomMargin(0.1);
-		  can->SetLeftMargin(0.19);
-		  can->SetRightMargin(0.01);
+		  // can->SetBottomMargin(0.1);
+		  // can->SetLeftMargin(0.19);
+		  // can->SetRightMargin(0.01);
 		  
 		  if(ipar->isConstant()==kFALSE && ipar2->isConstant()==kFALSE
 		     && setup->IsParSetConst(ipar->GetName())==kFALSE && setup->IsParSetConst(ipar2->GetName())==kFALSE){
@@ -135,14 +141,16 @@ namespace HS{
 
 		    TString Draw2DFin = DrawPar + ":" + DrawPar2 + ">>"+histname;
 		    tree->Draw(Draw2DFin,"", "col",tree->GetEntries()-burnIn,burnIn);
-		  
+		    std::cout<<"CornerPlot 2D "<<hist2->GetEntries()<<" "<<meanX<<" "<<meanY<<std::endl;
+
+
 		    //need to let ROOT delete line
-		    auto lineV = new TLine{meanX,meanY-3*rmsY, meanX, meanY+3*rmsY};
-		    auto lineH = new TLine{meanX-3*rmsX, meanY, meanX+3*rmsX, meanY};
-		    lineV->SetLineColor(kRed);
-		    lineH->SetLineColor(kRed);
-		    lineV->Draw();
-		    lineH->Draw();
+		    // auto lineV = new TLine{meanX,meanY-3*rmsY, meanX, meanY+3*rmsY};
+		    // auto lineH = new TLine{meanX-3*rmsX, meanY, meanX+3*rmsX, meanY};
+		    // lineV->SetLineColor(kRed);
+		    // lineH->SetLineColor(kRed);
+		    // lineV->Draw();
+		    // lineH->Draw();
 		  
 		  }
 		  can->Modified();

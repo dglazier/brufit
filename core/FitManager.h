@@ -116,13 +116,18 @@ namespace HS{
  	fData.SetParentName(fname);
  	fData.SetParentTreeName(fBinner.TreeName(name));
      }
-      void ReloadData(const TString& tname,TString fname,TString name){
-	ReloadData(std::move(fname),std::move(name));
+      void ReloadData(const TString& tname,const TString& fname,const TString& name){
+	ReloadData(fname,name);
       }
       
-      void LoadSimulated(const TString& tname,TString fname,const TString& name){
-	fBinner.SplitData(tname,std::move(fname),name);
+      void LoadSimulated(const TString& tname,const TString& fname,const TString& name){
+	fBinner.SplitData(tname,fname,name);
       }
+     void LoadSimulatedWithoutBinning(const TString& tname,const TString& fname,const TString& name){
+       fBinner.SplitData(tname,fname,name); //create maps etc
+       fBinner.SetAllFileNamesTo(fname,name); //but point all bins to same file
+      }
+      
       void ReloadSimulated(const TString& fname,const TString& name){
 	fBinner.ReloadData(fname,name);
       }
@@ -202,6 +207,8 @@ namespace HS{
 	fDoPlotting = kFALSE;
       }
 
+      void DoBinnedFits(Bool_t dbf=kTRUE){fuseBinnedFit=dbf;}
+
       void SetTruthPrefix(const TString& pre){fTruthPrefix=pre;}
  
      protected:
@@ -215,7 +222,7 @@ namespace HS{
       
       Setup fSetup;
       
-      DataEvents fData;
+      DataEvents fData; 
       
       Binner fBinner;
 
@@ -229,7 +236,7 @@ namespace HS{
       std::unique_ptr<RooArgSet> fLastPars=nullptr; //!
       std::unique_ptr<RooArgList> fLastForms=nullptr; //!
 
-      strings_t fCompiledMacros;
+      strings_t fCompiledMacros; //!
   
       Bool_t fRedirect=kFALSE;
 
@@ -241,11 +248,12 @@ namespace HS{
       TString fPrevResultDir;
       TString fPrevResultMini;
       
-      TString fTruthPrefix="gen";
+      TString fTruthPrefix="xxxxxx";
 
       TString fPlotOptions;
       Bool_t fDoPlotting = kTRUE;
-      
+      Bool_t fuseBinnedFit = kFALSE;
+
       //Bool_t fIsSamplingIntegrals=kFALSE;
       
       ClassDefOverride(HS::FIT::FitManager,1);

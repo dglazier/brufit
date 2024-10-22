@@ -46,12 +46,9 @@ namespace HS{
     ///////////////////////////////////////////
     Bool_t BruMcmc::MakeChain()
     {
-      cout<<"HSMCMC::MakeChain() "<<fData<<" "<<fPdf<<" "<<fPOI.getSize()<<endl;
       if (!fData || !fPdf   ) return kFALSE;
       if (fPOI.getSize() == 0) return kFALSE;
-     std::cout<<"proceed"<<endl;
- 
-   
+
       // if a proposal function has not been specified create a default one
       bool useDefaultPropFunc = (fPropFunc == nullptr);
       bool usePriorPdf = (fPriorPdf != nullptr);
@@ -68,19 +65,30 @@ namespace HS{
 
       //   RooAbsReal* nll = prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs));
       auto foptions = fSetup->FitOptions();
+
+      //remove not applicable options      
+      TObject* opt=nullptr;
+      if((opt=foptions.find("Save"))!=nullptr){
+	foptions.Remove(opt);
+      }
+       if((opt=foptions.find("SumW2Error"))!=nullptr){
+	foptions.Remove(opt);
+      }
+
+       
       auto cmd = ConditionalObservables(fConditionalObs);
       foptions.Add(dynamic_cast<RooCmdArg*>(&cmd));
       cmd=Constrain(*constrainedParams);
       foptions.Add(dynamic_cast<RooCmdArg*>(&cmd));
  
       RooAbsReal* nll = prodPdf->createNLL(*fData,foptions);
-      //RooAbsReal* nll = prodPdf->createNLL(*fData); 
       delete constrainedParams;
 
       
       nll->constOptimizeTestStatistic(RooAbsArg::Activate,false) ;
       
       // add in sumw/sumw2 term
+      RooAbsReal* delnll=nullptr;
       if(fData->isNonPoissonWeighted()&&fCorrectForWeights){
       	Double_t SumW=SumWeights();
       	Double_t SumW2=SumWeights2();
@@ -89,75 +97,58 @@ namespace HS{
 	NllName.ReplaceAll("+","p");
 	nll->SetName(NllName);
       	RooFormulaVar *alphanll=new RooFormulaVar("alphanll",Form("%lf*%s",SumW/SumW2,nll->GetName()),RooArgSet(*nll));
+	delnll=nll;//keep a pointer for deleting
       	nll=alphanll;
       }
  
       fParams = nll->getParameters(*fData);
       RemoveConstantParameters(fParams);
 
-      //if using smapling integral need to add params ?
-      //probably do not need this now, as just ampling in EVentsPDF class
-      //auto* sampPDF= dynamic_cast<RooAbsPdf*>(fSetup->Constraints().at(0));    
-      //if(sampPDF)fParams->add(*(sampPDF->getParameters(*fData)));
-      //RemoveConstantParameters(fParams);
-      fParams->Print("v");
-      BruMetropolisHastings mh;
-      // if(fKeepStart) mh.SetKeepStart();
-      // if(fMCMCHelp){
-      // 	mh.Help();
-      // 	mh.SetAcceptanceRange(fMinAcc,fMaxAcc);
-      // 	mh.SetTargetAccept(fTargetAcc);
-      // 	mh.SetNorm(fNorm);
-      // }
+       BruMetropolisHastings mh;
       
       mh.SetFunction(*nll);
-      // mh.SetType(MetropolisHastings::kLog);
-      // mh.SetSign(MetropolisHastings::kNegative);
       mh.SetParameters(*fParams);
       if (fChainParams.getSize() > 0) mh.SetChainParameters(fChainParams);
       mh.SetProposalFunction(*fPropFunc);
       mh.SetNumIters(fNumIters);
-
-
-      //cout<<"number of constraints "<<sampPDF->GetName()<<endl;
-      //try balancing integral sampling
-       // mh.SetBalance(sampPDF);
-      
+    
       if(fChain){ delete fChain; fChain=nullptr;}
-      
+
       fChain= mh.ConstructChain(); //mh is still owner and will delete
-  
+      cout<<"DEBUG "<<" Got chain "<<fChain<<endl;
       if(fChain==nullptr){
 	if (useDefaultPropFunc) delete fPropFunc;
 	if (usePriorPdf) delete prodPdf;
+	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 
 	fChainAcceptance=mh.GetAcceptance();
 	
 	delete nll;
+	if(delnll) delete delnll;
+
 	return kFALSE; //unsuccessful
       }
       
-      if(fChainData){ delete fChainData; fChainData=nullptr;}
-      
+      if(fChainData!=nullptr){ delete fChainData; fChainData=nullptr;}
+      cout<<"DEBUG "<<" Got chain data 2 "<<fChainData<<" "<<fChain->Size()<<endl;
+     
       fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
 
-      if(fChainData){
-	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
-	//	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
+      cout<<"DEBUG "<<" Got chain data 3 "<<fChainData<<" "<<fTreeMCMC<<endl;
+      if(fChainData!=nullptr){
+	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	auto saveDir=gDirectory;
-	// if((*gDirectory).IsWritable()==false){
-	//   TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCTemp.root";
-	//   fTempFile=std::make_shared<TFile>(saveName,"recreate");
-	// }
-	//	fChainData->Print("v");
 	fOutFile->cd();
 	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
 	saveDir->cd();
  	delete fChainData; fChainData=nullptr;
-      }  
-     if(fChain->Size()>fNumBurnInSteps)
-	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
+      }
+      cout<<"DEBUG "<<" Got chain size  "<< fChain->Size() <<" burnin "<< fNumBurnInSteps<<endl;
 
+     if(fChain->Size()>fNumBurnInSteps){
+       fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
+     }
+     
  
       nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
 
@@ -165,11 +156,12 @@ namespace HS{
       if (useDefaultPropFunc) delete fPropFunc;
       if (usePriorPdf) delete prodPdf;
       delete nll;
-
+      if(delnll) delete delnll;
+       
+  
       return kTRUE;
     }
     void BruMcmc::CleanMakeChain(){
-   
     }
     ////////////////////////////////////////////////////////
     
@@ -188,6 +180,7 @@ namespace HS{
       //Needed for RobustEstimator
       //Only needed once
       int pindex=0;
+      tree->ResetBranchAddresses();
       for(RooAbsArg* ipar : pars)
 	{
 	  if(ipar->isConstant()) continue;
@@ -201,6 +194,7 @@ namespace HS{
       //Create instance of TRobustEstimator
       TRobustEstimator r(Nentries,Npars);
 
+      std::vector<TH1F> hists(Npars);
       //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
       // for (int ientry = 0; ientry<Nentries; ientry++)
       for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
@@ -211,6 +205,7 @@ namespace HS{
 	    { //Loop over parameters of the model
 	      //And set 'data' element
 	      data[param_index]=params[param_index];
+	      hists[param_index].Fill(data[param_index]);
 	    }
 	 
 	  r.AddRow(data);//Appends data to RE
@@ -221,9 +216,29 @@ namespace HS{
       covMatSym = r.GetCovariance(); //actually returns pointer to reference so do not delete
       covMatSym->Print();
       //covMatSym is the symmetric covariance matrix to be used in the proposal function
-     
       TMatrixDSym covMatSymNorm=*covMatSym;
-     
+  
+      cout<<"covMatSym->Determinant = "<<covMatSym->Determinant()<<endl;
+      if(TMath::Abs(covMatSym->Determinant())==0 ){//need a better condition
+	cout<<"BruMcmc::MakeMcmcCovarianceMatrix Determinant too small,  will create a  diagnal matrix from RMS"<<endl;
+	  for(int iy=0;iy<Npars;++iy){
+	    cout<<pars[iy]->GetName()<<endl;
+	    
+	    //zero all but last elements of row
+	    for(Int_t id=0;id<Npars;++id){
+	      covMatSymNorm(iy,id)=0;
+	    }
+	    
+	    auto row=iy;
+	    covMatSymNorm(row,row)=hists[row].GetRMS()*hists[row].GetRMS();
+	    
+	  }
+	  covMatSymNorm.Print();
+ 	
+      }
+
+  
+      
       
       tree->ResetBranchAddresses();
 
@@ -603,11 +618,15 @@ namespace HS{
      }
     ///////////////////////////////////////////////////////////////
     file_uptr BruMcmc::SaveInfo(){
+      
+      std::cout<<"BruMcmc::SaveInfo() "<<fOutFile.get()<<" "<<fTreeMCMC<<std::endl;
       auto saveDir= gDirectory;
       fOutFile->cd();
       fTreeMCMC->SetDirectory(fOutFile.get());
+      std::cout<<"BruMcmc::SaveInfo() Result"<<std::endl;
       Result();
       fTreeMCMC->Write();
+      std::cout<<"BruMcmc::SaveInfo() written MCMC"<<std::endl;
     
       delete fTreeMCMC; fTreeMCMC=nullptr;//or else crashes in destructor
       //save paramters and chi2s in  dataset (for easy merging)
@@ -731,11 +750,22 @@ namespace HS{
 	 std::unique_ptr<TMatrixDSym> covMat; 
 	 covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
 	 _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
+	 _propCov.TuneCovarianceStep(_tuneCovStep);
+	 
 	 SetProposalFunction(_propCov);
-	 MakeChain();
+	 auto made = MakeChain();
+	 /* //To Fix to allow tuning of covariance stepsize
+	 while(made==kFALSE&&_tuneCovStep==kTRUE)  {
+	   made = MakeChain(); //if acceptance fails
+	 }
+	 if(made==kFALSE&&_tuneCovStep==kFALSE) //shouldnt happen
+	   std::cerr<< " BruMcmcCovariance::Run : Sorry covariance chain failed, outwith desired stepping without tuning selected. You can try calling TuneCovarianceStep or manually changing the default proposal step size..."<<std::endl;
+       
+	 */
        }
        
      }
+     
   }
   
 

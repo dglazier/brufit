@@ -50,12 +50,17 @@ namespace HS{
 
        
       if(!fInput) fInput=new TList();
-      // remove all existing entries from previous execution of selector
-      while (fInput->Contains("HSOUTDIR")) {
-        fInput->Remove(fInput->FindObject("HSOUTDIR"));
+
+      auto outdir=dynamic_cast<TNamed*>(fInput->FindObject("HSOUTDIR"));
+      if(outdir) {
+        // reuse already existing entry for output directory
+        outdir->SetTitle(fFitManager->SetUp().GetOutDir().Data());
+      } else {
+        // create new entry for output directory
+        outdir=new TNamed("HSOUTDIR",fFitManager->SetUp().GetOutDir().Data());
+        fInput->Add(outdir);
       }
-      TNamed *outdir=new TNamed("HSOUTDIR",fFitManager->SetUp().GetOutDir().Data());
-      fInput->Add(outdir);
+
       fFitManager->PreRun();
     }
 
@@ -65,6 +70,7 @@ namespace HS{
       //from shard library
       TClassTable::AddAlternate("HS::FIT::RooHSEventsPDF","RooHSEventsPDF");
       TClassTable::AddAlternate("HS::FIT::RooHSEventsHistPDF","RooHSEventsHistPDF");
+      TClassTable::AddAlternate("HS::FIT::BruEventsHistPeakPDF","BruEventsHistPeakPDF");
       TClassTable::AddAlternate("HS::FIT::RooComponentsPDF","RooComponentsPDF");
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonic","RooHSSphHarmonic");
       TClassTable::AddAlternate("HS::FIT::RooHSSphHarmonicIm","RooHSSphHarmonicIm");

@@ -15,7 +15,7 @@ namespace HS{
 
       str=StringReplaceAll(str," ","");//remove whitespace
       str=ReplaceSummations(str); //expand summations
-      cout<<"construct PDF  "<<str<<endl;
+      // cout<<"construct PDF  "<<str<<endl;
       //change + -> : and * -> ; for RooComponentsPDF
       str=StringReplaceAll(str,"+",":");
       str=StringReplaceAll(str,"*",";");

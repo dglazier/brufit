@@ -3,7 +3,7 @@
 
 #include "Setup.h"
 #include "PlotResults.h"
-#include "RooMcmc.h"
+#include "BruMcmc.h"
 #include <RooDataSet.h>
 #include <RooHist.h>
 #include <TList.h>
@@ -15,7 +15,7 @@ namespace HS{
     class CornerPlot : public PlotResults {
 
     public:
-      CornerPlot(Setup *setup, RooMcmc* mcmc,TList* canvases);
+      CornerPlot(Setup *setup, BruMcmc* mcmc,TList* canvases);
       CornerPlot()=default;
       CornerPlot(const CornerPlot& )=default;
       CornerPlot(CornerPlot&& )=default;

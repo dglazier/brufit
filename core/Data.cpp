@@ -37,7 +37,7 @@ namespace HS{
     void DataEvents::Load(Setup &setup,const TString& tname,const strings_t& files)
     {
       fSetup=&setup;
-      cout<<"DataEvents::Load "<<tname<<" with "<<files.size()<<" files"<<endl;
+      cout<<"DataEvents::Load "<<tname<<" with "<<files.size()<<" files"<<" boot : "<<fBootStrap.get()<<" "<<fNBoots<<endl;
       //check if bootstrapping
       if(fBootStrap.get()){
 	LoadBootStrap(tname,files);
@@ -52,7 +52,6 @@ namespace HS{
     
     void DataEvents::LoadBootStrap(const TString& tname,strings_t files)
     {
-      cout<<"DataEvents::LoadBootStrap("<<tname <<" "<<files.size()<<endl;
       fBootStrap->SetOutDir(fSetup->GetOutDir());
       fFileNames.clear();
       //Loop over all the filenames (e.g different bins) and split the data

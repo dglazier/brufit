@@ -19,6 +19,9 @@
 #include <algorithm> 
 #include <random>
 
+#include <RooFitResult.h>
+#include <RooFitLegacy/RooCatTypeLegacy.h>
+
 
 namespace HS{
   namespace FIT{
@@ -70,7 +73,8 @@ namespace HS{
       fHistIntegrals=other.fHistIntegrals;
       fMaxValue=other.fMaxValue;
       fIntRangeLow=other.fIntRangeLow;
-      fIntRangeHigh=other.fIntRangeHigh;
+
+       fIntRangeHigh=other.fIntRangeHigh;
     }
     RooHSEventsPDF::~RooHSEventsPDF(){
 
@@ -189,10 +193,11 @@ namespace HS{
     }
     void RooHSEventsPDF::generateEvent(Int_t code){
       // Info("RooHSEventsPDF::generateEvent","Going to generate starting from %lld with ",fGeni);
-        Double_t value=0;
+      Double_t value=0;
       if(!fUseWeightsGen){
 	while(fGeni<fNTreeEntries){
 	  fTreeEntry=IncrementGeni();
+	  if(!CheckRange("")) continue;
 	  value=evaluateMC(&fvecRealGen,&fvecCatGen); //evaluate true values
 	  if(value>fMaxValue*RooRandom::uniform()){//accept
 	    for(Int_t i=0;i<fNvars;i++)
@@ -230,7 +235,7 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
     {
-    
+      //      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
       if(fForceNumInt) return 0; //might be good to check numerical integral sometimes
       if(!fEvTree&&!fForceConstInt) return 0; //no MC events to integrate over
 
@@ -537,7 +542,9 @@ namespace HS{
 	    TString newcut=fCut;
 	    newcut.Replace(newcut.Index(fProxSet[i]->GetName())-2,2,"");
 	    newcut.Replace(newcut.Index(TString(fProxSet[i]->GetName())+">"),(newcut.Index(TString(fProxSet[i]->GetName())+"<")-newcut.Index(TString(fProxSet[i]->GetName())+">"))*2-1,"");
+
 	    if(newcut==TString("&&"))newcut="";
+	    if(newcut(0,2)=="&&") newcut.Remove(0,2);
 	    fCut=newcut;
 	    cout<<"RooHSEventsPDF::SetEvTree Ammended cut "<<fCut<<endl;
 	  }
@@ -589,6 +596,7 @@ namespace HS{
 	    catCut+=")";
 	    newcut.ReplaceAll(catCut,"");
 	    if(newcut==TString("&&"))newcut="";
+	    if(newcut(0,2)=="&&") newcut.Remove(0,2);
 	    fCut=newcut;
 	    cout<<"RooHSEventsPDF::SetEvTree Ammended cut "<<fCut<<endl;
 	  }

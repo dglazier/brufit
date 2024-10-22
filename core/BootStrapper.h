@@ -25,6 +25,8 @@ namespace HS{
       void DivideData(const TString& tname,const TString& fname);
       void DivideData(TTree* tree);
 
+      TTree* BootStrapTree(TTree* tree) const;
+
       strings_t GetFileNames(){return fFileNames;}
       void SetOutDir(TString outdir){fOutDir=std::move(outdir);}
 

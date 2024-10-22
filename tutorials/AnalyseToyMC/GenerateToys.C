@@ -2,7 +2,7 @@
 
   //We want to generate toy datasets based on previous fit results
   //Give previous fir directory
-  TString fitDir("/hdd/Dropbox/HaSpect/dev/brufit/tutorials/AnalyseToyMC/outFitToData/");
+  TString fitDir("outFitToData/");
   //Give minimiser (we may have done fits with different minimsers)
   TString fitMinimiser("HSMinuit2");
   //  TString fitMinimiser("RooMcmcSeqThenCov");
@@ -32,8 +32,8 @@
   toyfitter->IgnorePrevResult(); //make sure initial fit parameters are not equal to previous fit results
 
   
-  Here::Go(toyfitter.get());
-  // Proof::Go(toyfitter.get(),4);
+  // Here::Go(toyfitter.get());
+  Proof::Go(toyfitter.get(),4);
   //create pull distributions etc
   toy->Summarise();
 }

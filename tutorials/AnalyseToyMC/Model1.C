@@ -18,10 +18,10 @@ void Model1(TString filename,Int_t IsData=1){
   tree->Branch("M2",&M2,"M2/D");
   tree->Branch("fgID",&fgID,"fgID/D");
   tree->Branch("Sig",&Sig,"Sig/D");
-  if(IsData){
-    tree->Branch("PolState",&PolState,"PolState/I");
-    tree->Branch("Pol",&Pol,"Pol/D");
-  }
+  // if(IsData){
+  tree->Branch("PolState",&PolState,"PolState/I");
+  tree->Branch("Pol",&Pol,"Pol/D");
+  // }
   //signal
   TF1* fM1s=new TF1("m1s","gaus(0)+gaus(3)+[6]",0,10);
   fM1s->SetParameters(1,3,0.5,0.5,7,2,0.1);
@@ -41,7 +41,7 @@ void Model1(TString filename,Int_t IsData=1){
   fM2b->SetParameter(0,0.05);
   TF1* fMmissb=new TF1("mmissb","[0]*(x-4)+2",0,10);
   fMmissb->SetParameter(0,0.2);
-  Int_t Nev=1000;
+  Int_t Nev=50000;
   if(!IsData) Nev*=100;
 
   gBenchmark->Start("timer");

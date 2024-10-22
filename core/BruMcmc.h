@@ -116,7 +116,8 @@ namespace HS{
       }
       void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
       void SetParVals(RooArgSet* toThesePars);
-      
+
+      Bool_t Success(){return fChain != nullptr;}
     protected :
       void AddEntryBranch();
       void CleanMakeChain();
@@ -221,6 +222,7 @@ namespace HS{
      void TurnOffSequential(){_doSeq=kFALSE;}
      void TurnOffNDStep(){_doND=kFALSE;}
      void TurnOffCovariance(){_doCov=kFALSE;}
+     void TuneCovarianceStep(){_tuneCovStep=kTRUE;}
      
     private:
 
@@ -231,6 +233,7 @@ namespace HS{
      Bool_t _doSeq=kTRUE;
      Bool_t _doND=kTRUE;
      Bool_t _doCov=kTRUE;
+     Bool_t _tuneCovStep=kFALSE;
      
       ClassDefOverride(HS::FIT::BruMcmcCovariance,1);
    };

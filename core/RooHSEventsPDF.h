@@ -81,7 +81,8 @@ namespace HS{
       Bool_t fBranchStatus=kTRUE;
       Bool_t fIsIntegrating=kFALSE;
       Bool_t fIsClone=kFALSE;
-      Bool_t fForceConstInt=kFALSE;
+      ///      Bool_t fForceConstInt=kFALSE;
+      Bool_t fForceConstInt=kTRUE;
       Bool_t fForceNumInt=kFALSE;
       Bool_t fUseWeightsGen=kFALSE;
       Bool_t fUseEvWeights=kFALSE;

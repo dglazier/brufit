@@ -26,8 +26,6 @@ namespace HS{
    
 	static void Go(const std::shared_ptr<FitManager>& fm){
 	  Go(fm.get());
-	  gBenchmark->Stop("go");
-	  gBenchmark->Print("go");
 	}
 	static void Go(FitManager* fm){
 	  if(!fm) return;

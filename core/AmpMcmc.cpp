@@ -26,7 +26,12 @@ namespace HS{
 	AmpMcmc::RandomiseParameters();
 	
 	BruMcmcCovariance::Run(setup,fitdata);
-	
+
+	if(Success()==kFALSE){
+	  //failed so try again
+	  nrefit--;
+	  continue;
+	}
 	if(nrefit<fNFits) SaveInfo();
       }
     }

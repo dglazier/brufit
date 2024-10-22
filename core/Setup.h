@@ -86,6 +86,8 @@ namespace HS{
       RooArgSet& FitVarsAndCats();
       RooArgSet& ParsAndYields();
       RooArgSet& NonConstParsAndYields();
+      void CopyRealProperties(RooArgSet& change, const RooArgSet& tothis);
+      
       const realvars_t& AuxVars()const {return fAuxVars;}
 	
       RooAbsPdf* Model()  const {return fModel;}
@@ -134,8 +136,8 @@ namespace HS{
       RooArgList& Yields()  {return fYields;}
       RooArgList& Parameters() {return fParameters;}
       RooArgList& Constants() {return fConstants;}
-      RooArgList& Formulas() {return fFormulas;}
-      RooArgList& ParameterFormulas() {return fParameterFormulas;}
+      const RooArgList& Formulas() const {return fFormulas;}
+      const RooArgList& ParameterFormulas() const {return fParameterFormulas;}
       RooArgList& PDFs()   {return fPDFs;}
       const RooArgList& constPDFs()   const {return fPDFs;}
       RooArgList& Constraints(){return fConstraints;}
@@ -164,6 +166,8 @@ namespace HS{
 	//AddFitOption(RooFit::Minimizer("Minuit2"));
       }
       void RequiredFitOptions(){
+	if(fFitOptions.find("Save")!=nullptr) return;
+	
 	AddFitOption(RooFit::Save(kTRUE));
 	if(fErrorsSumW2) AddFitOption(RooFit::SumW2Error(kTRUE));
 	else if(fErrorsAsym) AddFitOption(RooFit::AsymptoticError(true));
@@ -185,7 +189,13 @@ namespace HS{
       
       void RandomisePars();
       void OrganiseConstraints();
-      
+
+      RooRealVar* GetVar(const TString& name){
+	return (dynamic_cast<RooRealVar*>(DataVars().find(name)));
+      }
+      RooRealVar* GetPar(const TString& name){
+	return (dynamic_cast<RooRealVar*>(fParameters.find(name)));
+      }
       void SetParVal(const TString& par,Double_t val,Bool_t co=kFALSE){
 	if(dynamic_cast<RooRealVar*>(fParameters.find(par))==nullptr){
 	  std::cerr<<"Error Setup::SetParVal invalid parameter"<<par<<std::endl;
@@ -264,9 +274,11 @@ namespace HS{
       strings_t fAuxVarString;//
       strings_t fPDFString;//
       strings_t fFuncVarString;//!
+      TString fParserPDFString;//
+      PdfParser* fParserPDFparser=nullptr;//
 
-      Bool_t	fErrorsSumW2=kTRUE;
-      Bool_t	fErrorsAsym=kFALSE; //default to this
+      Bool_t	fErrorsSumW2=kTRUE; //default to this
+      Bool_t	fErrorsAsym=kFALSE;
 
       std::map<TString,Bool_t> fConstPars; //
       std::map<TString,Bool_t> fConstPDFPars; //

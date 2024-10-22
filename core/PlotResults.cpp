@@ -17,7 +17,13 @@ namespace HS{
 
       Bool_t IsBatch=gROOT->IsBatch();
       if(fPlotOptions.Contains("goff")==kTRUE) gROOT->SetBatch(kTRUE);
-      
+
+      Bool_t DoSmooth = kFALSE;
+      Double_t prec =1E-6; 
+      if(fPlotOptions.Contains("smooth")==kTRUE){
+	prec=1E-2;
+	DoSmooth=kTRUE ;
+      }
       //cout<<"PlotResults::PlotResults "<<fCanvases.get()<<" "<<setup<<" "<<endl;
       //fCanvases->SetOwner();
       fCanvases->SetName(TString("RFPlots")+setup->GetName());
@@ -45,20 +51,23 @@ namespace HS{
 
 	const auto& pdfs = setup->constPDFs();
 
-	if(pdfs.getSize()>1) //only draw components if >1
-	  for(Int_t ic=0;ic<pdfs.getSize();ic++)
-	    model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(1E-2));
+	if(pdfs.getSize()>1){ //only draw components if >1
+	  for(Int_t ic=0;ic<pdfs.getSize();ic++){
+	    model->plotOn(frame,Components(pdfs[ic]),LineStyle(kDashed),LineColor(ic%8+1),Precision(prec));
+	  }
+	}
 
 	
-      	model->plotOn(frame,LineColor(kRed)) ;
-
+      	if(DoSmooth) model->plotOn(frame,LineColor(kRed)) ;
+	else model->plotOn(frame,LineColor(kRed),Precision(prec)) ;
+	
 	//	model->getParameters(data)->Print("v");
 	//	std::cout<<"PlotOn  "<<model->expectedEvents(model->getObservables(data))<<std::endl;
        	//model->plotOn(frame,LineColor(kRed),Precision(4E-2)) ;
 	
 	model->paramOn(frame,
 		       Layout(0.1, 0.2, 0.9),
-		       Format("NE",AutoPrecision(1))); //show fit parameters
+		       Format("NEU",AutoPrecision(2))); //show fit parameters
 	
 	
 	frame->SetTitle(TString("Fit components for ")+var->GetName());
@@ -76,14 +85,23 @@ namespace HS{
 	halfCanvas->Divide(1,2);
 	halfCanvas->cd(1);
 	
-	auto hres=roohist_uptr(frame->residHist());
+	roohist_uptr hres;
+	if(DoSmooth) hres=roohist_uptr(frame->residHist());
+	else{
+	  // switch off averaging, otherwise fit of MC data with true templates does not show perfect agreement
+	  hres=roohist_uptr(frame->residHist(nullptr, nullptr, false, false));
+	}
 	hres->Draw();
      	fRooHists.push_back(std::move(hres));//keep it live
-
+	
 	//Pull distributions
 	halfCanvas->cd(2);
-	
-	auto hpull=roohist_uptr(frame->pullHist());
+
+	roohist_uptr hpull;
+	if(DoSmooth) hpull=roohist_uptr(frame->pullHist());
+	else{
+	  hpull=roohist_uptr(frame->pullHist(nullptr, nullptr, false));
+	}
 	hpull->Draw();
 	fRooHists.push_back(std::move(hpull));//keep it live
 	//////////////////////////////////////////////

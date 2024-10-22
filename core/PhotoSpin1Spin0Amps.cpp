@@ -18,16 +18,16 @@ namespace HS{
  //To remove H0_0000 from sum, 2 cases
       //l=0, L=1,2,....
       //l=2, L=0,1,2,....
-      	_Sum +=       Form("+ SUM(L[1|%d],l[0|0],m[0|0],M[0|%d<L+1]){H_0_l_m_L_M*K_L*K_l*ReDab_l_m_L_M(%s,%s,Dab_l_m_L_M)}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+      	_Sum +=       Form("+ SUM(L[1|%d],l[0|0],m[0|0],M[0|%d<L+1]){H_0_l_m_L_M*K_L*K_l*ReDab_l_m_L_M}",2*_Jmax,2*_Mmax);
 
-      	_Sum +=       Form("+ SUM(L[0|%d],l[2|2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_0_l_m_L_M*K_L*K_l*ReDab_l_m_L_M(%s,%s,Dab_l_m_L_M)}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+      	_Sum +=       Form("+ SUM(L[0|%d],l[2|2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_0_l_m_L_M*K_L*K_l*ReDab_l_m_L_M}",2*_Jmax,2*_Mmax);
 
 
-	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_1_l_m_L_M*K_L*K_l*ReDab_l_m_L_M(%s,%s,Dab_l_m_L_M)*COS2PHI}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_1_l_m_L_M*K_L*K_l*ReDab_l_m_L_M*COS2PHI}",2*_Jmax,2*_Mmax);
 
-	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[1|2<L+1<l+1],M[0|0<L+1]){H_2_l_m_L_M*K_L*K_l*ImDab_l_m_L_M(%s,%s,Dab_l_m_L_M)*SIN2PHI}",2*_Jmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[1|2<L+1<l+1],M[0|0<L+1]){H_2_l_m_L_M*K_L*K_l*ImDab_l_m_L_M*SIN2PHI}",2*_Jmax);
 
-	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[1|%d<L+1]){H_2_l_m_L_M*K_L*K_l*ImDab_l_m_L_M(%s,%s,Dab_l_m_L_M)*SIN2PHI}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[1|%d<L+1]){H_2_l_m_L_M*K_L*K_l*ImDab_l_m_L_M*SIN2PHI}",2*_Jmax,2*_Mmax);
         
       
 
@@ -55,15 +55,15 @@ namespace HS{
       //To remove H0_0000 from sum, 2 cases
       //l=0, L=1,2,....
       //l=2, L=0,1,2,....
-	_Sum +=       Form("+ SUM(L[1|%d],l[0|0],m[0|0],M[0|%d<L+1]){H_0_l_m_L_M[0,-2,2]*K_L*K_l*ReDab_l_m_L_M(%s,%s,Dab_l_m_L_M)}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum +=       Form("+ SUM(L[1|%d],l[0|0],m[0|0],M[0|%d<L+1]){H_0_l_m_L_M[0,-2,2]*K_L*K_l*ReDab_l_m_L_M}",2*_Jmax,2*_Mmax);
 
-	_Sum +=       Form("+ SUM(L[0|%d],l[2|2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_0_l_m_L_M[0,-2,2]*K_L*K_l*ReDab_l_m_L_M(%s,%s,Dab_l_m_L_M)}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum +=       Form("+ SUM(L[0|%d],l[2|2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_0_l_m_L_M[0,-2,2]*K_L*K_l*ReDab_l_m_L_M}",2*_Jmax,2*_Mmax);
 
-	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_1_l_m_L_M[0,-2,2]*K_L*K_l*ReDab_l_m_L_M(%s,%s,Dab_l_m_L_M)*COS2PHI}",2*_Jmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum +=       Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[0|%d<L+1]){H_1_l_m_L_M[0,-2,2]*K_L*K_l*ReDab_l_m_L_M*COS2PHI}",2*_Jmax,2*_Mmax);
 
-	_Sum+=        Form("+ SUM(L[0|%d],l[0|2:2],m[1|2<L+1<l+1],M[0|0<L+1]){H_2_l_m_L_M[0,-2,2]*K_L*K_l*ImDab_l_m_L_M(%s,%s,Dab_l_m_L_M)*SIN2PHI}",2*_Jmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+	_Sum+=        Form("+ SUM(L[0|%d],l[0|2:2],m[1|2<L+1<l+1],M[0|0<L+1]){H_2_l_m_L_M[0,-2,2]*K_L*K_l*ImDab_l_m_L_M*SIN2PHI}",2*_Jmax);
 
-		_Sum+=        Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[1|%d<L+1]){H_2_l_m_L_M[0,-2,2]*K_L*K_l*ImDab_l_m_L_M(%s,%s,Dab_l_m_L_M)*SIN2PHI}",2*_Lmax,2*_Mmax,_DecayAngleCosThGJ.data(),_DecayAnglePhiGJ.data(),_DecayAngleCosThHF.data(),_DecayAnglePhiHF.data());
+		_Sum+=        Form("+ SUM(L[0|%d],l[0|2:2],m[0|2<L+1<l+1],M[1|%d<L+1]){H_2_l_m_L_M[0,-2,2]*K_L*K_l*ImDab_l_m_L_M*SIN2PHI}",2*_Lmax,2*_Mmax);
     
   
       _IsAmplitudes=kFALSE;
@@ -117,7 +117,7 @@ namespace HS{
       for(auto par:forms){
 	auto rpar  = dynamic_cast<RooFormulaVar*>(par);
 	if(rpar==nullptr) continue;
-	TString sform(rpar->formula().GetTitle());
+	TString sform(rpar->GetTitle());
 	cout<<rpar->GetName()<<" = "<<sform<<endl;
 	}
       cout<<"PhotoSpin1Spin0Amps::PrintModel() : Summation "<<endl;
