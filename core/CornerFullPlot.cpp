@@ -15,7 +15,7 @@ namespace HS{
   namespace FIT{
     using namespace RooFit;
 
-    CornerFullPlot::CornerFullPlot(Setup *setup, RooMcmc *mcmc, TList* canvases)
+    CornerFullPlot::CornerFullPlot(Setup *setup, BruMcmc *mcmc, TList* canvases)
     {
       auto myStyle = TStyle{*gStyle};
       myStyle.SetName("MCMCStyle");
@@ -26,6 +26,12 @@ namespace HS{
       myStyle.SetTitleSize(0.2, "t");
       myStyle.SetLabelSize(0.125, "xy");
       myStyle.SetNdivisions(4, "xy");
+  myStyle.SetPadTopMargin(0.0);
+  myStyle.SetPadRightMargin(0.0);
+  myStyle.SetPadBottomMargin(0.0);
+  myStyle.SetPadLeftMargin(0.0);
+  myStyle.SetPadBorderSize(0);
+  myStyle.SetCanvasBorderSize(0);
 
       auto defStyle=gStyle;
       gStyle=&myStyle;
@@ -94,9 +100,9 @@ namespace HS{
 		  auto can = canvas->cd(Npars*counter+int_counter);
 		  can->SetBorderSize(0);
 		  can->SetTopMargin(0);
-		  can->SetBottomMargin(0.);
-		  can->SetLeftMargin(0.);
-		  can->SetRightMargin(0.0);
+		  // can->SetBottomMargin(0.);
+		  // can->SetLeftMargin(0.);
+		  // can->SetRightMargin(0.0);
 		      
 		  if(ipar->isConstant()==kFALSE&&ipar2->isConstant()==kFALSE){
 		    TString DrawPar = CheckForNegatives(ipar->GetName());

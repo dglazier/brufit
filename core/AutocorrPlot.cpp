@@ -13,7 +13,7 @@ namespace HS{
   namespace FIT{
     using namespace RooFit;
 
-    AutocorrPlot::AutocorrPlot(Setup *setup, RooMcmc* mcmc, TList* canvases)
+    AutocorrPlot::AutocorrPlot(Setup *setup, BruMcmc* mcmc, TList* canvases)
     {
     
       auto tree =mcmc->GetTree()->CopyTree("",""); //make a copy
