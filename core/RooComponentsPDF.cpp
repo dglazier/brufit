@@ -349,17 +349,19 @@ namespace HS{
 	for(auto &term: comp){
 	  //Identify which terms are dependent on fit observables and cats(VarSet)
 	  auto  arg=fActualComps.find(term->GetName());
-	  auto deps=arg->getDependents(VarSet(0));
+	  // auto deps=arg->getDependents(VarSet(0));//deprecated
+	  auto deps=arg->getObservables(VarSet(0));
 	
 	  if(deps->getSize()){
 
 	    fDependentTermProxy[icomp].push_back(term.get());
 	    //Identify which terms are dependent on fit parameters (ParSet)
-	    auto parDeps=arg->getDependents(fParameters);
+	    auto parDeps=arg->getObservables(fParameters);
 	    if(parDeps->getSize()){
 	   
-	      TIter iter=parDeps->createIterator();
-	      while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
+	      //TIter iter=parDeps->createIterator();
+	      //while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
+	      for(auto* arg:*parDeps){
 		auto *rarg=dynamic_cast<RooRealVar*>(arg);	    
 		if(!(vecContains(rarg,fDependentTermParams[icomp]))){
 		  fDependentTermParams[icomp].push_back(rarg);
