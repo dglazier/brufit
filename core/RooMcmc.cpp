@@ -565,13 +565,15 @@ std::cout<<"Sets dataRMS_matrix"<<std::endl;
       _formVals.reserve(formulas.getSize());
       _formBranches.reserve(formulas.getSize());
 
-      TIter iter=formulas.createIterator();
+      // TIter iter=formulas.createIterator();
       Int_t iform=0;
 
       //getLeaves before extra branches
       auto parLeaves=fTreeMCMC->GetListOfLeaves();
       
-      while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+      //while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+      for(auto* formu_abs:formulas){
+	auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
 	TString formuName=formu->GetName();
 	_formVals[iform]=0;
 	_formBranches[iform]=nullptr;
@@ -594,10 +596,12 @@ std::cout<<"Sets dataRMS_matrix"<<std::endl;
 	    
 	}
 	//now calculate value of formula for these parameters
-	iter.Reset();
+	//iter.Reset();
 	iform=0;
-	while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
-	  
+	//while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+	for(auto* formu_abs:formulas){
+	  auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
+  
 	  _formVals[iform]=formu->getValV();
 	  _formBranches[iform]->Fill();
 	  iform++;

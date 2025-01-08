@@ -238,24 +238,31 @@ namespace HS{
 	fRHist->Fill(fRHist->GetXaxis()->GetBinCenter(jtemp),fRHist->GetYaxis()->GetBinCenter(1),his1.GetBinContent(jtemp));
 	//cout<<"RooHSEventsHistPDF::CreateHistPdf() fill "<<fRHist->GetXaxis()->GetBinCenter(jtemp)<<" "<<fRHist->GetYaxis()->GetBinCenter(1)<<" "<<his1.GetBinContent(jtemp)<<endl;
       }
+    cout<<"RooHSEventsHistPDF::CreateHistPdf() filled first y bin"<<his1.GetName()<<endl;
 
       //Loop over bins of smearing parameter
       TF1 gausnX("gausnX","gausn(0)",fRHist->GetXaxis()->GetXmin(),fRHist->GetXaxis()->GetXmax());
+      const auto NbinsX = fRHist->GetNbinsX();
       for(Int_t ia=2;ia<=fRHist->GetNbinsY();ia++){//alpha bins
+	//for(Int_t ia=2;ia<=2;ia++){//alpha bins
 	Double_t vAlphb=fRHist->GetYaxis()->GetBinCenter(ia);
 	Double_t vAlph=fRHist->GetYaxis()->GetBinLowEdge(ia);
-	for(Int_t itemp=1;itemp<=fRHist->GetNbinsX();itemp++){//fill with Gaussian function
+	for(Int_t itemp=1;itemp<=NbinsX;itemp++){//fill with Gaussian function
 	  Double_t vari=fRHist->GetXaxis()->GetBinCenter(itemp);
 	  Double_t NX=his1.GetBinContent(itemp);
 	  if(!NX) continue;
 	  gausnX.SetParameters(NX,vari,vAlphb);
 	  //Add gaussian for each non xero bin with width = yaxis value
-	  for(Int_t jtemp=1;jtemp<=fRHist->GetNbinsX();jtemp++){//fill with Gaussian function
+	  for(Int_t jtemp=1;jtemp<=NbinsX;jtemp++){//fill with Gaussian function
+	    // cout<<"RooHSEventsHistPDF::CreateHistPdf() fill all "<<itemp<<" "<<jtemp<<" \n";
+	  //   cout<<"RooHSEventsHistPDF::CreateHistPdf() fill all "<<itemp<<" "<<std::endl;
 	    Double_t varj=fRHist->GetXaxis()->GetBinCenter(jtemp);
 	    fRHist->Fill(varj,vAlphb,gausnX.Eval(varj));
 	  }
 	}
       }
+      cout<<"RooHSEventsHistPDF::CreateHistPdf() filled all bins "<<his1.GetName()<<endl;
+
       //Cannot calculate covariance if pdf==0 for some events
       //Set every empty bin with very small value to prevent this
       for(Int_t ia=1;ia<=fRHist->GetNbinsY();ia++){//alpha bins
@@ -270,7 +277,8 @@ namespace HS{
 	}
     
       }
-      //if(fapplySmooth) fRHist->Smooth();//some additional smoothing
+      cout<<"RooHSEventsHistPDF::CreateHistPdf() filled small values "<<his1.GetName()<<endl;
+     //if(fapplySmooth) fRHist->Smooth();//some additional smoothing
 
       //Store max value of distributions for scaling around
       // fMean=fRHist->GetMean();

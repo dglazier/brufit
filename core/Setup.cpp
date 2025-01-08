@@ -575,10 +575,13 @@ namespace HS{
       //fYields.Print("v");
       //fParsAndYields.Print("v");
       Double_t sum=0;
-      TIter iter=fYields.createIterator();
-      while(auto* arg=dynamic_cast<RooRealVar*>(iter()))
-	sum+=arg->getValV();
-
+      // TIter iter=fYields.createIterator();
+      //      while(auto* arg=dynamic_cast<RooRealVar*>(iter()))
+      for(auto* arg:fYields){
+	auto arg_var = dynamic_cast<RooRealVar*>(arg);
+	if(arg_var==nullptr) continue;
+	sum+=arg_var->getValV();
+      }
       return sum;
  
     }

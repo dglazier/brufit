@@ -51,9 +51,10 @@ namespace HS{
  
  
       fitvars.Print("v");
-      auto iter=fitvars.iterator();
-      const RooAbsArg *tmp=nullptr;
-      while ((tmp = dynamic_cast<RooAbsArg*>(iter.Next()))){
+      // auto iter=fitvars.iterator();
+      //const RooAbsArg *tmp=nullptr;
+      //while ((tmp = dynamic_cast<RooAbsArg*>(iter.Next()))){
+      for(const auto tmp:fitvars){
 	auto arg=fitvars.find(tmp->GetName());
 	//cout<<"ToyManager::Generate() "<<tmp->GetName()<<" "<<model->isDirectGenSafe(*arg)<<endl;
       }
@@ -88,11 +89,12 @@ namespace HS{
       auto cats=fCurrSetup->Cats();
 
       //add categories to tree! not done by GetAsTTree
-      TIter iter=cats.createIterator();
+      //TIter iter=cats.createIterator();
       vector<TBranch*> branches(cats.getSize());
       vector<Int_t> branchVal(cats.getSize());
       Int_t ib=0;
-      while(auto* arg=dynamic_cast<RooCategory*>(iter())){	
+      //while(auto* arg=dynamic_cast<RooCategory*>(iter())){
+      for(auto* arg : cats){
 	TString catName=arg->GetName();
 	branches[ib]=tree->Branch(catName,&branchVal[ib],catName+"/I");
 	ib++;
@@ -299,8 +301,11 @@ namespace HS{
       auto pars=parsData->get();
       // pars->Print("v");
       // auto pars = SetUp().ParsAndYields();   
-      TIter iter=pars->createIterator();
-      while(auto* arg=dynamic_cast<RooRealVar*>(iter())){	
+      //TIter iter=pars->createIterator();
+      //while(auto* arg=dynamic_cast<RooRealVar*>(iter())){	
+      for(auto* argabs:*pars){
+	auto* arg=dynamic_cast<RooRealVar*>(argabs);
+	if(arg==nullptr) continue;
 	TString parName=arg->GetName();
 	Double_t val=arg->getValV();
 	//in casre a -ve sign on the name replace with minus for drawing
