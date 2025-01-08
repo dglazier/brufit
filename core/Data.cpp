@@ -114,12 +114,15 @@ namespace HS{
      }
      
      //only let datset clone active branches
-     TIter iter=vars.createIterator();
+     //TIter iter=vars.createIterator();
      rawtree->SetBranchStatus("*",false);
-     while(auto* arg=dynamic_cast<RooAbsArg*>(iter()))	
+     //while(auto* arg=dynamic_cast<RooAbsArg*>(iter()))
+     for(auto* arg:vars){
        rawtree->SetBranchStatus(arg->GetName(),true);	
-
-     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(),useWeightName});
+     }
+     
+     //auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", rawtree,vars, fSetup->DataCut(),useWeightName});
+     auto ds=std::unique_ptr<RooDataSet>(new RooDataSet{"DataEvents","DataEvents", vars,RooFit::Import(*rawtree), RooFit::Cut(fSetup->DataCut()),RooFit::WeightVar(useWeightName)});
 
      fFiledTrees[iset].reset(); //delete rawtree 
      if(fInWeights.get()){
