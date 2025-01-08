@@ -873,7 +873,7 @@ namespace HS{
 	vrandom[ir]=ir;
       std::shuffle(vrandom.begin(),vrandom.end(), std::mt19937(std::random_device()()));
 
-      TIter iter=dataVars->createIterator();
+      //TIter iter=dataVars->createIterator();
       vector<Double_t> brD;
       vector<Int_t> brI;
       Int_t ND=0;
@@ -889,7 +889,8 @@ namespace HS{
       vector<Short_t> protoDataForCat;
   
       //Look for variables in data that were not in fEvTree
-      while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
+      //      while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
+      for(auto*arg:*dataVars){
 	if(TString("UID")==arg->GetName()) continue; //don't replicate ID branch
 	if(fEvTree->GetBranch(arg->GetName())) continue; //already exists
 	for(Int_t ip=0;ip<fNvars;ip++)

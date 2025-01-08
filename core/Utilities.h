@@ -19,11 +19,14 @@ namespace HS{
       auto formVals = std::vector<Double_t>(formulas.getSize());
       auto formBranches=std::vector<TBranch*>(formulas.getSize());
  
-      TIter iter=formulas.createIterator();
+      //TIter iter=formulas.createIterator();
       Int_t iform=0;
 
       //create branches and make formVals their references
-      while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+      //while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+      for(auto* formuabs:formulas){
+	auto* formu=dynamic_cast<RooFormulaVar*>(formuabs);
+	if(formu==nullptr) continue;
 	TString formuName=formu->GetName();
 	formVals[iform]=0;
 	formBranches[iform]=nullptr;
@@ -37,10 +40,12 @@ namespace HS{
 	pars.assignFast(*eventPars);
  
 	//now calculate value of formula for these parameters
-	iter.Reset();
+	//	iter.Reset();
 	iform=0;
-	while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
-   
+	//while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+        for(auto* formuabs:formulas){
+	  auto* formu=dynamic_cast<RooFormulaVar*>(formuabs);
+	  if(formu==nullptr) continue;
 	  formVals[iform]=formu->getValV();
 	  formBranches[iform]->Fill();
 	  //cout<< formBranches[iform]->GetName()<<" "<<formVals[iform]<<endl;
