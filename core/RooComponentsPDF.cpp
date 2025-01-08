@@ -130,9 +130,10 @@ namespace HS{
 	  auto  argTerm=fActualComps.find(term->GetName());
 	  //get its variables, if any
 	  auto vars=argTerm->getVariables();
-	  TIter iter=vars->createIterator();
+	  //TIter iter=vars->createIterator();
 	  
-	  while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
+	  // while(auto* arg=dynamic_cast<RooAbsArg*>(iter())){
+	  for(auto* arg:*vars){
 	    //if new variable and not observable
 	    //include it as parameter
 	    if(!fActualObs.contains(*arg)&&!fActualCats.contains(*arg)&&!fParameters.contains(*arg)){
