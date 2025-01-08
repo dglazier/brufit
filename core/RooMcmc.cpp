@@ -129,18 +129,20 @@ namespace HS{
       
      if(fChain->Size()>fNumStepsThres && fChain->Size()<fNumIters-10) fDontDeleteChain = kTRUE;      
       
-      if(!fDontDeleteChain)
-      	{
-	  if(fChainData){ delete fChainData; fChainData=nullptr;}      
-	  fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
-	  fNumIters = fNumIters-fChain->Size();
-	}
-	  else
-	{
-	  if(fChainData) fChainData->append(*(fChain->GetAsDataSet(EventRange(0, fChain->Size()))));	
-	  fNumIters = fNumIters-fChain->Size();		  
-	  }
-
+     if(!fDontDeleteChain)
+       {
+	 if(fChainData){ delete fChainData; fChainData=nullptr;}      
+	 // fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size())); //about to be deprecated, try following line instead
+	 fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(""));
+	 fNumIters = fNumIters-fChain->Size();
+       }
+     else
+       {
+	 // if(fChainData) fChainData->append(*(fChain->GetAsDataSet(EventRange(0, fChain->Size()))));	
+	 if(fChainData) fChainData->append(*(dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(""))));	
+	 fNumIters = fNumIters-fChain->Size();		  
+       }
+     
       if(fChainData){
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	//	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
@@ -153,9 +155,10 @@ namespace HS{
 	
  	delete fChainData; fChainData=nullptr;
       }  
-     if(fChain->Size()>fNumBurnInSteps)
-	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
-
+      if(fChain->Size()>fNumBurnInSteps){
+	//	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
+  	fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size())));
+      }
  
       nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
 
