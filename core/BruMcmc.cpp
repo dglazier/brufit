@@ -133,7 +133,7 @@ namespace HS{
       cout<<"DEBUG "<<" Got chain data 2 "<<fChainData<<" "<<fChain->Size()<<endl;
      
       // fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));//about to be deprecated, try following line instead
-      fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(""));
+      fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::Name("mcmcChain")));
 
 
       cout<<"DEBUG "<<" Got chain data 3 "<<fChainData<<" "<<fTreeMCMC<<endl;
@@ -149,7 +149,7 @@ namespace HS{
 
      if(fChain->Size()>fNumBurnInSteps){
        //  fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
-       fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size())));
+       fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size()),RooFit::Name("mcmcChain")));
      }
      
  

@@ -133,13 +133,13 @@ namespace HS{
        {
 	 if(fChainData){ delete fChainData; fChainData=nullptr;}      
 	 // fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size())); //about to be deprecated, try following line instead
-	 fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(""));
+	 fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::Name("mcmcChain")));
 	 fNumIters = fNumIters-fChain->Size();
        }
      else
        {
 	 // if(fChainData) fChainData->append(*(fChain->GetAsDataSet(EventRange(0, fChain->Size()))));	
-	 if(fChainData) fChainData->append(*(dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(""))));	
+	 if(fChainData) fChainData->append(*(dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::Name("mcmcChain")))));	
 	 fNumIters = fNumIters-fChain->Size();		  
        }
      
@@ -157,7 +157,7 @@ namespace HS{
       }  
       if(fChain->Size()>fNumBurnInSteps){
 	//	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
-  	fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size())));
+  	fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size()),RooFit::Name("mcmcChain")));
       }
  
       nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
