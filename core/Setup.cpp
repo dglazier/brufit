@@ -283,7 +283,7 @@ namespace HS{
       RooFormulaVar fovar(name,formu,rooPars) ;
 
       //fovar.Print();
-      fWS.import(fovar,RooFit::Silence());
+      fWS.import(fovar,RooFit::Silence(),RooFit::RecycleConflictNodes());
       if(fWS.function(name)){
 	fFormulas.add(*fWS.function(name));
 	if(fovar.getObservables(fVars)->getSize()==0
@@ -553,7 +553,7 @@ namespace HS{
       auto pdf=new RooComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
       fNeedToDeleteThis.Add(pdf);
       //std::cout<<"Import "<<pdf->GetName()<<std::endl;
-      fWS.import(*pdf);
+      fWS.import(*pdf,RooFit::Silence(),RooFit::RecycleConflictNodes());
       //std::cout<<"Imported "<<pdf->GetName()<<std::endl;
       return pdf;
     }
