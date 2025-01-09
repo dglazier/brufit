@@ -34,7 +34,7 @@ namespace HS{
 
     RooHSEventsPDF::RooHSEventsPDF(const RooHSEventsPDF& other, const char* name) :  RooAbsPdf(other,name) 
     {
-      // cout<<"RooHSEventsPDF::RooHSEventsPDF "<<GetName()<<other.fNTreeEntries<< " "<<other.fvecReal.size()<<" is cloen "<<other.fIsClone<<" "<<&other<<endl;
+      cout<<"RooHSEventsPDF::RooHSEventsPDF "<<GetName()<<" entries "<<other.fNTreeEntries<< " vars = "<<other.fvecReal.size()<<" is clone "<<other.fIsClone<<" "<<&other<<endl;
       fIsClone=kTRUE;
       fParent=const_cast<RooHSEventsPDF*>(&other);
 
@@ -235,7 +235,10 @@ namespace HS{
     }
     Int_t RooHSEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,const char* rangeName) const
     {
-      //      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
+      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<fForceNumInt<<" "<<fEvTree<<" "<<fForceConstInt<<endl;
+      allVars.Print();
+      analVars.Print();
+      cout<<"RooHSEventsPDF::getAnalyticalIntegral "<<endl;
       if(fForceNumInt) return 0; //might be good to check numerical integral sometimes
       if(!fEvTree&&!fForceConstInt) return 0; //no MC events to integrate over
 
@@ -257,7 +260,8 @@ namespace HS{
 	}
       }
       //Note not implemented for cats
-      return 0;
+      cout<<"DEBUG RooHSEventsPDF::getAnalyticalIntegral return 1"<<endl;
+      return 1;
     }
     //new function for uncertainty on MC integral
     //Need to copy from ComponentsPDF which has been optimised
@@ -310,11 +314,11 @@ namespace HS{
     
     Double_t RooHSEventsPDF::analyticalIntegral(Int_t code,const char* rangeName) const
     {
+      cout<<"DEBUG RooHSEventsPDF::analyticalIntegral "<<code<<endl;
        if(code==1&&fForceConstInt&&!fEvTree) {fLast[0]=1;return fLast[0];}
        Long64_t NEv=0;
        
- 
-      //In case changed for generation
+       //In case changed for generation
   
       Double_t integral=0.;
  
