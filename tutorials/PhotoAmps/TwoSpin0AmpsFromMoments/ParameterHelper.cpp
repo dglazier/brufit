@@ -71,7 +71,7 @@ namespace m2pw{
   }
   ///////////////////////////////////////////////////////////////////////
   ///Return constant parameters in given formula
-  std::vector<Double_t > ParameterHelper::ConstantValues(const RooFormula* form) const {
+  std::vector<Double_t > ParameterHelper::ConstantValues(const RooFormulaVar* form) const {
     RooAbsArg *par=nullptr;
     Int_t ipar=0;
     std::vector<Double_t > vals;
@@ -84,7 +84,7 @@ namespace m2pw{
   }
   ///////////////////////////////////////////////////////////////////
   /// Return indices of parameters used in given formula
-  std::vector<Int_t > ParameterHelper::Indices(const RooFormula* form) const{
+  std::vector<Int_t > ParameterHelper::Indices(const RooFormulaVar* form) const{
     Int_t ipar=0;
     std::vector<Int_t > indices;
     RooAbsArg *par=nullptr;
@@ -96,7 +96,7 @@ namespace m2pw{
   }
   //////////////////////////////////////////////////////////////////
   ///return indices of parameters which are formula in this equation
-  std::vector<TString > ParameterHelper::Dependencies(const RooFormula* form) const{
+  std::vector<TString > ParameterHelper::Dependencies(const RooFormulaVar* form) const{
     Int_t ipar=0;
     std::vector<TString > deps;
     RooAbsArg *par=nullptr;

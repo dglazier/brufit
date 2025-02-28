@@ -25,7 +25,7 @@ void RunGivenBruMoments(){
 
   //create output tree
   solver.MakeResultTree("resultsGivenBruMomentsNoH3.root");
-
+  /*
   gBenchmark->Start("solver");
 
   //loop and perform 10,000 minimisations with random starting amplitudes
@@ -43,5 +43,5 @@ void RunGivenBruMoments(){
   solver.GetPars().CloseTree();
 
   solver.PrintResult();
- 
+  */
 }

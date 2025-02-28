@@ -8,7 +8,8 @@ namespace m2pw{
     //_rooVar{var},
     _pars{pars},
     //_rooFormula{var->formula()}
-    _rooFormula{var->GetName(),var->expression(),var->dependents()}
+    // _rooFormulaVar{var->GetName(),var->expression(),var->dependents()}
+    _rooFormulaVar{*var}
   {
     SetName(var->GetName());
     SetOrigFormula(var->GetTitle());
@@ -17,8 +18,8 @@ namespace m2pw{
     
     //get indices so that _indices[i] gives local
     //position of parameter in this formula
-    _indices = _pars->Indices(&_rooFormula);
-    _constantVals = _pars->ConstantValues(&_rooFormula);
+    _indices = _pars->Indices(&_rooFormulaVar);
+    _constantVals = _pars->ConstantValues(&_rooFormulaVar);
 
     _localNdim = _indices.size();
     _localX.resize(_localNdim);
@@ -31,7 +32,7 @@ namespace m2pw{
     _eqnValue=0.0;
 
     //and now construct equation formula
-    TString equation(_rooFormula.formulaString());
+    TString equation(_rooFormulaVar.expression());
     //In case of a moment
     //subtract val off from the formula, to get something =0
     if(IsConstraint(GetName())){
@@ -61,7 +62,7 @@ namespace m2pw{
   //////////////////////////////////////////////////////////////////////////
   ///Find my dependencies so can use their current value
   void Equation::FindDependencies(const std::vector<Equation >& eqns){
-     auto deps = _pars->Dependencies(&_rooFormula);
+     auto deps = _pars->Dependencies(&_rooFormulaVar);
      for(auto& depname:deps){
        bool got_it=false;
        //search for depname in the equations

@@ -5,7 +5,6 @@
 #include <TFile.h>
 #include <TTree.h>
 #include <RooRealVar.h>
-#include <RooFormula.h>
 #include <map>
 #include <vector>
 
@@ -44,11 +43,11 @@ namespace m2pw{
     //    void UseRooFormula(const RooFormula* form);
     void UseRooFormula(const RooFormulaVar* form);
 
-    std::vector<Double_t > ConstantValues(const RooFormula* form) const;
+    std::vector<Double_t > ConstantValues(const RooFormulaVar* form) const;
     
-    std::vector<Int_t > Indices(const RooFormula* form) const;
+    std::vector<Int_t > Indices(const RooFormulaVar* form) const;
 
-    std::vector<TString > Dependencies(const RooFormula* form) const;
+    std::vector<TString > Dependencies(const RooFormulaVar* form) const;
 
 
     Bool_t IsConst(const TString& name)const {

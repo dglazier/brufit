@@ -44,7 +44,7 @@ HS::FIT::Setup& ConfigureAmpsNoValues(UInt_t Lmax=1,UInt_t Mmax=1,UInt_t Ref=2){
   config.LoadModelPDF(1E4);
 
  
- 
+
   return Generator->SetUp();  
  
 }

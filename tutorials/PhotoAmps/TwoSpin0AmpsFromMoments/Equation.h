@@ -3,6 +3,7 @@
 #include "ParameterHelper.h"
 #include <TString.h>
 #include <TMath.h>
+#include <TFormula.h>
 #include <RooRealVar.h>
 #include <RooFormulaVar.h>
 
@@ -74,7 +75,7 @@ namespace m2pw{
     UInt_t _localNdim=0;
     UInt_t _L=0;
     
-    RooFormula _rooFormula; //from RooFormulaVar
+    RooFormulaVar _rooFormulaVar; //from RooFormulaVar
     TFormula _formula; //constraint equation (origformula - eqnValue)
     TString _name;
     TString _origFormula; //original formula string
