@@ -44,8 +44,9 @@
 
   //set some fitter options
   Fitter.SetUp().AddFitOption(RooFit::PrintEvalErrors(-1));//suppress error messaages
-  Fitter.SetUp().AddFitOption(RooFit::NumCPU(6)); //number of CPUs to split likelihood calc.
-  
+  Fitter.SetUp().AddFitOption(RooFit::EvalBackend("legacy"));
+  Fitter.SetUp().AddFitOption(RooFit::NumCPU(8)); //number of CPUs to split likelihood calc.
+  Fitter.SetUp().GetVar("CosTh")->setBins(20);
   //default error strategy for Minuit fits is asymptotically correct approach
   //https://arxiv.org/abs/1911.01303, but this may be slow
   Fitter.SetUp().ErrorsWrong();//"naive" error calculation, much faster
@@ -53,7 +54,7 @@
 
   //some plotter options
   // Fitter.TurnOffPlotting();
-  // Fitter.SetPlotOptions("MCMC"); //Make MCMC related plots
+  Fitter.SetPlotOptions("MCMC:AUTOCORR"); //Make MCMC related plots
   // Fitter.SetPlotOptions("goff"); //save plots but do not show (batch)
 
   //********************************************
@@ -64,7 +65,7 @@
   //Perform fit 10 times Minuit2 minimiser
   //All results are saved in same Results file in the TTree ResultTreeBru
   //Fitter.SetMinimiser(new AmpMinuit2(&config,10));
-  Here::Go(&Fitter);
+  //Here::Go(&Fitter);
   //Proof::Go(&Fitter,1);
 
   //********************************************
@@ -73,10 +74,11 @@
   //most basic sequential proposal (Nsamples,burnin,step size, desired acceptance, min acceptance, max acceptance)
   //auto mcmc=new BruMcmcSeqHelper(2000,1000,0.1,0.23,0.16,0.3);
   //brufit covariance matric based proposal
-  //auto mcmc=new BruMcmcCovariance(10000,1000,0.1,0.23,0.16,0.3);
+  // give a vector of number of iterations for each phase {}
+  auto mcmc=new BruMcmcCovariance({200,2000,500},50,0.1,0.23,0.16,0.3);
   ////mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
-  //Fitter.SetMinimiser(mcmc);
-  //Here::Go(&Fitter);
+  Fitter.SetMinimiser(mcmc);
+  Here::Go(&Fitter);
  
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains
