@@ -118,7 +118,12 @@ namespace HS{
       void SetParVals(RooArgSet* toThesePars);
 
       Bool_t Success(){return fChain != nullptr;}
-    protected :
+
+      void SetTag(const TString& tag){fFileTag=tag;}
+      const TString& GetTag()const {return fFileTag;}
+      void SaveStepInfo();
+      
+   protected :
       void AddEntryBranch();
       void CleanMakeChain();
       
@@ -129,6 +134,7 @@ namespace HS{
       RooArgSet* fParams=nullptr;//!
       std::shared_ptr<TFile> fTempFile;//!
       file_uptr fOutFile;//!
+      TString fFileTag; //optional add to output file name
       
       Bool_t fKeepStart=kFALSE; //randomise starting values
       Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.

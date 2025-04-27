@@ -115,12 +115,13 @@ namespace HS{
       if(fChain){ delete fChain; fChain=nullptr;}
 
       fChain= mh.ConstructChain(); //mh is still owner and will delete
-      cout<<"DEBUG "<<" Got chain "<<fChain<<endl;
+      //cout<<"DEBUG "<<" Got chain "<<fChain<<" "<<fTreeMCMC<<endl;
       if(fChain==nullptr){
 	if (useDefaultPropFunc) delete fPropFunc;
 	if (usePriorPdf) delete prodPdf;
 	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
-
+	//	cout<<"DEBUG "<<" Got tree "<<" "<<fTreeMCMC<<endl;
+ 
 	fChainAcceptance=mh.GetAcceptance();
 	
 	delete nll;
@@ -130,13 +131,13 @@ namespace HS{
       }
       
       if(fChainData!=nullptr){ delete fChainData; fChainData=nullptr;}
-      cout<<"DEBUG "<<" Got chain data 2 "<<fChainData<<" "<<fChain->Size()<<endl;
+      //cout<<"DEBUG "<<" Got chain data 2 "<<fChainData<<" "<<fChain->Size()<<endl;
      
       // fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));//about to be deprecated, try following line instead
       fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::Name("mcmcChain")));
 
 
-      cout<<"DEBUG "<<" Got chain data 3 "<<fChainData<<" "<<fTreeMCMC<<endl;
+      //cout<<"DEBUG "<<" Got chain data 3 "<<fChainData<<" "<<fTreeMCMC<<endl;
       if(fChainData!=nullptr){
 	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	auto saveDir=gDirectory;
@@ -145,7 +146,7 @@ namespace HS{
 	saveDir->cd();
  	delete fChainData; fChainData=nullptr;
       }
-      cout<<"DEBUG "<<" Got chain size  "<< fChain->Size() <<" burnin "<< fNumBurnInSteps<<endl;
+      //cout<<"DEBUG "<<" Got chain size  "<< fChain->Size() <<" burnin "<< fNumBurnInSteps<<endl;
 
      if(fChain->Size()>fNumBurnInSteps){
        //  fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
@@ -617,7 +618,7 @@ namespace HS{
       //fNumBurnInSteps = 10;
       //fWarmup=fNumBurnInSteps;
      
-      TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
+      TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+GetTag()+".root";
       //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
 
       fOutFile.reset(TFile::Open(fileName,"recreate"));
@@ -654,6 +655,38 @@ namespace HS{
       std::cout<<"BruMcmc::SaveInfo() Done to "<<fOutFile->GetName()<<std::endl;
       saveDir->cd();
       return std::move(fOutFile);
+    }
+    ///////////////////////////////////////////////////////////////
+    void BruMcmc::SaveStepInfo(){
+      
+      std::cout<<"BruMcmc::SaveStepInfo() "<<fOutFile.get()<<" "<<fTreeMCMC<<" "<<fOutFile->GetName()<<std::endl;
+      auto saveDir= gDirectory;
+      fOutFile->cd();
+      fTreeMCMC->SetDirectory(fOutFile.get());
+      //     Result();
+      AddEntryBranch();
+      AddFormulaToMCMCTree();
+      //   auto tempTree= fTreeMCMC->CloneTree();
+      fTreeMCMC->Write();
+      delete fTreeMCMC;fTreeMCMC=nullptr;
+      /*
+      RooArgSet saveArgs(fSetup->Parameters());
+      saveArgs.add(fSetup->Yields());
+      
+      RooRealVar Nllval("NLL","NLL",NLL());
+      saveArgs.add(Nllval);
+     
+      RooDataSet saveDS(FinalParName(),TString(GetName())+"Results",saveArgs);
+      saveDS.add(saveArgs);
+      saveDS.Write();
+      TTree* treeDS=RooStats::GetAsTTree(ResultTreeName(),ResultTreeName(),saveDS);
+      treeDS->Write();
+      delete treeDS;treeDS=nullptr;
+
+      std::cout<<"BruMcmc::SaveInfo() Done to "<<fOutFile->GetName()<<std::endl;
+      saveDir->cd();
+      fOutFile.reset();
+      */
     }
      //////////////////////////////////////////////////////////////
 
@@ -726,20 +759,26 @@ namespace HS{
     //initialise MCMCCalculator
     
     SetModel(setup.GetModelConfig());
-    SetupBasicUsage();
+    //  SetupBasicUsage();
     
-    //find a region of hgh likelihood
+    //find a region of high likelihood
     if(_doSeq==kTRUE){
+      SetTag("1DStep");
+      SetupBasicUsage();
       SetProposalFunction(_propSeq);
-       MakeChain();
+      MakeChain();
      }
      
      //now move in all parameters simultaneosuly to
      //give chain for covaiance matrix
      if(_doND==kTRUE){
+       SaveStepInfo();
+       SetTag("NDStep");
+       SetupBasicUsage();
+       SetProposalFunction(_propSeq);
        _propSeq.SetIsSequential(kFALSE);
        MakeChain();
-     }
+    }
 
      //Now find accurate covariance matrix for final sampling
      if(fTreeMCMC!=nullptr){
@@ -758,7 +797,11 @@ namespace HS{
 	 covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
 	 _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
 	 _propCov.TuneCovarianceStep(_tuneCovStep);
-	 
+
+	 SaveStepInfo();
+	 SetTag("");
+	 SetupBasicUsage();
+
 	 SetProposalFunction(_propCov);
 	 auto made = MakeChain();
 	 /* //To Fix to allow tuning of covariance stepsize
