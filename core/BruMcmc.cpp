@@ -763,6 +763,7 @@ namespace HS{
     
     //find a region of high likelihood
     if(_doSeq==kTRUE){
+      ChangeNIter();
       SetTag("1DStep");
       SetupBasicUsage();
       SetProposalFunction(_propSeq);
@@ -772,6 +773,7 @@ namespace HS{
      //now move in all parameters simultaneosuly to
      //give chain for covaiance matrix
      if(_doND==kTRUE){
+       ChangeNIter();
        SaveStepInfo();
        SetTag("NDStep");
        SetupBasicUsage();
@@ -792,7 +794,8 @@ namespace HS{
        // }
 
        if(_doCov==kTRUE){
-	 std::cout<<" BruMcmcCovariance::Run "<<_doCov<<std::endl;
+	 ChangeNIter();
+ 	 std::cout<<" BruMcmcCovariance::Run "<<_doCov<<std::endl;
 	 std::unique_ptr<TMatrixDSym> covMat; 
 	 covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
 	 _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());

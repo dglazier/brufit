@@ -221,6 +221,15 @@ namespace HS{
      {
        SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
      }
+     BruMcmcCovariance(vector<Int_t> Niters,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.15,float accmax=0.35):
+	BruMcmc(Niters[0],Nburn,norm),
+	_propSeq{norm,target,accmin,accmax},
+	//	_propSeq{norm,0.1,0.15,0.5}, //try for largish inial steps
+	_propCov{norm,target,accmin,accmax},//1 for norm if covariance is correct
+	_fNumItersVec{Niters}
+     {
+       SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
+     }
   
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -229,13 +238,21 @@ namespace HS{
      void TurnOffNDStep(){_doND=kFALSE;}
      void TurnOffCovariance(){_doCov=kFALSE;}
      void TuneCovarianceStep(){_tuneCovStep=kTRUE;}
-     
+
+     void ChangeNIter(){
+       if(_iNIter==_fNumItersVec.size()) return;
+        SetNumIters(_fNumItersVec[_iNIter]);
+       std::cout<<" change nuiters "<<_fNumItersVec[_iNIter]<<" "<<_iNIter<<" "<<_fNumItersVec.size()<<std::endl;
+       _iNIter++;
+    }
     private:
 
      BruSequentialProposal _propSeq;
      BruCovarianceProposal _propCov;
 
-
+     std::vector<Int_t>_fNumItersVec;
+     UInt_t _iNIter=0;
+     
      Bool_t _doSeq=kTRUE;
      Bool_t _doND=kTRUE;
      Bool_t _doCov=kTRUE;
