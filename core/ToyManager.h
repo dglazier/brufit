@@ -1,94 +1,205 @@
-////////////////////////////////////////////////////////////////
-///
-///Class:               ToyManager
-///Description:
-///           
+/**
+ * @file ToyManager.h
+ * @brief Class for generating and managing Toy Monte Carlo datasets.
+ * @details Inherits from FitManager. Generates pseudo-experiments based on 
+ * the fitted model and summarizes the pull/bias results.
+ */
 
 #pragma once
 
 #include <utility>
-
+#include <memory>
+#include <vector>
 
 #include "FitManager.h"
 #include "Setup.h"
 #include "Weights.h"
  
-namespace HS{
-  namespace FIT{
+namespace HS {
+namespace FIT {
 
-    using tree_uptr =std::unique_ptr<TTree>;
+    using tree_uptr = std::unique_ptr<TTree>;
     using strings_t = std::vector<TString>;
 
-    class ToyManager  : public FitManager{
+    /**
+     * @class ToyManager
+     * @brief High-level controller for Toy MC generation and validation.
+     */
+    class ToyManager : public FitManager {
       
     public:
-      ToyManager()=default;
-    ToyManager(Int_t n):fNToys(n){};
-      ToyManager(const ToyManager&)=default;
-      // ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
-      ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(outDir),fResultFileName(resultFile){cout<<"ToyManager() "<<fResultFileName<<endl;};
-      ToyManager(ToyManager&&)=delete;
-      ~ToyManager() override =default;
-      ToyManager& operator=(const ToyManager& other) = default;
-      ToyManager& operator=(ToyManager&& other) = delete;
+        /** @brief Default constructor. */
+        ToyManager() = default;
+        
+        /** @brief Constructs a ToyManager to generate 'n' toys. */
+        ToyManager(Int_t n) : fNToys(n) {}
+        
+        /** @brief Explicit copy constructor to safely handle underlying unique_ptrs. */
+        ToyManager(const ToyManager& other);
+        
+        /** @brief Constructs ToyManager using an existing FitManager configuration. */
+        ToyManager(Int_t n, const FitManager& fm, TString outDir = "", TString resultFile = "")
+            : FitManager(fm), fResultOutDir(outDir), fResultFileName(resultFile), fNToys(n) 
+        {
+            std::cout << "ToyManager() " << fResultFileName << std::endl;
+        }
+        
+        ToyManager(ToyManager&&) = delete;
+        ~ToyManager() override = default;
+        
+        ToyManager& operator=(const ToyManager& other);
+        ToyManager& operator=(ToyManager&& other) = delete;
       
-      Bool_t Run() override;
-      void SaveResults() override;
-      Int_t GetN() override { 
-      	if(!(Bins().GetSize()))
-       	  Bins().InitBins(); 
-	if(Bins().GetSize())return Bins().GetSize();
-       	return 1;
-      } 
-      //  Int_t GetCurrToy(){ return GetFiti()%fNToys;}
-      Int_t GetCurrToy(){ return fToyi;}
-      TString GetCurrTitle() override {return Form("Toy%d",GetCurrToy());}
-      TString GetDataTreeName() override{return "ToyData";}
-      strings_t GetDataFileNames() override{return fToyFileNames;}
+        Bool_t Run() override;
+        void SaveResults() override;
+        
+        Int_t GetN() override { 
+            if (!(Bins().GetSize())) Bins().InitBins(); 
+            if (Bins().GetSize()) return Bins().GetSize();
+            return 1;
+        } 
+        
+        Int_t GetCurrToy() { return fToyi; }
+        TString GetCurrTitle() override { return Form("Toy%d", GetCurrToy()); }
+        TString GetDataTreeName() override { return "ToyData"; }
+        strings_t GetDataFileNames() override { return fToyFileNames; }
 
-      /* Int_t GetDataBin(Int_t ii) override{ */
-      /* 	if(fNToys>0) */
-      /* 	  return (int)std::round(ii/fNToys); */
-      /* 	return ii; */
-      /* } */
-      strings_t GetToyFileNames(){return fToyFileNames;}
+        strings_t GetToyFileNames() { return fToyFileNames; }
       
-      void  Generate();
+        /** @brief Generates the pseudo-data based on the active Setup model. */
+        void Generate();
 
-      std::unique_ptr<FitManager> Fitter();
+        /** @brief Creates a self-contained FitManager configured to fit the generated toys. */
+        std::unique_ptr<FitManager> Fitter();
  
-      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const TString& filename,const TString& result="");
-      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,FitManager& fit,const TString& result="");
-      static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,const TString& result="");
+        // Factory methods for extracting ToyManager from saved FitManager files
+        static std::shared_ptr<ToyManager> GetFromFit(Int_t N, const TString& filename, const TString& result = "");
+        static std::shared_ptr<ToyManager> GetFromFit(Int_t N, FitManager& fit, const TString& result = "");
+        static std::shared_ptr<ToyManager> GetFromFit(Int_t N, const std::shared_ptr<FitManager>& fit, const TString& result = "");
       
-      void UseMyToyData(FitManager& fitter,const TString& tname="ToyData");
+        /** @brief Points the given FitManager to use previously generated toy data. */
+        void UseMyToyData(FitManager& fitter, const TString& tname = "ToyData");
 
-      void Summarise();
-      void Summarise(Int_t ib);
-      void PreRun() override;
-      void LoadResult();
-      void InitSummary();
-      void SetNEvents(Long64_t N){fNEvents=N;}
+        /** @brief Extracts pull and bias distributions from the toy fits. */
+        void Summarise();
+        void Summarise(Int_t ib);
+        
+        void PreRun() override;
+        void LoadResult();
+        void InitSummary();
+        void SetNEvents(Long64_t N) { fNEvents = N; }
       
-      static const TString InitialParsName(){return "InitialParameters";}
-
-      void SetResultFileName(TString name){fResultFileName=std::move(name);}
-    protected:
-    
+        static const TString InitialParsName() { return "InitialParameters"; }
+        void SetResultFileName(TString name) { fResultFileName = std::move(name); }
+        
     private:
-      RooDataSet* fGenData=nullptr;//!
-      strings_t fToyFileNames;
+        std::unique_ptr<RooDataSet> fGenData; ///< Transient dataset generated for the current toy
+        strings_t fToyFileNames;              ///< List of generated ROOT files
 
-      TString fResultOutDir;
-      TString fResultFileName;
-      Double_t fIDval=0;
-      Long64_t fNEvents=-1;
-      Int_t fNToys=1;
-      Int_t fToyi=0;
+        TString fResultOutDir;
+        TString fResultFileName;
+        Double_t fIDval = 0;
+        Long64_t fNEvents = -1;               ///< Explicit number of events (-1 uses model expectation)
+        Int_t fNToys = 1;
+        Int_t fToyi = 0;
 
-      ClassDefOverride(HS::FIT::ToyManager,1);
+        ClassDefOverride(HS::FIT::ToyManager, 1);
     };
     
-  }//namespace FIT
-}//namespace HS
+} // namespace FIT
+} // namespace HS
+
+// ////////////////////////////////////////////////////////////////
+// ///
+// ///Class:               ToyManager
+// ///Description:
+// ///           
+
+// #pragma once
+
+// #include <utility>
+
+
+// #include "FitManager.h"
+// #include "Setup.h"
+// #include "Weights.h"
+ 
+// namespace HS{
+//   namespace FIT{
+
+//     using tree_uptr =std::unique_ptr<TTree>;
+//     using strings_t = std::vector<TString>;
+
+//     class ToyManager  : public FitManager{
+      
+//     public:
+//       ToyManager()=default;
+//     ToyManager(Int_t n):fNToys(n){};
+//       ToyManager(const ToyManager&)=default;
+//       // ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(std::move(std::move(outDir))),fResultFileName(std::move(std::move(resultFile))){};
+//       ToyManager(Int_t n,const FitManager& fm,TString outDir="",TString resultFile=""):fNToys(n), FitManager(fm),fResultOutDir(outDir),fResultFileName(resultFile){cout<<"ToyManager() "<<fResultFileName<<endl;};
+//       ToyManager(ToyManager&&)=delete;
+//       ~ToyManager() override =default;
+//       ToyManager& operator=(const ToyManager& other) = default;
+//       ToyManager& operator=(ToyManager&& other) = delete;
+      
+//       Bool_t Run() override;
+//       void SaveResults() override;
+//       Int_t GetN() override { 
+//       	if(!(Bins().GetSize()))
+//        	  Bins().InitBins(); 
+// 	if(Bins().GetSize())return Bins().GetSize();
+//        	return 1;
+//       } 
+//       //  Int_t GetCurrToy(){ return GetFiti()%fNToys;}
+//       Int_t GetCurrToy(){ return fToyi;}
+//       TString GetCurrTitle() override {return Form("Toy%d",GetCurrToy());}
+//       TString GetDataTreeName() override{return "ToyData";}
+//       strings_t GetDataFileNames() override{return fToyFileNames;}
+
+//       /* Int_t GetDataBin(Int_t ii) override{ */
+//       /* 	if(fNToys>0) */
+//       /* 	  return (int)std::round(ii/fNToys); */
+//       /* 	return ii; */
+//       /* } */
+//       strings_t GetToyFileNames(){return fToyFileNames;}
+      
+//       void  Generate();
+
+//       std::unique_ptr<FitManager> Fitter();
+ 
+//       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const TString& filename,const TString& result="");
+//       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,FitManager& fit,const TString& result="");
+//       static std::shared_ptr<ToyManager> GetFromFit(Int_t N,const std::shared_ptr<FitManager>& fit,const TString& result="");
+      
+//       void UseMyToyData(FitManager& fitter,const TString& tname="ToyData");
+
+//       void Summarise();
+//       void Summarise(Int_t ib);
+//       void PreRun() override;
+//       void LoadResult();
+//       void InitSummary();
+//       void SetNEvents(Long64_t N){fNEvents=N;}
+      
+//       static const TString InitialParsName(){return "InitialParameters";}
+
+//       void SetResultFileName(TString name){fResultFileName=std::move(name);}
+//     protected:
+    
+//     private:
+//       RooDataSet* fGenData=nullptr;//!
+//       strings_t fToyFileNames;
+
+//       TString fResultOutDir;
+//       TString fResultFileName;
+//       Double_t fIDval=0;
+//       Long64_t fNEvents=-1;
+//       Int_t fNToys=1;
+//       Int_t fToyi=0;
+
+//       ClassDefOverride(HS::FIT::ToyManager,1);
+//     };
+    
+//   }//namespace FIT
+// }//namespace HS
 

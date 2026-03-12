@@ -1,3 +1,8 @@
+/**
+ * @file Setup.cpp
+ * @brief Implementation of the Setup class.
+ */
+
 #include "Setup.h"
 #include "Weights.h"
 #include "RooHSComplex.h"
@@ -7,774 +12,1428 @@
 #include <RooAbsData.h>
 #include <RooDataSet.h>
 #include <TRandom.h>
-
 #include <RooFitLegacy/RooCatTypeLegacy.h>
 
-namespace HS{
-  namespace FIT{
+namespace HS {
+namespace FIT {
 
+    // ========================================================================
+    // Constructors & Thread-Safe Copy Semantics
+    // ========================================================================
 
-    Setup::Setup():TNamed(){
-      // RequiredFitOptions();
-      //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      //DefaultFitOptions();
-      //to flush anything which is not owned elsewhere
-      fNeedToDeleteThis.SetOwner();
-    }
-    Setup::Setup(const TString& name):TNamed(name,name){
-      //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
-      //DefaultFitOptions();
-      //RequiredFitOptions();
-      fNeedToDeleteThis.SetOwner();
+    Setup::Setup() : TNamed() {
+        fNeedToDeleteThis.SetOwner(kTRUE);
     }
     
-    Setup::Setup(const Setup& other):TNamed(other.fName,other.fName){
+    Setup::Setup(const TString& name) : TNamed(name, name) {
+        fNeedToDeleteThis.SetOwner(kTRUE);
+    }
+    
+    Setup::Setup(const Setup& other) : TNamed(other.fName, other.fName) {
+        gErrorIgnoreLevel = kFatal;
+        auto level = RooMsgService::instance().globalKillBelow();
+        RooMsgService::instance().setGlobalKillBelow(RooFit::INFO);
 
-      gErrorIgnoreLevel = kFatal;
-      auto level = RooMsgService::instance().globalKillBelow();
-      RooMsgService::instance().setGlobalKillBelow(RooFit::INFO) ;
+        fNeedToDeleteThis.SetOwner(kTRUE);
+        fFitOptions = other.fFitOptions;
+        fConstraints = other.fConstraints;   
+        fAddCut = other.fAddCut;
+        fVarCut = ""; 
+        fDataOnlyCut = other.fDataOnlyCut;
+        fIDBranchName = other.fIDBranchName;
+        fOutDir = other.fOutDir;
 
-      //       fWS={"HSWS"};
-      fNeedToDeleteThis.SetOwner();
-      fFitOptions=other.fFitOptions;
-      //RequiredFitOptions(); //make sure we have required options
-      fConstraints=other.fConstraints;   
-      fAddCut=other.fAddCut;
-       fVarCut=""; //contructed from LoadAuxVar
-       fDataOnlyCut=other.fDataOnlyCut;
-       fIDBranchName=other.fIDBranchName;
-       fOutDir=other.fOutDir;
+        // --- THE STRING REPLAY MECHANISM ---
+        // Copying RooWorkspaces directly across threads is dangerous and often crashes 
+        // due to deeply nested, shared pointers inside RooFit. 
+        // Instead, we replay the cached configuration strings to rebuild a pristine, 
+        // thread-local Workspace from scratch.
+        for (auto& conStr : other.fConstString) LoadConstant(conStr);
+        for (auto& parStr : other.fParString) LoadParameter(parStr);
+        for (auto& varStr : other.fVarString) LoadVariable(varStr);
+        for (auto& catStr : other.fCatString) LoadCategory(catStr);
+        for (auto& varStr : other.fAuxVarString) LoadAuxVar(varStr);
+        for (auto& formStr : other.fFormString) LoadFormula(formStr);
+        for (auto& funcStr : other.fFuncVarString) LoadFunctionVar(funcStr);
 
-      //constants first so can overide parameters
-       for(auto &conStr: other.fConstString)
-	 LoadConstant(conStr);
-       for(auto &parStr: other.fParString)
-	 LoadParameter(parStr);
-       for(auto &varStr: other.fVarString){
-	 LoadVariable(varStr);
-       }
-       for(auto &catStr: other.fCatString)
-	 LoadCategory(catStr);
-       for(auto &varStr: other.fAuxVarString)
-	 LoadAuxVar(varStr);
-       for(auto &formStr: other.fFormString)
-	 LoadFormula(formStr);
-       for(auto &funcStr: other.fFuncVarString)
-	 LoadFunctionVar(funcStr);
+        if (other.fParserPDFString.Length() > 0) {
+            ParserPDF(other.fParserPDFString, *(other.fParserPDFparser));
+        }
+        
+        for (auto& pdfStr : other.fPDFString) FactoryPDF(pdfStr);
+        for (auto& specStr : other.fSpecString) LoadSpeciesPDF(specStr.first, specStr.second);
 
-       
-       //PDF parser setup ! before FactoryPDF
-       if(other.fParserPDFString.Length()>0){
-	 ParserPDF(other.fParserPDFString, *(other.fParserPDFparser) );
-       }
-       for(auto &pdfStr: other.fPDFString)
-	 FactoryPDF(pdfStr);
+        // Re-apply constant parameter flags
+        for (const auto& pdf : other.fConstPDFPars) SetConstPDFPars(pdf.first, pdf.second);
+        for (const auto& par : other.fConstPars) SetConstPar(par.first, par.second);
 
-       for(auto &specStr: other.fSpecString)
-    	LoadSpeciesPDF(specStr.first,specStr.second);
+        CopyRealProperties(DataVars(), other.fVars);
 
-      //const parameters
-       for(const auto& pdf:other.fConstPDFPars)
-	 SetConstPDFPars(pdf.first,pdf.second);
-       for(const auto& par:other.fConstPars)
-	 SetConstPar(par.first,par.second);
+        fErrorsSumW2 = other.fErrorsSumW2;
+        fErrorsAsym = other.fErrorsAsym;
 
-       CopyRealProperties(DataVars(),other.fVars);//DataVars called in LoadSpeciesPDF
+        gErrorIgnoreLevel = kInfo;
+        RooMsgService::instance().setGlobalKillBelow(level);
+    }
 
-       fErrorsSumW2=other.fErrorsSumW2;
-       fErrorsAsym=other.fErrorsAsym;
+    Setup& Setup::operator=(const Setup& other) {
+        // 1. Prevent self-assignment corruption
+        if (this == &other) return *this;
 
-       
-       gErrorIgnoreLevel = kInfo ;
-       RooMsgService::instance().setGlobalKillBelow(level) ;
-       
-   }
+        gErrorIgnoreLevel = kFatal;
+        auto level = RooMsgService::instance().globalKillBelow();
+        RooMsgService::instance().setGlobalKillBelow(RooFit::INFO);
 
-    Setup& Setup::operator=(const Setup& other){
-      gErrorIgnoreLevel = kFatal;
-      auto level = RooMsgService::instance().globalKillBelow();
-      RooMsgService::instance().setGlobalKillBelow(RooFit::INFO) ;
+        // 2. Clear old state completely before rebuilding
+        if (fModel) { delete fModel; fModel = nullptr; }
+        fNeedToDeleteThis.Clear(); 
+        fNeedToDeleteThis.SetOwner(kTRUE);
+        fWS.Delete(); 
+        fFitVars.clear(); fAuxVars.clear(); fFitCats.clear();
+        fVars.removeAll(); fCats.removeAll(); fPars.removeAll(); fFuncVars.removeAll();
+        fFormulas.removeAll(); fParameterFormulas.removeAll(); fVarsAndCats.removeAll();
+        fParsAndYields.removeAll(); fNCParsAndYields.removeAll();
+        fYields.removeAll(); fPDFs.removeAll(); fParameters.removeAll(); fConstants.removeAll();
+        fConstraints.removeAll();
+        fVarString.clear(); fCatString.clear(); fParString.clear(); fConstString.clear();
+        fFormString.clear(); fAuxVarString.clear(); fPDFString.clear(); fFuncVarString.clear();
+        fSpecString.clear();
       
-
-    fNeedToDeleteThis.SetOwner();
-    fFitOptions=other.fFitOptions;
-      fConstraints=other.fConstraints;
-      fAddCut=other.fAddCut;
-      fVarCut=""; //contructed from LoadAuxVar
-      fIDBranchName=other.fIDBranchName;
-      fOutDir=other.fOutDir;
-      //fWS={"HSWS"};
-      fErrorsSumW2=other.fErrorsSumW2;
-      fErrorsAsym=other.fErrorsAsym;
+        fFitOptions = other.fFitOptions;
+        fConstraints = other.fConstraints;
+        fAddCut = other.fAddCut;
+        fVarCut = ""; 
+        fIDBranchName = other.fIDBranchName;
+        fOutDir = other.fOutDir;
+        fErrorsSumW2 = other.fErrorsSumW2;
+        fErrorsAsym = other.fErrorsAsym;
  
-       //constants first so can overide parameters
-      for(auto &conStr: other.fConstString)
-	LoadConstant(conStr);
-      for(auto &parStr: other.fParString)
-	LoadParameter(parStr);
-      for(auto &varStr: other.fVarString){
-    	LoadVariable(varStr);
-      }
-      for(auto &catStr: other.fCatString)
-	LoadCategory(catStr);
-      for(auto &varStr: other.fAuxVarString)
-    	LoadAuxVar(varStr);
-      for(auto &formStr: other.fFormString)
-    	LoadFormula(formStr);
-      for(auto &funcStr: other.fFuncVarString)
-	 LoadFunctionVar(funcStr);
-      //PDF parser setup ! before FactoryPDF
-      if(other.fParserPDFString.Length()>0){
-	 ParserPDF(other.fParserPDFString, *(other.fParserPDFparser) );
-       }
-      for(auto &pdfStr: other.fPDFString)
-    	FactoryPDF(pdfStr);
-     for(auto &specStr: other.fSpecString)
-    	LoadSpeciesPDF(specStr.first,specStr.second);
+        // 3. Replay strings to reconstruct RooFit objects on this thread
+        for (auto& conStr : other.fConstString) LoadConstant(conStr);
+        for (auto& parStr : other.fParString) LoadParameter(parStr);
+        for (auto& varStr : other.fVarString) LoadVariable(varStr);
+        for (auto& catStr : other.fCatString) LoadCategory(catStr);
+        for (auto& varStr : other.fAuxVarString) LoadAuxVar(varStr);
+        for (auto& formStr : other.fFormString) LoadFormula(formStr);
+        for (auto& funcStr : other.fFuncVarString) LoadFunctionVar(funcStr);
       
-      //const parameters
-      for(const auto& pdf:other.fConstPDFPars)
-	SetConstPDFPars(pdf.first,pdf.second);
-      for(const auto& par:other.fConstPars)
-	SetConstPar(par.first,par.second);
+        if (other.fParserPDFString.Length() > 0) {
+            ParserPDF(other.fParserPDFString, *(other.fParserPDFparser));
+        }
+        for (auto& pdfStr : other.fPDFString) FactoryPDF(pdfStr);
+        for (auto& specStr : other.fSpecString) LoadSpeciesPDF(specStr.first, specStr.second);
+      
+        for (const auto& pdf : other.fConstPDFPars) SetConstPDFPars(pdf.first, pdf.second);
+        for (const auto& par : other.fConstPars) SetConstPar(par.first, par.second);
 
-      CopyRealProperties(DataVars(),other.fVars);
+        CopyRealProperties(DataVars(), other.fVars);
 
-      gErrorIgnoreLevel = kInfo ;
-      RooMsgService::instance().setGlobalKillBelow(level) ;
+        gErrorIgnoreLevel = kInfo;
+        RooMsgService::instance().setGlobalKillBelow(level);
  
-      return *this;
+        return *this;
     }
  
-    ////////////////////////////////////////////////////////////
-    /// Load a fit variable e.g s.LoadVariable("X[-1,1]");
-    /// Fit a variable in your tree called X between -1 and 1
-    void Setup::LoadVariable(const TString& opt){
+    // ========================================================================
+    // Workspace Population Methods
+    // ========================================================================
 
-      auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
-      if(!var) {
-	cout<<"Setup::LoadVariable "<<opt<<" failed"<<endl;
-	return;
-      }
-      fVarString.push_back(opt);
-      fFitVars.push_back(var);      
-    }
-    ////////////////////////////////////////////////////////////
-    /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
-    /// Add a fit parameter X between -1 and 1
-    /// and store it for when copied
-    void Setup::LoadParameter(const TString& opt){
-      LoadParameterOnTheFly(opt);
-      fParString.push_back(opt);
+    void Setup::LoadVariable(const TString& opt) {
+        auto var = dynamic_cast<RooRealVar*>(fWS.factory(opt));
+        if (!var) { cout << "Setup::LoadVariable " << opt << " failed" << endl; return; }
+        fVarString.push_back(opt);
+        fFitVars.push_back(var);      
     }
 
-       ////////////////////////////////////////////////////////////
-    /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
-    /// Add a fit parameter X between -1 and 1
-    void Setup::LoadParameterOnTheFly(const TString& opt){
-      // cout<<"Setup::LoadParameterOnTheFly "<<opt<<endl;
-      //Find parameter name i.e. up to '['
-      auto parName=TString(opt(0,opt.First('[')));
-      if( ArgListContainsName(fParameters,parName) )
-	return; //already loaded
-      if( ArgListContainsName(fConstants,parName) )
-	return; //already loaded
-      
-        //replaceAll -ve signs in name with "neg"
-      TString varname = opt;
-
-      if(opt.Contains(',')==false){
-	//assume parameters with no range are constants
-	LoadConstant(opt);
-	return;
-      }
-      auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
-      if((var->getMax()==var->getMin())){
-	//assume parameters with no range are constants
-	LoadConstant(opt);
-	return;
-      }
-      if(!var) {
-	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;
-	return;
-      }
-      if(!fParameters.contains(*var))
-	fParameters.add(*var);      
+    void Setup::LoadParameter(const TString& opt) {
+        LoadParameterOnTheFly(opt);
+        fParString.push_back(opt);
     }
-   ////////////////////////////////////////////////////////////
-    /// Load a constant e.g s.LoadConstant("X[value]");
-    /// Add a constant parameter X with value 1 
-    /// and store it for when copied
-    void Setup::LoadConstant(const TString& opt){
+
+    void Setup::LoadParameterOnTheFly(const TString& opt) {
+        auto parName = TString(opt(0, opt.First('[')));
+        if (ArgListContainsName(fParameters, parName)) return; 
+        if (ArgListContainsName(fConstants, parName)) return; 
       
-      auto parName=TString(opt(0,opt.First('[')));
-      if( ArgListContainsName(fConstants,parName) )
-	return; //already loaded
+        TString varname = opt;
+        if (opt.Contains(',') == false) {
+            LoadConstant(opt); // Assume parameters with no range are constants
+            return;
+        }
+        auto var = dynamic_cast<RooRealVar*>(fWS.factory(varname));
+        if ((var->getMax() == var->getMin())) {
+            LoadConstant(opt); // Assume parameters with min == max are constants
+            return;
+        }
+        if (!var) { cout << "Setup::LoadParameter " << varname << " failed" << endl; return; }
+        if (!fParameters.contains(*var)) fParameters.add(*var);      
+    }
+
+    void Setup::LoadConstant(const TString& opt) {
+        auto parName = TString(opt(0, opt.First('[')));
+        if (ArgListContainsName(fConstants, parName)) return; 
       
-      auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
-      if(!var) {
-	cout<<"Setup::LoadConstant "<<opt<<" failed"<<endl;
-	return;
-      }	
-      var->setConstant();
-      if(!fConstants.contains(*var))
-	fConstants.add(*var);
-      fConstString.push_back(opt);
+        auto var = dynamic_cast<RooRealVar*>(fWS.factory(opt));
+        if (!var) { cout << "Setup::LoadConstant " << opt << " failed" << endl; return; }	
+        var->setConstant();
+        if (!fConstants.contains(*var)) fConstants.add(*var);
+        fConstString.push_back(opt);
     }	
-     ////////////////////////////////////////////////////////////
-    /// Load a fit RooAbsReal class e.g s.LoadFunctionVar("RooRealSphHarmonic::leg2(CTh[0,-1,1],Phi[0,-3.141,3.141],2,1)"));
-     void Setup::LoadFunctionVar(const TString& opt){
-  
-       auto parName=TString(opt(0,opt.First('(')));
-       if( ArgListContainsName(fConstants,parName) )
-	 return; //already loaded as constant (constants overide all else)
 
-      //check if already done this one
-      if(std::find(fFuncVarString.begin(),fFuncVarString.end(),opt)!=fFuncVarString.end()) return;
+    void Setup::LoadFunctionVar(const TString& opt) {
+        auto parName = TString(opt(0, opt.First('(')));
+        if (ArgListContainsName(fConstants, parName)) return; 
+
+        if (std::find(fFuncVarString.begin(), fFuncVarString.end(), opt) != fFuncVarString.end()) return;
       
-      auto var=dynamic_cast<RooAbsReal*>(fWS.factory(opt));
-      if(!var) {
-	cout<<"Setup::LoadFunctionVar "<<opt<<" failed"<<endl;
-	return;
-      }
-      fFuncVars.add(*var);      
-      fFuncVarString.push_back(opt);
+        auto var = dynamic_cast<RooAbsReal*>(fWS.factory(opt));
+        if (!var) { cout << "Setup::LoadFunctionVar " << opt << " failed" << endl; return; }
+        fFuncVars.add(*var);      
+        fFuncVarString.push_back(opt);
 
-      if(auto cvar=dynamic_cast<RooHSComplex*>(var) ){
-	//Complex Var need to load real and imaginery parts
-	LoadFunctionVar(cvar->FactoryReal());
-	LoadFunctionVar(cvar->FactoryImag());
-	LoadFunctionVar(cvar->FactoryImagConj());
-      }
-     }
-    ////////////////////////////////////////////////////////////
-    /// Load a formulaVar e.g s.LoadFormula("name=@v1[1,0,2]+@v2[]");
-    ///
-    void Setup::LoadFormula(TString formu){
-      //std::cout<<" Setup::LoadFormula "<<formu<<std::endl;
-      auto parName=TString(formu(0,formu.First('=')));
-      if( ArgListContainsName(fConstants,parName) )
-	return; //already loaded as constant (constants overide all else)
-
-      fFormString.push_back(formu);
-      //get formula name
-      TString name=formu(0,formu.First("="));
-      strings_t pars;
-      strings_t ranges;
-      ReadFormula(formu,pars,ranges);
-      for(UInt_t i=0;i<pars.size();i++){
-	if(ranges[i]!=TString("[]")) LoadParameterOnTheFly(pars[i]+ranges[i]);
-      }
-      //get rid of [range]
-      for(auto& range:ranges)
-	formu.ReplaceAll(range, "");
-      //get rid of name=
-      formu=formu(formu.First("=")+1,formu.Sizeof());
-      //get rid of @
-      formu.ReplaceAll("@", "");
-      RooArgList rooPars;
-      for(auto& par:pars)
-	if(fWS.var(par))rooPars.add(*fWS.var(par));
-	else if(fWS.function(par))rooPars.add(*fWS.function(par));
-	else if(fWS.cat(par))rooPars.add(*fWS.cat(par));
-	else Error("Setup::LoadFormula"," unknown parameter");
-      
-      //      rooPars.Print();
-      RooFormulaVar fovar(name,formu,rooPars) ;
-
-      //fovar.Print();
-      fWS.import(fovar,RooFit::Silence(),RooFit::RecycleConflictNodes());
-      if(fWS.function(name)){
-	fFormulas.add(*fWS.function(name));
-	if(fovar.getObservables(fVars)->getSize()==0
-	   && fovar.getObservables(fParameters)->getSize()>0)
-	  fParameterFormulas.add(*fWS.function(name));
-      }
-      else Fatal("Setup::LoadFormula","Formula didn't compile");
+        if (auto cvar = dynamic_cast<RooHSComplex*>(var)) {
+            LoadFunctionVar(cvar->FactoryReal());
+            LoadFunctionVar(cvar->FactoryImag());
+            LoadFunctionVar(cvar->FactoryImagConj());
+        }
     }
-    ////////////////////////////////////////////////////////////
-    /// Load a category e.g. s.LoadCategory("Pol[m=-1,p=1]");
-    /// PDF can depend on a data category called Pol which may
-    /// have values -1 or 1 (other valued events are discarded 
-    void Setup::LoadCategory(const TString& opt){
-      auto cat=dynamic_cast<RooCategory*>(fWS.factory(opt));
-      if(!cat) {
-	cout<<"Setup::LoadCategory "<<opt<<" failed"<<endl;
-	return;
-      }
+
+    void Setup::LoadFormula(TString formu) {
+        auto parName = TString(formu(0, formu.First('=')));
+        if (ArgListContainsName(fConstants, parName)) return; 
+
+        fFormString.push_back(formu);
+        TString name = formu(0, formu.First("="));
+        strings_t pars;
+        strings_t ranges;
+        
+        ReadFormula(formu, pars, ranges);
+        for (UInt_t i = 0; i < pars.size(); i++) {
+            if (ranges[i] != TString("[]")) LoadParameterOnTheFly(pars[i] + ranges[i]);
+        }
+        for (auto& range : ranges) formu.ReplaceAll(range, "");
+        
+        formu = formu(formu.First("=") + 1, formu.Sizeof());
+        formu.ReplaceAll("@", "");
+      
+        RooArgList rooPars;
+        for (auto& par : pars) {
+            if (fWS.var(par)) rooPars.add(*fWS.var(par));
+            else if (fWS.function(par)) rooPars.add(*fWS.function(par));
+            else if (fWS.cat(par)) rooPars.add(*fWS.cat(par));
+            else Error("Setup::LoadFormula", " unknown parameter");
+        }
+      
+        RooFormulaVar fovar(name, formu, rooPars);
+        fWS.import(fovar, RooFit::Silence(), RooFit::RecycleConflictNodes());
+      
+        if (fWS.function(name)) {
+            fFormulas.add(*fWS.function(name));
+            if (fovar.getObservables(fVars)->getSize() == 0 && fovar.getObservables(fParameters)->getSize() > 0)
+                fParameterFormulas.add(*fWS.function(name));
+        } else {
+            Fatal("Setup::LoadFormula", "Formula didn't compile");
+        }
+    }
+
+    void Setup::LoadCategory(const TString& opt) {
+        auto cat = dynamic_cast<RooCategory*>(fWS.factory(opt));
+        if (!cat) { cout << "Setup::LoadCategory " << opt << " failed" << endl; return; }
  
-      if(fVarCut.Sizeof()>1)fVarCut+="&&";
-      auto typeIter=cat->typeIterator();
+        if (fVarCut.Sizeof() > 1) fVarCut += "&&";
+        auto typeIter = cat->typeIterator();
       
-      fVarCut+="(";
-      Bool_t first=kTRUE;
-      while(auto type=dynamic_cast<RooCatType*>(typeIter->Next())){
-	if(first){
-	  fVarCut+=Form("%s==%d",cat->GetName(),type->getVal());
-	  first=kFALSE;
-	}
-	else
-	  fVarCut+=Form("||%s==%d",cat->GetName(),type->getVal());
+        fVarCut += "(";
+        Bool_t first = kTRUE;
+        while (auto type = dynamic_cast<RooCatType*>(typeIter->Next())) {
+            if (first) { fVarCut += Form("%s==%d", cat->GetName(), type->getVal()); first = kFALSE; }
+            else fVarCut += Form("||%s==%d", cat->GetName(), type->getVal());
+        }
+        fVarCut += ")";
+      
+        fCatString.push_back(opt);
+        fFitCats.push_back(cat);
+    }
+
+    void Setup::LoadAuxVar(const TString& opt) {
+        auto var = dynamic_cast<RooRealVar*>(fWS.factory(opt));
+        fAuxVars.push_back(var);
+     
+        if (auto varreal = dynamic_cast<RooRealVar*>(var)) {
+            if (fVarCut.Sizeof() > 1) fVarCut += "&&";
+            fVarCut += Form("%s>=%lf&&%s<=%lf", varreal->GetName(), varreal->getMin(), varreal->GetName(), varreal->getMax());   
+        }
+        fAuxVarString.push_back(opt);
+    }
+
+    // ========================================================================
+    // PDF Assembly
+    // ========================================================================
+
+    void Setup::FactoryPDF(TString opt) {
+        fPDFString.push_back(opt);
+        if (opt.Contains("WEIGHTS@")) {
+            opt.ReplaceAll("WEIGHTS@", "$"); 
+
+            TString wopt = opt(opt.First("$") + 1, opt.Sizeof() - opt.First("$"));
+            opt = opt(0, opt.First("$"));
+
+            RooAbsArg* pdf = nullptr;
+            if (opt.Contains("RooComponentsPDF")) pdf = ComponentsPDF(opt);
+            else pdf = fWS.factory(opt);
+
+            // Weights are mapped specifically for RooHSEventsPDFs
+            if (auto *evPdf = dynamic_cast<RooHSEventsPDF*>(pdf)) {
+                fPDFInWeights[evPdf->GetName()] = wopt;
+            } else {	
+                cout << "WARNING Setup::FactoryPDF trying to give weights to non RooHSEventsPDF " << opt << " " << wopt << endl;
+            }	
+        } else {
+            if (opt.Contains("RooComponentsPDF")) ComponentsPDF(opt);
+            else fWS.factory(opt);
+        }
+    }
+
+    void Setup::ParserPDF(TString str, PdfParser& parse) {
+        fParserPDFString = str;
+        fParserPDFparser = &parse;
+      
+        TString wopt;
+        if (str.Contains("WEIGHTS@")) {
+            str.ReplaceAll("WEIGHTS@", "$"); 
+            wopt = str(str.First("$") + 1, str.Sizeof() - str.First("$"));
+            str = str(0, str.First("$"));
+            wopt.Prepend("WEIGHTS@");
+        }
+
+        auto pdfString = parse.ConstructPDF(str.Data());
+        for (auto& con : parse.GetConstants()) LoadConstant(con);
+        for (auto& par : parse.GetParameters()) LoadParameter(par);
+        for (auto& form : parse.GetFormulas()) LoadFormula(form);
+        for (auto& fun : parse.GetFunctions()) LoadFunctionVar(fun);
+      
+        TString tpdf(pdfString);
+        tpdf.ReplaceAll(";ReDab_0_0_0_0", "");
+        tpdf.ReplaceAll("H_0_0_0_0[0,-1,1]", "H_0_0_0_0[1]");
+        pdfString = tpdf.Data();
+     
+        FactoryPDF(pdfString + wopt);
+    }
+
+    void Setup::LoadSpeciesPDF(TString opt, Float_t Scale0) {
+        auto* pdf = reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
+        fPDFs.addOwned(*pdf);
+
+        auto dataVarsPdf = *(fPDFs.find(opt)->getParameters(DataVars()));
+        for (auto& extra : dataVarsPdf) {
+            if (fParameters.find(extra->GetName())) continue;
+            else fParameters.add(*extra);
+        }
+      
+        fParameters.remove(fConstants);
+        fParameters.remove(fFormulas);
+      
+        // Add a corresponding yield parameter for this species
+        fYields.add(*(fWS.factory(fYld + opt + Form("[%f,0,1E12]", Scale0))));
+        fSpecString.push_back(std::make_pair<TString, Float_t>(std::move(opt), std::move(Scale0)));
+    }
+
+    RooAbsPdf* Setup::ComponentsPDF(TString opt) {
+        opt.ReplaceAll("RooComponentsPDF::", "");
+        opt.ReplaceAll(" ", "");
+        TString pdfName = opt(0, opt.First("("));
+      
+        TString sbaseLine = opt(opt.First("(") + 1, opt.First(",") - opt.First("(") - 1);
+        Double_t baseLine = sbaseLine.Atof();
+      
+        TString sobs = opt(opt.First("{") + 1, opt.First("}") - opt.First("{") - 1);
+        auto obsStrings = sobs.Tokenize(",");
+        RooArgList obsList("RooComponentsPDF::ComponentObservables");
+      
+        RooArgSet varsAndCatsAndPars(FitVarsAndCats());
+        varsAndCatsAndPars.add(Parameters());
+        varsAndCatsAndPars.add(Formulas());
+
+        for (Int_t i = 0; i < obsStrings->GetEntries(); i++) {
+            obsList.add(*varsAndCatsAndPars.find(obsStrings->At(i)->GetName()));
+        }
+        delete obsStrings;
+      
+        TString scomps = opt(opt.First("=") + 1, opt.Last(')') - opt.First("=") - 1);
+        scomps.ReplaceAll("{", "");
+        scomps.ReplaceAll("}", "");
+        auto compStrings = scomps.Tokenize(":");
+        vector<RooArgList> compsLists;
+        Int_t ic = 0;
+
+        for (Int_t i = 0; i < compStrings->GetEntries(); i++) {
+            auto compo = TString(compStrings->At(i)->GetName());
+            compo.ReplaceAll(";", "*");
+            RooArgList termList(Form("RooComponentsPDF::Term%d", ic++));
+            TString term = compStrings->At(i)->GetName();
+            auto termStrings = term.Tokenize(";");
+        
+            for (Int_t j = 0; j < termStrings->GetEntries(); j++) {
+                TString sarg = termStrings->At(j)->GetName();
+                TString vname = sarg;
+                if (sarg.Contains("=")) {
+                    LoadFormula(sarg);
+                    vname = sarg(0, sarg.First("=")); 
+                } else if (sarg.Contains("[")) {
+                    LoadParameterOnTheFly(sarg);
+                    vname = sarg(0, sarg.First("[")); 
+                }
+          
+                if (dynamic_cast<RooRealVar*>(fWS.var(vname))) {
+                    auto fitVars = FitVarsAndCats();
+                    if (fitVars.find(vname)) {
+                        auto formVarStr = Form("form%s=@%s[]", vname.Data(), vname.Data());
+                        vname = Form("form%s", vname.Data());;
+                        if (fWS.function(vname) == nullptr) LoadFormula(formVarStr);
+                        termList.add(*fWS.function(vname));
+                    } else {	
+                        termList.add(*fWS.var(vname));
+                    }
+                }
+                else if (dynamic_cast<RooCategory*>(fWS.cat(vname))) termList.add(*fWS.cat(vname));
+                else if (dynamic_cast<RooFormulaVar*>(fWS.function(vname))) termList.add(*fWS.function(vname));
+                else if (dynamic_cast<RooAbsReal*>(fWS.function(vname))) termList.add(*fWS.function(vname)); 
+                else {
+                    fWS.Print("v");
+                    Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)", Form("variable %s not found", vname.Data()), "");
+                }
+            }
+            compsLists.push_back(termList);
+            delete termStrings;
+        }
+        delete compStrings;
+
+        auto pdf = new RooComponentsPDF(pdfName, pdfName, baseLine, obsList, compsLists);
+        
+        // Ownership passed to Workspace upon import; legacy list catches any edges cases
+        fNeedToDeleteThis.Add(pdf); 
+        fWS.import(*pdf, RooFit::Silence(), RooFit::RecycleConflictNodes());
+        return pdf;
+    }
+
+    void Setup::TotalPDF() {
+        if (fModel) { delete fModel; fModel = nullptr; }
+        
+        // Master extended likelihood model uniting all species and yields
+        fModel = new RooAddPdf(fName + "TotalPDF", "total model", fPDFs, fYields);
+        AddFitOption(RooFit::Extended());
+    }
+
+    // ========================================================================
+    // Parameter & Configuration Utilities
+    // ========================================================================
+
+    void Setup::AddGausConstraint(RooGaussian *pdf) {
+        if (!pdf) return;
+        fConstraints.add(*(pdf));
+    }
+
+    void Setup::AddFormulaConstraint(RooFormulaVar *formu) {
+        if (!formu) return;
+        fConstraints.add(*(dynamic_cast<RooAbsArg*>(formu)));
+    }
+
+    void Setup::AddPdfConstraint(RooAbsPdf *pdf) {
+        if (!pdf) return;
+        fConstraints.add(*pdf);
+    }
+    
+    void Setup::RequiredFitOptions() {
+        if (fFitOptions.find("Save") != nullptr) return;
+        
+        AddFitOption(RooFit::Save(kTRUE));
+        if (fErrorsSumW2) AddFitOption(RooFit::SumW2Error(kTRUE));
+        else if (fErrorsAsym) AddFitOption(RooFit::AsymptoticError(true));
+    }
+
+    void Setup::SetParVal(const TString& par, Double_t val, Bool_t co) {
+        if (dynamic_cast<RooRealVar*>(fParameters.find(par)) == nullptr) {
+            std::cerr << "Error Setup::SetParVal invalid parameter" << par << std::endl;
+            exit(0);
+        }
+        (dynamic_cast<RooRealVar*>(fParameters.find(par)))->setVal(val);
+        (dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
+        fConstPars[par] = co;
+    }
+
+    void Setup::SetYldVal(const TString& yld, Double_t val, Bool_t co) {
+        (dynamic_cast<RooRealVar*>(fYields.find(yld)))->setVal(val);
+        (dynamic_cast<RooRealVar*>(fYields.find(yld)))->setConstant(co);
+    }
+
+    void Setup::SetConstPar(const TString& par, Bool_t co) {
+        (dynamic_cast<RooRealVar*>(fParameters.find(par)))->setConstant(co);
+        fConstPars[par] = co;
+    }
+
+    void Setup::SetConstPDFPars(const TString& pdf, Bool_t co) {
+        (dynamic_cast<RooAbsPdf*>(fPDFs.find(pdf)))->getParameters(DataVars())->setAttribAll("Constant", co);
+        fConstPDFPars[pdf] = co;
+    }
+
+    Bool_t Setup::IsParSetConst(const TString& name) const {
+        return fConstPars.find(name) != fConstPars.end() ? fConstPars.at(name) : kFALSE;
+    }
+
+    Double_t Setup::SumOfYields() {
+        Double_t sum = 0;
+        for (auto* arg : fYields) {
+            if (auto arg_var = dynamic_cast<RooRealVar*>(arg)) {
+                sum += arg_var->getValV();
+            }
+        }
+        return sum;
+    }
+    
+    RooArgSet& Setup::Cats() {
+        if (fCats.getSize()) return fCats;
+        fCats.add(MakeArgSet(fFitCats));
+        return fCats;
+    }
+    
+    RooArgSet& Setup::DataVars() {
+        fVars.removeAll();
+        fVars.add(MakeArgSet(fFitVars));
+        fVars.add(MakeArgSet(fFitCats));
+        fVars.add(MakeArgSet(fAuxVars));
+        if (!fWS.var(fIDBranchName)) fWS.factory(fIDBranchName + "[0,9.99999999999999e14]");
+        fVars.add(*fWS.var(fIDBranchName));
+        return fVars;
+    }
+    
+    RooArgSet& Setup::FitVarsAndCats() {
+        if (fVarsAndCats.getSize()) return fVarsAndCats;
+        fVarsAndCats.add(MakeArgSet(fFitVars));
+        fVarsAndCats.add(MakeArgSet(fFitCats));
+        return fVarsAndCats;
+    }
+    
+    RooArgSet& Setup::ParsAndYields() {
+        if (fParsAndYields.getSize()) return fParsAndYields;
+        fParsAndYields.add(fParameters);
+        fParsAndYields.add(fYields);
+        return fParsAndYields;
+    }
+    
+    RooArgSet& Setup::NonConstParsAndYields() {
+        fNCParsAndYields.clear();
+        for (auto par : fParameters) {
+            if (!par->isConstant()) fNCParsAndYields.add(*par);
+        }
+        for (auto par : fYields) {
+            if (!par->isConstant()) fNCParsAndYields.add(*par);
+        }
+        return fNCParsAndYields;
+    }
+    
+    void Setup::CopyRealProperties(RooArgSet& change, const RooArgSet& tothis) {
+        for (auto& arg : change) {
+            auto rarg = dynamic_cast<RooRealVar*>(arg);
+            if (!rarg) continue;
+            auto carg = dynamic_cast<RooRealVar*>(tothis.find(arg->GetName()));
+            if (!carg) continue;
+            rarg->setBins(carg->getBins());
+        }
+    }
+
+    void Setup::OrganiseConstraints() {
+        _parConstraints.clear();
+        for (Int_t ip = 0; ip < fParameters.getSize(); ip++) {
+            RooRealVar *par = (dynamic_cast<RooRealVar*>(&fParameters[ip]));
+            if (par->isConstant()) {
+                _parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
+                continue;
+            }
+
+            Bool_t hadCon = kFALSE;
+            for (Int_t ic = 0; ic < fConstraints.getSize(); ic++) {
+                RooAbsPdf *pdfCon = (dynamic_cast<RooAbsPdf*>(&fConstraints[ic]));
+          
+                // FIX: getObservables returns a heap-allocated pointer. 
+                // Wrapping it in unique_ptr prevents a memory leak when the break statement hits.
+                std::unique_ptr<RooArgSet> obs(pdfCon->getObservables(fParameters));
+                if (obs->contains(*par)) { 
+                    auto randCons = std::unique_ptr<RandomConstrained>{new RandomConstrained{pdfCon, par, 1000}};
+                    _parConstraints.push_back(std::move(randCons));
+                    hadCon = kTRUE;
+                    break; // RAII cleans up 'obs' automatically	    
+                }
+            }
+            if (hadCon == kFALSE) _parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
+        }
+    }
+    
+    void Setup::RandomisePars() {
+        if (_parConstraints.empty()) OrganiseConstraints();
+        if (_parConstraints.size() != (size_t)fParameters.getSize()) {
+            std::cerr << "Setup::RandomisePars() constraints mismatch " << fParameters.getSize() 
+                      << " parameters with " << _parConstraints.size() << std::endl;
+            exit(0);
+        }
+        for (Int_t ip = 0; ip < fParameters.getSize(); ip++) {
+            RooRealVar *par = (dynamic_cast<RooRealVar*>(&fParameters[ip]));
+            if (par->isConstant()) continue;
+
+            if (_parConstraints[ip].get() != nullptr) {
+                par->setVal(_parConstraints[ip]->get());
+            } else {
+                par->setVal(gRandom->Uniform(par->getMin(""), par->getMax("")));
+            }
+        }
+    }
+ 
+    RooStats::ModelConfig* Setup::GetModelConfig() {
+        // NOTE: Caller assumes ownership of this memory allocation!
+        auto modelConfig = new RooStats::ModelConfig(&fWS);
+        modelConfig->SetParametersOfInterest(fParameters);
+        modelConfig->SetPdf(*fModel);
+        return modelConfig;
+    }
+
+    // ========================================================================
+    // Global Helper Functions
+    // ========================================================================
+
+    RooArgSet MakeArgSet(realvars_t vars) {
+        RooArgSet aset;
+        for (auto rv : vars) aset.add(*rv);
+        return aset;
+    }
+    
+    RooArgSet MakeArgSet(catvars_t cats) {
+        RooArgSet aset;
+        for (auto rv : cats) aset.add(*rv);
+        return aset;
+    }
+    
+    void SetAllValLimits(RooArgList& items, Double_t val, Double_t low, Double_t high) {
+        for (Int_t idr = 0; idr < items.getSize(); idr++) {
+            if (auto item = dynamic_cast<RooRealVar*>(&items[idr])) {
+                item->setVal(val);
+                if (low != high) item->setRange(low, high);
+            }
+        }
+    }
+    
+    Bool_t ArgListContainsName(RooArgList& items, TString name) {
+        for (Int_t idr = 0; idr < items.getSize(); idr++) {
+            if (TString(items[idr].GetName()) == name) return kTRUE;
+        }
+        return kFALSE;
+    }
+    
+    void ReadFormula(TString forma, strings_t& svars, strings_t& sranges) {
+        svars.clear(); sranges.clear();
+        Bool_t addIt = kTRUE;
+
+        for (Int_t i = 0; i < forma.Sizeof(); i++) {
+            if (TString(forma[i]) == "@") {
+                Int_t j = i;
+                for (; j < forma.Sizeof(); j++) {
+                    if (TString(forma[j]) == "[") {
+                        TString varname = forma(i + 1, j - i - 1);
+                        if (std::find(svars.begin(), svars.end(), varname) == svars.end()) {
+                            svars.push_back(varname);
+                            addIt = kTRUE;
+                        } else addIt = kFALSE;
+                        i = j;
+                        continue;
+                    }
+                    if (TString(forma[j]) == "]") {
+                        if (addIt) sranges.push_back(forma(i, j - i + 1));
+                        i = j;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+} // namespace FIT
+} // namespace HS
+
+// #include "Setup.h"
+// #include "Weights.h"
+// #include "RooHSComplex.h"
+// #include "RooHSEventsPDF.h"
+// #include "RooComponentsPDF.h"
+// #include <RooGenericPdf.h>
+// #include <RooAbsData.h>
+// #include <RooDataSet.h>
+// #include <TRandom.h>
+
+// #include <RooFitLegacy/RooCatTypeLegacy.h>
+
+// namespace HS{
+//   namespace FIT{
+
+
+//     Setup::Setup():TNamed(){
+//       // RequiredFitOptions();
+//       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
+//       //DefaultFitOptions();
+//       //to flush anything which is not owned elsewhere
+//       fNeedToDeleteThis.SetOwner();
+//     }
+//     Setup::Setup(const TString& name):TNamed(name,name){
+//       //RooAbsData::setDefaultStorageType(RooAbsData::Tree);
+//       //DefaultFitOptions();
+//       //RequiredFitOptions();
+//       fNeedToDeleteThis.SetOwner();
+//     }
+    
+//     Setup::Setup(const Setup& other):TNamed(other.fName,other.fName){
+
+//       gErrorIgnoreLevel = kFatal;
+//       auto level = RooMsgService::instance().globalKillBelow();
+//       RooMsgService::instance().setGlobalKillBelow(RooFit::INFO) ;
+
+//       //       fWS={"HSWS"};
+//       fNeedToDeleteThis.SetOwner();
+//       fFitOptions=other.fFitOptions;
+//       //RequiredFitOptions(); //make sure we have required options
+//       fConstraints=other.fConstraints;   
+//       fAddCut=other.fAddCut;
+//        fVarCut=""; //contructed from LoadAuxVar
+//        fDataOnlyCut=other.fDataOnlyCut;
+//        fIDBranchName=other.fIDBranchName;
+//        fOutDir=other.fOutDir;
+
+//       //constants first so can overide parameters
+//        for(auto &conStr: other.fConstString)
+// 	 LoadConstant(conStr);
+//        for(auto &parStr: other.fParString)
+// 	 LoadParameter(parStr);
+//        for(auto &varStr: other.fVarString){
+// 	 LoadVariable(varStr);
+//        }
+//        for(auto &catStr: other.fCatString)
+// 	 LoadCategory(catStr);
+//        for(auto &varStr: other.fAuxVarString)
+// 	 LoadAuxVar(varStr);
+//        for(auto &formStr: other.fFormString)
+// 	 LoadFormula(formStr);
+//        for(auto &funcStr: other.fFuncVarString)
+// 	 LoadFunctionVar(funcStr);
+
+       
+//        //PDF parser setup ! before FactoryPDF
+//        if(other.fParserPDFString.Length()>0){
+// 	 ParserPDF(other.fParserPDFString, *(other.fParserPDFparser) );
+//        }
+//        for(auto &pdfStr: other.fPDFString)
+// 	 FactoryPDF(pdfStr);
+
+//        for(auto &specStr: other.fSpecString)
+//     	LoadSpeciesPDF(specStr.first,specStr.second);
+
+//       //const parameters
+//        for(const auto& pdf:other.fConstPDFPars)
+// 	 SetConstPDFPars(pdf.first,pdf.second);
+//        for(const auto& par:other.fConstPars)
+// 	 SetConstPar(par.first,par.second);
+
+//        CopyRealProperties(DataVars(),other.fVars);//DataVars called in LoadSpeciesPDF
+
+//        fErrorsSumW2=other.fErrorsSumW2;
+//        fErrorsAsym=other.fErrorsAsym;
+
+       
+//        gErrorIgnoreLevel = kInfo ;
+//        RooMsgService::instance().setGlobalKillBelow(level) ;
+       
+//    }
+
+//     Setup& Setup::operator=(const Setup& other){
+//       gErrorIgnoreLevel = kFatal;
+//       auto level = RooMsgService::instance().globalKillBelow();
+//       RooMsgService::instance().setGlobalKillBelow(RooFit::INFO) ;
+      
+
+//     fNeedToDeleteThis.SetOwner();
+//     fFitOptions=other.fFitOptions;
+//       fConstraints=other.fConstraints;
+//       fAddCut=other.fAddCut;
+//       fVarCut=""; //contructed from LoadAuxVar
+//       fIDBranchName=other.fIDBranchName;
+//       fOutDir=other.fOutDir;
+//       //fWS={"HSWS"};
+//       fErrorsSumW2=other.fErrorsSumW2;
+//       fErrorsAsym=other.fErrorsAsym;
+ 
+//        //constants first so can overide parameters
+//       for(auto &conStr: other.fConstString)
+// 	LoadConstant(conStr);
+//       for(auto &parStr: other.fParString)
+// 	LoadParameter(parStr);
+//       for(auto &varStr: other.fVarString){
+//     	LoadVariable(varStr);
+//       }
+//       for(auto &catStr: other.fCatString)
+// 	LoadCategory(catStr);
+//       for(auto &varStr: other.fAuxVarString)
+//     	LoadAuxVar(varStr);
+//       for(auto &formStr: other.fFormString)
+//     	LoadFormula(formStr);
+//       for(auto &funcStr: other.fFuncVarString)
+// 	 LoadFunctionVar(funcStr);
+//       //PDF parser setup ! before FactoryPDF
+//       if(other.fParserPDFString.Length()>0){
+// 	 ParserPDF(other.fParserPDFString, *(other.fParserPDFparser) );
+//        }
+//       for(auto &pdfStr: other.fPDFString)
+//     	FactoryPDF(pdfStr);
+//      for(auto &specStr: other.fSpecString)
+//     	LoadSpeciesPDF(specStr.first,specStr.second);
+      
+//       //const parameters
+//       for(const auto& pdf:other.fConstPDFPars)
+// 	SetConstPDFPars(pdf.first,pdf.second);
+//       for(const auto& par:other.fConstPars)
+// 	SetConstPar(par.first,par.second);
+
+//       CopyRealProperties(DataVars(),other.fVars);
+
+//       gErrorIgnoreLevel = kInfo ;
+//       RooMsgService::instance().setGlobalKillBelow(level) ;
+ 
+//       return *this;
+//     }
+ 
+//     ////////////////////////////////////////////////////////////
+//     /// Load a fit variable e.g s.LoadVariable("X[-1,1]");
+//     /// Fit a variable in your tree called X between -1 and 1
+//     void Setup::LoadVariable(const TString& opt){
+
+//       auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
+//       if(!var) {
+// 	cout<<"Setup::LoadVariable "<<opt<<" failed"<<endl;
+// 	return;
+//       }
+//       fVarString.push_back(opt);
+//       fFitVars.push_back(var);      
+//     }
+//     ////////////////////////////////////////////////////////////
+//     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
+//     /// Add a fit parameter X between -1 and 1
+//     /// and store it for when copied
+//     void Setup::LoadParameter(const TString& opt){
+//       LoadParameterOnTheFly(opt);
+//       fParString.push_back(opt);
+//     }
+
+//        ////////////////////////////////////////////////////////////
+//     /// Load a fit variable e.g s.LoadParameter("X[-1,1]");
+//     /// Add a fit parameter X between -1 and 1
+//     void Setup::LoadParameterOnTheFly(const TString& opt){
+//       // cout<<"Setup::LoadParameterOnTheFly "<<opt<<endl;
+//       //Find parameter name i.e. up to '['
+//       auto parName=TString(opt(0,opt.First('[')));
+//       if( ArgListContainsName(fParameters,parName) )
+// 	return; //already loaded
+//       if( ArgListContainsName(fConstants,parName) )
+// 	return; //already loaded
+      
+//         //replaceAll -ve signs in name with "neg"
+//       TString varname = opt;
+
+//       if(opt.Contains(',')==false){
+// 	//assume parameters with no range are constants
+// 	LoadConstant(opt);
+// 	return;
+//       }
+//       auto var=dynamic_cast<RooRealVar*>(fWS.factory(varname));
+//       if((var->getMax()==var->getMin())){
+// 	//assume parameters with no range are constants
+// 	LoadConstant(opt);
+// 	return;
+//       }
+//       if(!var) {
+// 	cout<<"Setup::LoadParameter "<<varname<<" failed"<<endl;
+// 	return;
+//       }
+//       if(!fParameters.contains(*var))
+// 	fParameters.add(*var);      
+//     }
+//    ////////////////////////////////////////////////////////////
+//     /// Load a constant e.g s.LoadConstant("X[value]");
+//     /// Add a constant parameter X with value 1 
+//     /// and store it for when copied
+//     void Setup::LoadConstant(const TString& opt){
+      
+//       auto parName=TString(opt(0,opt.First('[')));
+//       if( ArgListContainsName(fConstants,parName) )
+// 	return; //already loaded
+      
+//       auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
+//       if(!var) {
+// 	cout<<"Setup::LoadConstant "<<opt<<" failed"<<endl;
+// 	return;
+//       }	
+//       var->setConstant();
+//       if(!fConstants.contains(*var))
+// 	fConstants.add(*var);
+//       fConstString.push_back(opt);
+//     }	
+//      ////////////////////////////////////////////////////////////
+//     /// Load a fit RooAbsReal class e.g s.LoadFunctionVar("RooRealSphHarmonic::leg2(CTh[0,-1,1],Phi[0,-3.141,3.141],2,1)"));
+//      void Setup::LoadFunctionVar(const TString& opt){
+  
+//        auto parName=TString(opt(0,opt.First('(')));
+//        if( ArgListContainsName(fConstants,parName) )
+// 	 return; //already loaded as constant (constants overide all else)
+
+//       //check if already done this one
+//       if(std::find(fFuncVarString.begin(),fFuncVarString.end(),opt)!=fFuncVarString.end()) return;
+      
+//       auto var=dynamic_cast<RooAbsReal*>(fWS.factory(opt));
+//       if(!var) {
+// 	cout<<"Setup::LoadFunctionVar "<<opt<<" failed"<<endl;
+// 	return;
+//       }
+//       fFuncVars.add(*var);      
+//       fFuncVarString.push_back(opt);
+
+//       if(auto cvar=dynamic_cast<RooHSComplex*>(var) ){
+// 	//Complex Var need to load real and imaginery parts
+// 	LoadFunctionVar(cvar->FactoryReal());
+// 	LoadFunctionVar(cvar->FactoryImag());
+// 	LoadFunctionVar(cvar->FactoryImagConj());
+//       }
+//      }
+//     ////////////////////////////////////////////////////////////
+//     /// Load a formulaVar e.g s.LoadFormula("name=@v1[1,0,2]+@v2[]");
+//     ///
+//     void Setup::LoadFormula(TString formu){
+//       //std::cout<<" Setup::LoadFormula "<<formu<<std::endl;
+//       auto parName=TString(formu(0,formu.First('=')));
+//       if( ArgListContainsName(fConstants,parName) )
+// 	return; //already loaded as constant (constants overide all else)
+
+//       fFormString.push_back(formu);
+//       //get formula name
+//       TString name=formu(0,formu.First("="));
+//       strings_t pars;
+//       strings_t ranges;
+//       ReadFormula(formu,pars,ranges);
+//       for(UInt_t i=0;i<pars.size();i++){
+// 	if(ranges[i]!=TString("[]")) LoadParameterOnTheFly(pars[i]+ranges[i]);
+//       }
+//       //get rid of [range]
+//       for(auto& range:ranges)
+// 	formu.ReplaceAll(range, "");
+//       //get rid of name=
+//       formu=formu(formu.First("=")+1,formu.Sizeof());
+//       //get rid of @
+//       formu.ReplaceAll("@", "");
+//       RooArgList rooPars;
+//       for(auto& par:pars)
+// 	if(fWS.var(par))rooPars.add(*fWS.var(par));
+// 	else if(fWS.function(par))rooPars.add(*fWS.function(par));
+// 	else if(fWS.cat(par))rooPars.add(*fWS.cat(par));
+// 	else Error("Setup::LoadFormula"," unknown parameter");
+      
+//       //      rooPars.Print();
+//       RooFormulaVar fovar(name,formu,rooPars) ;
+
+//       //fovar.Print();
+//       fWS.import(fovar,RooFit::Silence(),RooFit::RecycleConflictNodes());
+//       if(fWS.function(name)){
+// 	fFormulas.add(*fWS.function(name));
+// 	if(fovar.getObservables(fVars)->getSize()==0
+// 	   && fovar.getObservables(fParameters)->getSize()>0)
+// 	  fParameterFormulas.add(*fWS.function(name));
+//       }
+//       else Fatal("Setup::LoadFormula","Formula didn't compile");
+//     }
+//     ////////////////////////////////////////////////////////////
+//     /// Load a category e.g. s.LoadCategory("Pol[m=-1,p=1]");
+//     /// PDF can depend on a data category called Pol which may
+//     /// have values -1 or 1 (other valued events are discarded 
+//     void Setup::LoadCategory(const TString& opt){
+//       auto cat=dynamic_cast<RooCategory*>(fWS.factory(opt));
+//       if(!cat) {
+// 	cout<<"Setup::LoadCategory "<<opt<<" failed"<<endl;
+// 	return;
+//       }
+ 
+//       if(fVarCut.Sizeof()>1)fVarCut+="&&";
+//       auto typeIter=cat->typeIterator();
+      
+//       fVarCut+="(";
+//       Bool_t first=kTRUE;
+//       while(auto type=dynamic_cast<RooCatType*>(typeIter->Next())){
+// 	if(first){
+// 	  fVarCut+=Form("%s==%d",cat->GetName(),type->getVal());
+// 	  first=kFALSE;
+// 	}
+// 	else
+// 	  fVarCut+=Form("||%s==%d",cat->GetName(),type->getVal());
 	
-      }
-      fVarCut+=")";
+//       }
+//       fVarCut+=")";
       
-      fCatString.push_back(opt);
-      fFitCats.push_back(cat);
+//       fCatString.push_back(opt);
+//       fFitCats.push_back(cat);
    
-    }
-    /////////////////////////////////////////////////////////
-    ///LoadAuxVars can bes used to cut input trees and keeping
-    ///variable branches in binned or reduced trees
-    ///the limits of the variable are added to Cut and applied to data import
-    void Setup::LoadAuxVar(const TString& opt){
-      auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
-      fAuxVars.push_back(var);
+//     }
+//     /////////////////////////////////////////////////////////
+//     ///LoadAuxVars can bes used to cut input trees and keeping
+//     ///variable branches in binned or reduced trees
+//     ///the limits of the variable are added to Cut and applied to data import
+//     void Setup::LoadAuxVar(const TString& opt){
+//       auto var=dynamic_cast<RooRealVar*>(fWS.factory(opt));
+//       fAuxVars.push_back(var);
      
-      RooRealVar* varreal=nullptr;
+//       RooRealVar* varreal=nullptr;
  
-      if((varreal=dynamic_cast<RooRealVar*>(var))){
-	if(fVarCut.Sizeof()>1)fVarCut+="&&";
-	fVarCut+=Form("%s>=%lf&&%s<=%lf",varreal->GetName(),varreal->getMin(),varreal->GetName(),varreal->getMax());   
-      }
-      fAuxVarString.push_back(opt);
-    }
-    ////////////////////////////////////////////////////////////
-    /// Use RooFit Workspace factory to define PDFs
-    /// In addition handle special "new" PDF types
-    void Setup::FactoryPDF(TString opt){
-      fPDFString.push_back(opt);
-      if(opt.Contains("WEIGHTS@")){
-	opt.ReplaceAll("WEIGHTS@","$"); //$ should be a safe character!!!!
+//       if((varreal=dynamic_cast<RooRealVar*>(var))){
+// 	if(fVarCut.Sizeof()>1)fVarCut+="&&";
+// 	fVarCut+=Form("%s>=%lf&&%s<=%lf",varreal->GetName(),varreal->getMin(),varreal->GetName(),varreal->getMax());   
+//       }
+//       fAuxVarString.push_back(opt);
+//     }
+//     ////////////////////////////////////////////////////////////
+//     /// Use RooFit Workspace factory to define PDFs
+//     /// In addition handle special "new" PDF types
+//     void Setup::FactoryPDF(TString opt){
+//       fPDFString.push_back(opt);
+//       if(opt.Contains("WEIGHTS@")){
+// 	opt.ReplaceAll("WEIGHTS@","$"); //$ should be a safe character!!!!
 
-	TString wopt=opt(opt.First("$")+1,opt.Sizeof()-opt.First("$"));
-	opt=opt(0,opt.First("$"));
+// 	TString wopt=opt(opt.First("$")+1,opt.Sizeof()-opt.First("$"));
+// 	opt=opt(0,opt.First("$"));
 
 
-	RooAbsArg* pdf=nullptr;
-	//Checck for special non-RooFit PDFs
-	if(opt.Contains("RooComponentsPDF")){
-	  pdf=ComponentsPDF(opt);
-	}
-	else	//create PDF as normal
-	  pdf=fWS.factory(opt);
+// 	RooAbsArg* pdf=nullptr;
+// 	//Checck for special non-RooFit PDFs
+// 	if(opt.Contains("RooComponentsPDF")){
+// 	  pdf=ComponentsPDF(opt);
+// 	}
+// 	else	//create PDF as normal
+// 	  pdf=fWS.factory(opt);
 	
 
-	///////////////////////////////////
-	//check if EventsPDF
-	auto *evPdf=dynamic_cast<RooHSEventsPDF*>(pdf);
-	if(evPdf){
-	  // evPdf->SetInWeights(wgtcon);
-	  fPDFInWeights[evPdf->GetName()]=wopt;
-	}	
-	else{	
-	  cout<<	"WARNING Setup::FactoryPDF trying to give weights to non RooHSEventsPDF "<< opt<<" "<<wopt<<endl;
-	}	
-      }
-      else{
-	RooAbsArg* pdf=nullptr;
-	//Check for special non-RooFit PDFs
-	if(opt.Contains("RooComponentsPDF")){
-	  pdf=ComponentsPDF(opt);
-	}
-	else	//create PDF as normal
-	  pdf=fWS.factory(opt);
-      }
+// 	///////////////////////////////////
+// 	//check if EventsPDF
+// 	auto *evPdf=dynamic_cast<RooHSEventsPDF*>(pdf);
+// 	if(evPdf){
+// 	  // evPdf->SetInWeights(wgtcon);
+// 	  fPDFInWeights[evPdf->GetName()]=wopt;
+// 	}	
+// 	else{	
+// 	  cout<<	"WARNING Setup::FactoryPDF trying to give weights to non RooHSEventsPDF "<< opt<<" "<<wopt<<endl;
+// 	}	
+//       }
+//       else{
+// 	RooAbsArg* pdf=nullptr;
+// 	//Check for special non-RooFit PDFs
+// 	if(opt.Contains("RooComponentsPDF")){
+// 	  pdf=ComponentsPDF(opt);
+// 	}
+// 	else	//create PDF as normal
+// 	  pdf=fWS.factory(opt);
+//       }
 
-    }
-    ///////////////////////////////////////////////////////////
-    /// Create PDF, parameters formulas and functions from PdfParser
-    void Setup::ParserPDF(TString str, PdfParser& parse){
-      fParserPDFString=str;
-      fParserPDFparser=&parse;
+//     }
+//     ///////////////////////////////////////////////////////////
+//     /// Create PDF, parameters formulas and functions from PdfParser
+//     void Setup::ParserPDF(TString str, PdfParser& parse){
+//       fParserPDFString=str;
+//       fParserPDFparser=&parse;
       
-      //Look for possible weights
-      TString wopt;
-      if(str.Contains("WEIGHTS@")){
-	str.ReplaceAll("WEIGHTS@","$"); //$ should be a safe character!!!!
+//       //Look for possible weights
+//       TString wopt;
+//       if(str.Contains("WEIGHTS@")){
+// 	str.ReplaceAll("WEIGHTS@","$"); //$ should be a safe character!!!!
 
-	wopt=str(str.First("$")+1,str.Sizeof()-str.First("$"));
-	str=str(0,str.First("$"));
+// 	wopt=str(str.First("$")+1,str.Sizeof()-str.First("$"));
+// 	str=str(0,str.First("$"));
 	
-	wopt.Prepend("WEIGHTS@");
-      }
+// 	wopt.Prepend("WEIGHTS@");
+//       }
 
       
-      //Get the FactoryPDF string and create functions etc
-      auto pdfString=parse.ConstructPDF(str.Data());
-      //       std::cout<<"Setup::ParserPDF string1 "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
-      //LoadConstants first so can overide parameters or functions with constants
-      auto cons = parse.GetConstants();
-      for(auto& con:cons)
-	LoadConstant(con);
-      //Load Parameters
-      auto pars = parse.GetParameters();
-      for(auto& par:pars)
-	LoadParameter(par);
-      //LoadParameterOnTheFly(par);
-      //LoadFormulas
-      auto forms = parse.GetFormulas();
-      for(auto& form:forms)
-	LoadFormula(form);
-        //LoadFunctionVars
-      auto funs = parse.GetFunctions();
-      for(auto& fun:funs){
-	//	cout<<"DEBUG Load Function var "<<fun<<endl;
-	LoadFunctionVar(fun);
+//       //Get the FactoryPDF string and create functions etc
+//       auto pdfString=parse.ConstructPDF(str.Data());
+//       //       std::cout<<"Setup::ParserPDF string1 "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+//       //LoadConstants first so can overide parameters or functions with constants
+//       auto cons = parse.GetConstants();
+//       for(auto& con:cons)
+// 	LoadConstant(con);
+//       //Load Parameters
+//       auto pars = parse.GetParameters();
+//       for(auto& par:pars)
+// 	LoadParameter(par);
+//       //LoadParameterOnTheFly(par);
+//       //LoadFormulas
+//       auto forms = parse.GetFormulas();
+//       for(auto& form:forms)
+// 	LoadFormula(form);
+//         //LoadFunctionVars
+//       auto funs = parse.GetFunctions();
+//       for(auto& fun:funs){
+// 	//	cout<<"DEBUG Load Function var "<<fun<<endl;
+// 	LoadFunctionVar(fun);
 	
-      }
-      TString tpdf(pdfString);
-      tpdf.ReplaceAll(";ReDab_0_0_0_0","");
-      tpdf.ReplaceAll("H_0_0_0_0[0,-1,1]","H_0_0_0_0[1]");
-      pdfString=tpdf.Data();
+//       }
+//       TString tpdf(pdfString);
+//       tpdf.ReplaceAll(";ReDab_0_0_0_0","");
+//       tpdf.ReplaceAll("H_0_0_0_0[0,-1,1]","H_0_0_0_0[1]");
+//       pdfString=tpdf.Data();
       
-      //std::cout<<"Setup::ParserPDF string2 "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
+//       //std::cout<<"Setup::ParserPDF string2 "<< pdfString <<endl<<endl<<endl<<endl<<endl<<endl<<endl;
      
-      FactoryPDF(pdfString+wopt);
-    }
-    ///////////////////////////////////////////////////////////
-    ///Set this PDF to be included in extended ML fit
-    ///This function will create the associated yield paramter
-    void Setup::LoadSpeciesPDF(TString opt,Float_t Scale0){
-      //take a copy of the pdf from the workspace, so no ownership issues
-      auto* pdf=reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
-      fPDFs.addOwned(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
+//       FactoryPDF(pdfString+wopt);
+//     }
+//     ///////////////////////////////////////////////////////////
+//     ///Set this PDF to be included in extended ML fit
+//     ///This function will create the associated yield paramter
+//     void Setup::LoadSpeciesPDF(TString opt,Float_t Scale0){
+//       //take a copy of the pdf from the workspace, so no ownership issues
+//       auto* pdf=reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
+//       fPDFs.addOwned(*pdf);//RooGeneric is just a dummy, add does not take RooAbsPdf
 
-      //extra parameters
-      // get parameters not in fit variables
-      auto dataVarsPdf=*(fPDFs.find(opt)->getParameters(DataVars()));
-      //dataVarsPdf.Print("v");
-      for(auto& extra:dataVarsPdf){
-	if(fParameters.find(extra->GetName()))
-	  continue;
-	else
-	  fParameters.add(*extra);
-      }
+//       //extra parameters
+//       // get parameters not in fit variables
+//       auto dataVarsPdf=*(fPDFs.find(opt)->getParameters(DataVars()));
+//       //dataVarsPdf.Print("v");
+//       for(auto& extra:dataVarsPdf){
+// 	if(fParameters.find(extra->GetName()))
+// 	  continue;
+// 	else
+// 	  fParameters.add(*extra);
+//       }
       
-      fParameters.remove(fConstants);
-      fParameters.remove(fFormulas);
-      //     fParameters.add(*(fPDFs.find(opt)->getParameters(MakeArgSet(fFitVars,fFitCats))));// get parameters not in fit variables 
-      //Add a yield parameter for this species
-      fYields.add(*(fWS.factory(fYld+opt+Form("[%f,0,1E12]",Scale0))));//default yields limits
-      fSpecString.push_back(std::make_pair<TString,Float_t>(std::move(opt),std::move(Scale0)));
-    }
-    //////////////////////////////////////////////////////////
-    ///Special ComponentsPDF factory
-    RooAbsPdf* Setup::ComponentsPDF(TString opt){
-      opt.ReplaceAll("RooComponentsPDF::","");
-      opt.ReplaceAll(" ","");
-      TString pdfName=opt(0,opt.First("("));
-      // fWS.Print();
-      //cout<<"ComponentsPDF "<<pdfName<<endl;
-      //Get baseline
-      TString	sbaseLine=opt(opt.First("(")+1,opt.First(",")-opt.First("(")-1);
-      Double_t baseLine=sbaseLine.Atof();
-      //make observable list
-      TString sobs=opt(opt.First("{")+1,opt.First("}")-opt.First("{")-1);
-      auto obsStrings=sobs.Tokenize(",");
-      RooArgList obsList("RooComponentsPDF::ComponentObservables");
+//       fParameters.remove(fConstants);
+//       fParameters.remove(fFormulas);
+//       //     fParameters.add(*(fPDFs.find(opt)->getParameters(MakeArgSet(fFitVars,fFitCats))));// get parameters not in fit variables 
+//       //Add a yield parameter for this species
+//       fYields.add(*(fWS.factory(fYld+opt+Form("[%f,0,1E12]",Scale0))));//default yields limits
+//       fSpecString.push_back(std::make_pair<TString,Float_t>(std::move(opt),std::move(Scale0)));
+//     }
+//     //////////////////////////////////////////////////////////
+//     ///Special ComponentsPDF factory
+//     RooAbsPdf* Setup::ComponentsPDF(TString opt){
+//       opt.ReplaceAll("RooComponentsPDF::","");
+//       opt.ReplaceAll(" ","");
+//       TString pdfName=opt(0,opt.First("("));
+//       // fWS.Print();
+//       //cout<<"ComponentsPDF "<<pdfName<<endl;
+//       //Get baseline
+//       TString	sbaseLine=opt(opt.First("(")+1,opt.First(",")-opt.First("(")-1);
+//       Double_t baseLine=sbaseLine.Atof();
+//       //make observable list
+//       TString sobs=opt(opt.First("{")+1,opt.First("}")-opt.First("{")-1);
+//       auto obsStrings=sobs.Tokenize(",");
+//       RooArgList obsList("RooComponentsPDF::ComponentObservables");
       
-      RooArgSet varsAndCatsAndPars(FitVarsAndCats());
-      varsAndCatsAndPars.add(Parameters());
-      varsAndCatsAndPars.add(Formulas());
+//       RooArgSet varsAndCatsAndPars(FitVarsAndCats());
+//       varsAndCatsAndPars.add(Parameters());
+//       varsAndCatsAndPars.add(Formulas());
 
-      //cout<<"Setup::ComponentsPDF Observable String "<<sobs<<endl;
-      for(Int_t i=0;i<obsStrings->GetEntries();i++ ){
-	//cout<<"   obs i    "<<i<<" "<<obsStrings->At(i)->GetName()<<endl;
-	obsList.add(*varsAndCatsAndPars.find(obsStrings->At(i)->GetName()));
-      }
-      delete obsStrings;
+//       //cout<<"Setup::ComponentsPDF Observable String "<<sobs<<endl;
+//       for(Int_t i=0;i<obsStrings->GetEntries();i++ ){
+// 	//cout<<"   obs i    "<<i<<" "<<obsStrings->At(i)->GetName()<<endl;
+// 	obsList.add(*varsAndCatsAndPars.find(obsStrings->At(i)->GetName()));
+//       }
+//       delete obsStrings;
       
-      //obsList.Print("v");
+//       //obsList.Print("v");
       
-      //make component list
-      //TString scomps=opt(opt.First("<")+1,opt.First(">")-opt.First("<")-1);
-      TString scomps=opt(opt.First("=")+1,opt.Last(')')-opt.First("=")-1);
-      //cout<<opt<<" "<<opt.First("=")<<" "<<opt.Sizeof()<<" "<<opt.Sizeof()-opt.First("=")<<" "<<scomps.Sizeof()<<endl;
+//       //make component list
+//       //TString scomps=opt(opt.First("<")+1,opt.First(">")-opt.First("<")-1);
+//       TString scomps=opt(opt.First("=")+1,opt.Last(')')-opt.First("=")-1);
+//       //cout<<opt<<" "<<opt.First("=")<<" "<<opt.Sizeof()<<" "<<opt.Sizeof()-opt.First("=")<<" "<<scomps.Sizeof()<<endl;
       
-      scomps.ReplaceAll("{","");
-      scomps.ReplaceAll("}","");
-      auto compStrings=scomps.Tokenize(":");
-      vector<RooArgList> compsLists;
-      Int_t ic=0;
-      //fWS.Print();
-      //cout<<"Components String "<<scomps<<endl;
-      for(Int_t i=0;i<compStrings->GetEntries();i++ ){
-	auto compo = TString(compStrings->At(i)->GetName());
-	compo.ReplaceAll(";","*");
-	//	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
-	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
-	TString term = compStrings->At(i)->GetName();
-	auto termStrings=term.Tokenize(";");
-	for( Int_t j=0;j<termStrings->GetEntries();j++ ){
-	  //cout<<"  TERM               "<<termStrings->At(j)->GetName()<<endl;
+//       scomps.ReplaceAll("{","");
+//       scomps.ReplaceAll("}","");
+//       auto compStrings=scomps.Tokenize(":");
+//       vector<RooArgList> compsLists;
+//       Int_t ic=0;
+//       //fWS.Print();
+//       //cout<<"Components String "<<scomps<<endl;
+//       for(Int_t i=0;i<compStrings->GetEntries();i++ ){
+// 	auto compo = TString(compStrings->At(i)->GetName());
+// 	compo.ReplaceAll(";","*");
+// 	//	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
+// 	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
+// 	TString term = compStrings->At(i)->GetName();
+// 	auto termStrings=term.Tokenize(";");
+// 	for( Int_t j=0;j<termStrings->GetEntries();j++ ){
+// 	  //cout<<"  TERM               "<<termStrings->At(j)->GetName()<<endl;
 	  
-	  TString sarg = termStrings->At(j)->GetName();
-	  TString vname =sarg;
-	  //cout<<"DEBUG "<<vname<<endl;
-	  if(sarg.Contains("=")){//look for formula
-	    LoadFormula(sarg);//Load formula
-	    vname=sarg(0,sarg.First("=")); //get the var name
-	  }
-	  else  if(sarg.Contains("[")){//look for new parameter
-	    LoadParameterOnTheFly(sarg);
-	    vname=sarg(0,sarg.First("[")); //get the par name
-	  }
-	  //else cout<<"Will look for "<<vname<<endl;
-	  if( dynamic_cast<RooRealVar*>(fWS.var(vname))){
-	    auto fitVars=FitVarsAndCats();
-	    if(fitVars.find(vname)){
-	      //To redirect servers need vars as formula's rather than RooRealVars
-	      auto formVarStr=Form("form%s=@%s[]",vname.Data(),vname.Data());
-	      vname=Form("form%s",vname.Data());;
-	      if(fWS.function(vname)==nullptr)LoadFormula(formVarStr);
+// 	  TString sarg = termStrings->At(j)->GetName();
+// 	  TString vname =sarg;
+// 	  //cout<<"DEBUG "<<vname<<endl;
+// 	  if(sarg.Contains("=")){//look for formula
+// 	    LoadFormula(sarg);//Load formula
+// 	    vname=sarg(0,sarg.First("=")); //get the var name
+// 	  }
+// 	  else  if(sarg.Contains("[")){//look for new parameter
+// 	    LoadParameterOnTheFly(sarg);
+// 	    vname=sarg(0,sarg.First("[")); //get the par name
+// 	  }
+// 	  //else cout<<"Will look for "<<vname<<endl;
+// 	  if( dynamic_cast<RooRealVar*>(fWS.var(vname))){
+// 	    auto fitVars=FitVarsAndCats();
+// 	    if(fitVars.find(vname)){
+// 	      //To redirect servers need vars as formula's rather than RooRealVars
+// 	      auto formVarStr=Form("form%s=@%s[]",vname.Data(),vname.Data());
+// 	      vname=Form("form%s",vname.Data());;
+// 	      if(fWS.function(vname)==nullptr)LoadFormula(formVarStr);
 	      
-	      termList.add(*fWS.function(vname));
-	    }
-	    else	
-	      termList.add(*fWS.var(vname));
+// 	      termList.add(*fWS.function(vname));
+// 	    }
+// 	    else	
+// 	      termList.add(*fWS.var(vname));
 	    
-	  }
-	  else if( dynamic_cast<RooCategory*>(fWS.cat(vname))) termList.add(*fWS.cat(vname));
-	  else if ( dynamic_cast<RooFormulaVar*>(fWS.function(vname))) termList.add(*fWS.function(vname));
-	  else if ( dynamic_cast<RooAbsReal*>(fWS.function(vname))) termList.add(*fWS.function(vname)); //for function vars
-	  else{
-	    fWS.Print("v");
-	    Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
-	  }
-	}
-	//std::cout <<" term list "<<std::endl;termList.Print("v");
-	compsLists.push_back(termList);//add this term to the components list
-	delete termStrings;
-      }
-      delete compStrings;
-      //std::cout<<"Create "<<pdfName<<std::endl;
-      //create pdf and import to workspace
-      auto pdf=new RooComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
-      fNeedToDeleteThis.Add(pdf);
-      //std::cout<<"Import "<<pdf->GetName()<<std::endl;
-      fWS.import(*pdf,RooFit::Silence(),RooFit::RecycleConflictNodes());
-      //std::cout<<"Imported "<<pdf->GetName()<<std::endl;
-      return pdf;
-    }
-    //////////////////////////////////////////////////////////
-    ///Create the PDF sum for Extended ML fit
-    void Setup::TotalPDF(){
+// 	  }
+// 	  else if( dynamic_cast<RooCategory*>(fWS.cat(vname))) termList.add(*fWS.cat(vname));
+// 	  else if ( dynamic_cast<RooFormulaVar*>(fWS.function(vname))) termList.add(*fWS.function(vname));
+// 	  else if ( dynamic_cast<RooAbsReal*>(fWS.function(vname))) termList.add(*fWS.function(vname)); //for function vars
+// 	  else{
+// 	    fWS.Print("v");
+// 	    Fatal("RooAbsPdf* Setup::ComponentsPDF(TString opt)",Form("variable %s not found",vname.Data()),"");
+// 	  }
+// 	}
+// 	//std::cout <<" term list "<<std::endl;termList.Print("v");
+// 	compsLists.push_back(termList);//add this term to the components list
+// 	delete termStrings;
+//       }
+//       delete compStrings;
+//       //std::cout<<"Create "<<pdfName<<std::endl;
+//       //create pdf and import to workspace
+//       auto pdf=new RooComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
+//       fNeedToDeleteThis.Add(pdf);
+//       //std::cout<<"Import "<<pdf->GetName()<<std::endl;
+//       fWS.import(*pdf,RooFit::Silence(),RooFit::RecycleConflictNodes());
+//       //std::cout<<"Imported "<<pdf->GetName()<<std::endl;
+//       return pdf;
+//     }
+//     //////////////////////////////////////////////////////////
+//     ///Create the PDF sum for Extended ML fit
+//     void Setup::TotalPDF(){
   
-      //if(fModel)fModel->Print();
-      if(fModel){delete fModel;}
-      //Construct a total PDF whcih is the sum of the species PDFs
-      fModel=new RooAddPdf(fName+"TotalPDF","total model",
-			   fPDFs, 
-			   fYields);
-      //fModel->Print();
-      AddFitOption(RooFit::Extended());
-    }
-    //////////////////////////////////////////////////////////
-    Double_t Setup::SumOfYields(){
-      //fYields.Print("v");
-      //fParsAndYields.Print("v");
-      Double_t sum=0;
-      // TIter iter=fYields.createIterator();
-      //      while(auto* arg=dynamic_cast<RooRealVar*>(iter()))
-      for(auto* arg:fYields){
-	auto arg_var = dynamic_cast<RooRealVar*>(arg);
-	if(arg_var==nullptr) continue;
-	sum+=arg_var->getValV();
-      }
-      return sum;
+//       //if(fModel)fModel->Print();
+//       if(fModel){delete fModel;}
+//       //Construct a total PDF whcih is the sum of the species PDFs
+//       fModel=new RooAddPdf(fName+"TotalPDF","total model",
+// 			   fPDFs, 
+// 			   fYields);
+//       //fModel->Print();
+//       AddFitOption(RooFit::Extended());
+//     }
+//     //////////////////////////////////////////////////////////
+//     Double_t Setup::SumOfYields(){
+//       //fYields.Print("v");
+//       //fParsAndYields.Print("v");
+//       Double_t sum=0;
+//       // TIter iter=fYields.createIterator();
+//       //      while(auto* arg=dynamic_cast<RooRealVar*>(iter()))
+//       for(auto* arg:fYields){
+// 	auto arg_var = dynamic_cast<RooRealVar*>(arg);
+// 	if(arg_var==nullptr) continue;
+// 	sum+=arg_var->getValV();
+//       }
+//       return sum;
  
-    }
-    RooArgSet& Setup::Cats(){
-      if(fCats.getSize())
-	return fCats;
-      fCats.add(MakeArgSet(fFitCats));
-      return fCats;
-    }
-    RooArgSet& Setup::DataVars(){
-      fVars.removeAll();
-      fVars.add(MakeArgSet(fFitVars));
-      fVars.add(MakeArgSet(fFitCats));
-      fVars.add(MakeArgSet(fAuxVars));
-      if(!fWS.var(fIDBranchName)){
-	fWS.factory(fIDBranchName+"[0,9.99999999999999e14]");
-      }
-      fVars.add(*fWS.var(fIDBranchName));
-      return fVars;
-    }
-   RooArgSet& Setup::FitVarsAndCats(){
-      if(fVarsAndCats.getSize())
-	return fVarsAndCats;
-      fVarsAndCats.add(MakeArgSet(fFitVars));
-      fVarsAndCats.add(MakeArgSet(fFitCats));
-      return fVarsAndCats;
-    }
-   RooArgSet& Setup::ParsAndYields(){
-     //    fParsAndYields.clear();//DEBUG
-      if(fParsAndYields.getSize())
-	return fParsAndYields;
-      fParsAndYields.add(fParameters);
-      fParsAndYields.add(fYields);
-      return fParsAndYields;
-    }
-   RooArgSet& Setup::NonConstParsAndYields(){
-     fNCParsAndYields.clear();
-     for(auto par:fParameters){
-       if(par->isConstant()==false)
-	 fNCParsAndYields.add(*par);
-     }
-     for(auto par:fYields){
-       if(par->isConstant()==false)
-	 fNCParsAndYields.add(*par);
-     }
-     return fNCParsAndYields;
-   }
-    void Setup::CopyRealProperties(RooArgSet& change, const RooArgSet& tothis){
-      for(auto& arg : change){
-	auto rarg = dynamic_cast<RooRealVar*>(arg);
-	if(rarg==nullptr) continue;
-	auto carg = dynamic_cast<RooRealVar*>(tothis.find(arg->GetName()));
-	if(carg==nullptr) continue;
+//     }
+//     RooArgSet& Setup::Cats(){
+//       if(fCats.getSize())
+// 	return fCats;
+//       fCats.add(MakeArgSet(fFitCats));
+//       return fCats;
+//     }
+//     RooArgSet& Setup::DataVars(){
+//       fVars.removeAll();
+//       fVars.add(MakeArgSet(fFitVars));
+//       fVars.add(MakeArgSet(fFitCats));
+//       fVars.add(MakeArgSet(fAuxVars));
+//       if(!fWS.var(fIDBranchName)){
+// 	fWS.factory(fIDBranchName+"[0,9.99999999999999e14]");
+//       }
+//       fVars.add(*fWS.var(fIDBranchName));
+//       return fVars;
+//     }
+//    RooArgSet& Setup::FitVarsAndCats(){
+//       if(fVarsAndCats.getSize())
+// 	return fVarsAndCats;
+//       fVarsAndCats.add(MakeArgSet(fFitVars));
+//       fVarsAndCats.add(MakeArgSet(fFitCats));
+//       return fVarsAndCats;
+//     }
+//    RooArgSet& Setup::ParsAndYields(){
+//      //    fParsAndYields.clear();//DEBUG
+//       if(fParsAndYields.getSize())
+// 	return fParsAndYields;
+//       fParsAndYields.add(fParameters);
+//       fParsAndYields.add(fYields);
+//       return fParsAndYields;
+//     }
+//    RooArgSet& Setup::NonConstParsAndYields(){
+//      fNCParsAndYields.clear();
+//      for(auto par:fParameters){
+//        if(par->isConstant()==false)
+// 	 fNCParsAndYields.add(*par);
+//      }
+//      for(auto par:fYields){
+//        if(par->isConstant()==false)
+// 	 fNCParsAndYields.add(*par);
+//      }
+//      return fNCParsAndYields;
+//    }
+//     void Setup::CopyRealProperties(RooArgSet& change, const RooArgSet& tothis){
+//       for(auto& arg : change){
+// 	auto rarg = dynamic_cast<RooRealVar*>(arg);
+// 	if(rarg==nullptr) continue;
+// 	auto carg = dynamic_cast<RooRealVar*>(tothis.find(arg->GetName()));
+// 	if(carg==nullptr) continue;
 	
-	rarg->setBins(carg->getBins());
-      }
+// 	rarg->setBins(carg->getBins());
+//       }
       
-    }
+//     }
 
-    void Setup::OrganiseConstraints(){
+//     void Setup::OrganiseConstraints(){
 
-      _parConstraints.clear();
-      //Loop over paramters to see if they have constraints
-      for(Int_t ip=0;ip<fParameters.getSize();ip++){
-	RooRealVar *par=(dynamic_cast<RooRealVar*>(&fParameters[ip]));
-	//check if par this is fxed constant.
-	if(par->isConstant()){
-	  _parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
-	  continue;
-	}
-	//Look through constraints to see if one is defined for this parameter
-	Bool_t hadCon=kFALSE;
-	for(Int_t ic=0;ic<fConstraints.getSize();ic++){
+//       _parConstraints.clear();
+//       //Loop over paramters to see if they have constraints
+//       for(Int_t ip=0;ip<fParameters.getSize();ip++){
+// 	RooRealVar *par=(dynamic_cast<RooRealVar*>(&fParameters[ip]));
+// 	//check if par this is fxed constant.
+// 	if(par->isConstant()){
+// 	  _parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
+// 	  continue;
+// 	}
+// 	//Look through constraints to see if one is defined for this parameter
+// 	Bool_t hadCon=kFALSE;
+// 	for(Int_t ic=0;ic<fConstraints.getSize();ic++){
 	  
-	  RooAbsPdf *pdfCon=(dynamic_cast<RooAbsPdf*>(&fConstraints[ic]));
-	  auto obs=pdfCon->getObservables(fParameters);
-	  if(obs->contains(*par)){ //does it contain par?
+// 	  RooAbsPdf *pdfCon=(dynamic_cast<RooAbsPdf*>(&fConstraints[ic]));
+// 	  auto obs=pdfCon->getObservables(fParameters);
+// 	  if(obs->contains(*par)){ //does it contain par?
 
-	    auto randCons=std::unique_ptr<RandomConstrained>{new RandomConstrained{pdfCon,par,1000}};
-	    _parConstraints.push_back(std::move(randCons));
-	  // delete obs;
-	    hadCon=kTRUE;
-	    break;	    
-	  }
-	  delete obs;
-	}
-	//no constraint for this parameter
-      if(hadCon==kFALSE)_parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
+// 	    auto randCons=std::unique_ptr<RandomConstrained>{new RandomConstrained{pdfCon,par,1000}};
+// 	    _parConstraints.push_back(std::move(randCons));
+// 	  // delete obs;
+// 	    hadCon=kTRUE;
+// 	    break;	    
+// 	  }
+// 	  delete obs;
+// 	}
+// 	//no constraint for this parameter
+//       if(hadCon==kFALSE)_parConstraints.push_back(std::unique_ptr<RandomConstrained>{});
 
 	
-      }
-    }
+//       }
+//     }
     
-    void Setup::RandomisePars(){
-      if(_parConstraints.empty()) OrganiseConstraints();
-      if(_parConstraints.size()!=fParameters.getSize()){
-	std::cerr<<"Setup::RandomisePars() constraints mismatch "<<fParameters.getSize()<<" parameters with "<<_parConstraints.size()<<std::endl;
-	exit(0);
-      }
-         //randomise fit parameters
-      for(Int_t ip=0;ip<fParameters.getSize();ip++){
-	RooRealVar *par=(dynamic_cast<RooRealVar*>(&fParameters[ip]));
-	//check if par this is fxed constant.
-	if(par->isConstant()) continue;
+//     void Setup::RandomisePars(){
+//       if(_parConstraints.empty()) OrganiseConstraints();
+//       if(_parConstraints.size()!=fParameters.getSize()){
+// 	std::cerr<<"Setup::RandomisePars() constraints mismatch "<<fParameters.getSize()<<" parameters with "<<_parConstraints.size()<<std::endl;
+// 	exit(0);
+//       }
+//          //randomise fit parameters
+//       for(Int_t ip=0;ip<fParameters.getSize();ip++){
+// 	RooRealVar *par=(dynamic_cast<RooRealVar*>(&fParameters[ip]));
+// 	//check if par this is fxed constant.
+// 	if(par->isConstant()) continue;
 
-	if(_parConstraints[ip].get()!=nullptr){
+// 	if(_parConstraints[ip].get()!=nullptr){
 	
-	    //Yes, must generate random number from constraint
-	  // RooArgSet setPar(*par); //make an argset from this 1 par as needed for..
-	  //RooDataSet *oneEv=_parConstraints[ip]->generate(setPar,1); //gen 1 event
-	    //const RooArgSet* theEv = oneEv->get(); //get the event
-	    // par->setVal(theEv->getRealValue(par->GetName())); //get par value of event
-	    //setPar.removeAll();
-	    //delete oneEv;
-	  par->setVal(_parConstraints[ip]->get());
-	}
+// 	    //Yes, must generate random number from constraint
+// 	  // RooArgSet setPar(*par); //make an argset from this 1 par as needed for..
+// 	  //RooDataSet *oneEv=_parConstraints[ip]->generate(setPar,1); //gen 1 event
+// 	    //const RooArgSet* theEv = oneEv->get(); //get the event
+// 	    // par->setVal(theEv->getRealValue(par->GetName())); //get par value of event
+// 	    //setPar.removeAll();
+// 	    //delete oneEv;
+// 	  par->setVal(_parConstraints[ip]->get());
+// 	}
       
-	//If there was no constraint to select from just take random in range 
-	else par->setVal(gRandom->Uniform(par->getMin(""),par->getMax("")));
-      }//end Paramter loop
-    }
+// 	//If there was no constraint to select from just take random in range 
+// 	else par->setVal(gRandom->Uniform(par->getMin(""),par->getMax("")));
+//       }//end Paramter loop
+//     }
  
-    ////////////////////////////////////////////////////////////
-    RooStats::ModelConfig*  Setup::GetModelConfig(){
-      auto modelConfig =new RooStats::ModelConfig(&fWS);
-      modelConfig->SetParametersOfInterest(fParameters);
-      modelConfig->SetPdf(*fModel);
-      return modelConfig;
-    }
+//     ////////////////////////////////////////////////////////////
+//     RooStats::ModelConfig*  Setup::GetModelConfig(){
+//       auto modelConfig =new RooStats::ModelConfig(&fWS);
+//       modelConfig->SetParametersOfInterest(fParameters);
+//       modelConfig->SetPdf(*fModel);
+//       return modelConfig;
+//     }
 
-    ////////////////////////////////////////////////////////////
-    ///Utiltiy functions
-    RooArgSet MakeArgSet(realvars_t vars){
-      RooArgSet aset;
-      for(auto rv: vars)
-	aset.add(*rv);
-      return aset;
-    }
-    RooArgSet MakeArgSet(catvars_t cats){
-      RooArgSet aset;
-      for(auto rv: cats)
-	aset.add(*rv);
-      return aset;
-    }
-    void SetAllValLimits(RooArgList& items,Double_t val,Double_t low,Double_t high){
-      for(Int_t idr=0;idr<items.getSize();idr++){
-	auto item=dynamic_cast<RooRealVar*>( &items[idr]);
-	if(item){
-	  item->setVal(val);//get variable
-	  if(low!=high)
-	    item->setRange(low,high);
-	}
-      }
-    }
-    Bool_t ArgListContainsName(RooArgList& items,TString name){
-    for(Int_t idr=0;idr<items.getSize();idr++)
-      if(TString(items[idr].GetName())==name) return kTRUE;
+//     ////////////////////////////////////////////////////////////
+//     ///Utiltiy functions
+//     RooArgSet MakeArgSet(realvars_t vars){
+//       RooArgSet aset;
+//       for(auto rv: vars)
+// 	aset.add(*rv);
+//       return aset;
+//     }
+//     RooArgSet MakeArgSet(catvars_t cats){
+//       RooArgSet aset;
+//       for(auto rv: cats)
+// 	aset.add(*rv);
+//       return aset;
+//     }
+//     void SetAllValLimits(RooArgList& items,Double_t val,Double_t low,Double_t high){
+//       for(Int_t idr=0;idr<items.getSize();idr++){
+// 	auto item=dynamic_cast<RooRealVar*>( &items[idr]);
+// 	if(item){
+// 	  item->setVal(val);//get variable
+// 	  if(low!=high)
+// 	    item->setRange(low,high);
+// 	}
+//       }
+//     }
+//     Bool_t ArgListContainsName(RooArgList& items,TString name){
+//     for(Int_t idr=0;idr<items.getSize();idr++)
+//       if(TString(items[idr].GetName())==name) return kTRUE;
 
-      return kFALSE;
-    }
-    void ReadFormula(TString forma, strings_t& svars,strings_t& sranges){
+//       return kFALSE;
+//     }
+//     void ReadFormula(TString forma, strings_t& svars,strings_t& sranges){
       
-      svars.clear();
-      sranges.clear();
-      Bool_t addIt=kTRUE;
+//       svars.clear();
+//       sranges.clear();
+//       Bool_t addIt=kTRUE;
 
-      for(Int_t i=0;i<forma.Sizeof();i++){
-	if(TString(forma[i])=="@"){
-	  Int_t j=i;
-	  for(;j<forma.Sizeof();j++){
-	    if(TString(forma[j])=="["){
-	      TString varname=forma(i+1,j-i-1);
-	      if(std::find(svars.begin(),svars.end(),varname)==svars.end()){
-		svars.push_back(varname);
-		addIt=kTRUE;
-	      }
-	      else addIt=kFALSE;
-	      i=j;
-	      continue;
-	    }
-	    if(TString(forma[j])=="]"){
-	      if(addIt)sranges.push_back(forma(i,j-i+1));
-	      i=j;
-	      break;
-	    }
+//       for(Int_t i=0;i<forma.Sizeof();i++){
+// 	if(TString(forma[i])=="@"){
+// 	  Int_t j=i;
+// 	  for(;j<forma.Sizeof();j++){
+// 	    if(TString(forma[j])=="["){
+// 	      TString varname=forma(i+1,j-i-1);
+// 	      if(std::find(svars.begin(),svars.end(),varname)==svars.end()){
+// 		svars.push_back(varname);
+// 		addIt=kTRUE;
+// 	      }
+// 	      else addIt=kFALSE;
+// 	      i=j;
+// 	      continue;
+// 	    }
+// 	    if(TString(forma[j])=="]"){
+// 	      if(addIt)sranges.push_back(forma(i,j-i+1));
+// 	      i=j;
+// 	      break;
+// 	    }
 	    
-	  }
-	}
-      }
+// 	  }
+// 	}
+//       }
     
 
-    }
+//     }
 
     
-  }//namespace FIT
-}//namesapce HS
+//   }//namespace FIT
+// }//namesapce HS

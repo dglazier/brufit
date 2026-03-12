@@ -38,8 +38,8 @@
   //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance-based sampling, just perform basic stepping
   //RF.SetMinimiser(mcmc);
 
-  // Here::Go(&RF);
-  Proof::Go(&RF,5); //run proof with 5 workers
+  //Here::Go(&RF);
+  Multi::Go(&RF,5); //run proof with 5 workers
   gBenchmark->Show("timer");
 
   gBenchmark->Start("timer2");
