@@ -1,7 +1,6 @@
 //brufit  FitPeakHistBinsBoot.C
 {
-  //PROOF needs full paths!
-  
+   
   sPlot RF;
   RF.SetUp().SetOutDir("outPeakHistBinsBoot/");
   ///////////////////////////////Load Variables
@@ -24,14 +23,14 @@
   RF.SetUp().LoadSpeciesPDF("Signal",1); 
 
   //////////////////////////////Make background PDF
-  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::BG(Mmiss,alphaB[0,0,5],offB[0,0,0],scaleB[1.0,0.8,1.2])");
+  RF.SetUp().FactoryPDF("BruEventsHistPDF::BG(Mmiss,alphaB[0,0,5],offB[0,0,0],scaleB[1.0,0.8,1.2])");
   RF.SetUp().LoadSpeciesPDF("BG",1);
 
   ////////////////////////////Make Bins
   //RF.Bins().LoadBinVar("Eg",5,3,4);
 
   ////////////////////////////Make Bootstrap(before LoadData)
-  RF.Data().BootStrap(2);
+  RF.Data().BootStrap(100);
   //We want to run a standard fit first to
   //bootstrap around. Give name of Results directory and minimiser here
   // RF.InitPrevResult("/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/sPlotEventsPDF/outPeakHistBins","HSMinuit2");
@@ -51,8 +50,8 @@
   //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
   //RF.SetMinimiser(mcmc);
 
-  Here::Go(&RF);
-  //Proof::Go(&RF,8); //run proof with 8 workers
+  // Here::Go(&RF);
+  Multi::Go(&RF,10); //run nulti-core with 10 workers
   gBenchmark->Stop("timer");
   gBenchmark->Print("timer");
 

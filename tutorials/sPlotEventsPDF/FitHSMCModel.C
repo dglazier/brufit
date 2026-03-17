@@ -12,11 +12,11 @@
 
 
   //////////////////////////////Make signal PDF
-  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::Signal(Mmiss,smear_Sig[0,0,20],off_Sig[0,-2,2],scale_Sig[1,0.8,1.2])");
+  RF.SetUp().FactoryPDF("BruEventsHistPDF::Signal(Mmiss,smear_Sig[0,0,20],off_Sig[0,-2,2],scale_Sig[1,0.8,1.2])");
   RF.SetUp().LoadSpeciesPDF("Signal",1);
 
   //////////////////////////////Make background PDF
-  RF.SetUp().FactoryPDF("RooHSEventsHistPDF::BG(Mmiss,smear_Bkg[0,0,5],off_Bkg[0,0,0],scale_Bkg[1.0,0.8,1.2])");
+  RF.SetUp().FactoryPDF("BruEventsHistPDF::BG(Mmiss,smear_Bkg[0,0,5],off_Bkg[0,0,0],scale_Bkg[1.0,0.8,1.2])");
   RF.SetUp().LoadSpeciesPDF("BG",1);
 
 
@@ -29,8 +29,6 @@
   //Run the fit here
   //Or try an mcmc minimser 1000-># of points, 200->burnin 10 ~ 1/step size
 
-  RF.SetUp().ErrorsWrong();//"naive" error calculation, much faster
-  // RF.SetUp().AddFitOption(RooFit::NumCPU(4));
 
  //or try MCMC algorithm
 
