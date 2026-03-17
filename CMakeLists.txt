@@ -30,6 +30,14 @@ find_package(ROOT REQUIRED COMPONENTS
     Proof 
     Minuit2
 )
+# 1. Force CMake to default to Release mode (which uses -O3)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to 'Release' as none was specified.")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+# 2. Explicitly inherit ROOT's C++ flags to perfectly match your legacy build
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ROOT_CXX_FLAGS}")
 
 # Use the ROOT_USE_FILE (legacy but helpful for dictionary macros)
 include(${ROOT_USE_FILE})

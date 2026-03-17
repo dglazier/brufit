@@ -80,8 +80,8 @@ namespace HS{
 
       file_uptr file(TFile::Open(fileName,"recreate"));
       
-      fSetup->Parameters().Print();
-      fSetup->Yields().Print();
+      // fSetup->Parameters().Print();
+      //fSetup->Yields().Print();
       //save paramters and chi2s in  dataset (for easy merging)
       RooArgSet saveArgs(fSetup->Parameters());
       saveArgs.add(fSetup->Yields());

@@ -1,6 +1,10 @@
+/**
+ * @file BruEventsHistPeakPDF.h
+ */
+
 #pragma once
 
-#include "RooHSEventsHistPDF.h"
+#include "BruEventsHistPDF.h"
 #include <RooRealProxy.h>
 #include <RooCategoryProxy.h>
 #include <RooAbsReal.h>
@@ -12,29 +16,23 @@
 #include <RooAbsPdf.h>
 #include <TH2.h>
 
-
-namespace HS{
-  namespace FIT{
+namespace bru {
     
-    class BruEventsHistPeakPDF : public RooHSEventsHistPDF {
+    class BruEventsHistPeakPDF : public BruEventsHistPDF {
     public:
       
-      BruEventsHistPeakPDF() =default ; 
+        BruEventsHistPeakPDF() = default; 
        
-      BruEventsHistPeakPDF(const char *name, const char *title, RooAbsReal& _x,RooAbsReal& _alpha,RooAbsReal& _offset, RooAbsReal& _scale, Int_t applySmooth=1, Int_t interp=1, Int_t xbins=100, Int_t nsamp=1000, Int_t abins=200);
+        BruEventsHistPeakPDF(const char *name, const char *title, RooAbsReal& in_x, RooAbsReal& in_alpha, RooAbsReal& in_offset, RooAbsReal& in_scale, Int_t applySmooth=1, Int_t interp=1, Int_t xbins=100, Int_t nsamp=1000, Int_t abins=200);
       
-      BruEventsHistPeakPDF(const BruEventsHistPeakPDF& other, const char* name=nullptr) ;
-      TObject* clone(const char* newname) const override { return new BruEventsHistPeakPDF(*this,newname); }
-      ~BruEventsHistPeakPDF() =default;
+        BruEventsHistPeakPDF(const BruEventsHistPeakPDF& other, const char* name = nullptr);
+        TObject* clone(const char* newname) const override { return new BruEventsHistPeakPDF(*this, newname); }
+        ~BruEventsHistPeakPDF() override = default;
 
     protected:
-      void  FillBase1DHist(TH1D& his1) override;
+        void FillBase1DHist(TH1D& his1) override;
       
-      ClassDefOverride(HS::FIT::BruEventsHistPeakPDF,1); 
-    };//Class
+        ClassDefOverride(bru::BruEventsHistPeakPDF, 1); 
+    };
 
-    
-  }//namespace FIT
-}//namespace HS
-
- 
+} // namespace bru

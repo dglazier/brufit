@@ -69,19 +69,16 @@ namespace FIT {
 
     void DataEvents::LoadWeights(TString wname, TString fname, TString wobj) {
         fWgtsConf = WeightsConfig{std::move(wname), std::move(fname), std::move(wobj)};
-        LoadWeights();
-    }
-    
-    void DataEvents::LoadWeights() {
-        fInWeights = std::make_shared<Weights>();
-        fInWeights->LoadSavedDisc(fWgtsConf.File(), fWgtsConf.ObjName());
-        fInWeights->PrintWeight();
         
         fInWeightName = fWgtsConf.Species().Data();
         fInWeightFile = fWgtsConf.File().Data();
         fInWeightObjName = fWgtsConf.ObjName().Data();
         
-        std::cout << "  DataEvents::LoadWeights using " << fInWeightName 
+        // Construct the dummy variable ONCE here, thread-safely. 
+        // It will be shared across workers, but RooDataSet takes its own copy upon import.
+        fWeightVar = std::make_shared<RooRealVar>(fInWeightName, fInWeightName, 0);
+        
+        std::cout << "  DataEvents::LoadWeights configured using " << fInWeightName 
                   << " weights from " << fWgtsConf.File() << " " << fWgtsConf.ObjName() << std::endl;
     }
  
@@ -93,41 +90,38 @@ namespace FIT {
         if (fFileNames.size() <= iset) return dset_uptr();
       
         std::cout << " RooAbsData& DataEvents::Get " << fFileNames[iset] 
-                  << " tree " << fTreeName << " weights " << fInWeights.get() 
-                  << " " << fInWeightName << std::endl;
+                  << " tree " << fTreeName << " applying weights: " 
+                  << (fInWeightName != TString() ? fInWeightName.Data() : "None") << std::endl;
 
         // --- TRANSIENT FILE HANDLING ---
-        // By keeping the filetree entirely local to this function, we guarantee 
-        // that file pointers are never serialized or copied across threads.
-        // RAII ensures the TFile is automatically closed when this function exits.
         auto filetree = FiledTree::Read(fTreeName, fFileNames[iset]); 
-  
         auto rawtree = filetree->Tree().get();
         auto vars = fSetup->DataVars();
      
-        // Load external weights if configured but not yet resident in memory
-        if (!fInWeights.get() && fInWeightName != TString()) { 
-            LoadWeights();
-        }
-
         const char* useWeightName = nullptr;
         
-        if (fInWeights.get()) {
-            // Create a temporary cloned tree to append the weights to.
-            // Saved directly to disk to prevent RAM exhaustion on massive datasets.
-            auto weightedFileTree = FiledTree::CloneFull(rawtree, fSetup->GetOutDir() + Form("/DataInWeightedTree%d.root", iset));
+        // By instantiating a local 'Weights' object, we completely avoid thread collisions 
+        if (fInWeightName != TString()) { 
+            Weights localWeights;
+            localWeights.LoadSavedDisc(fInWeightFile, fInWeightObjName);
+            
+            // Note: Added an extra random memory identifier to the file name to prevent 
+            // any fringe chance of two threads processing the same iset and colliding on disk.
+            TString tempFileName = fSetup->GetOutDir() + Form("/DataInWeightedTree_%d_%p.root", iset, (void*)rawtree);
+            auto weightedFileTree = FiledTree::CloneFull(rawtree, tempFileName);
             
             // Safely transfer ownership to our local RAII wrapper
             filetree = std::move(weightedFileTree);
             rawtree = filetree->Tree().get();	
             
-            fInWeights->AddToTree(rawtree);	
-            fWeightVar = std::make_unique<RooRealVar>(fInWeightName, fInWeightName, 0);
+            localWeights.AddToTree(rawtree);	
+            
+            // Add the pre-configured weight variable
             vars.add(*fWeightVar.get());
             useWeightName = fInWeightName.Data(); 
         }
      
-        // Only activate branches explicitly required by the PDF model (drastically speeds up RooDataSet import)
+        // Only activate branches explicitly required by the PDF model
         rawtree->SetBranchStatus("*", false);
         for (auto* arg : vars) {
             rawtree->SetBranchStatus(arg->GetName(), true);	
@@ -141,18 +135,12 @@ namespace FIT {
             RooFit::WeightVar(useWeightName)
         );
 
-        // Explicitly clear transient weights memory once applied to the dataset
-        if (fInWeights.get()) {
-            fInWeights.reset();
-        }		
-     
         ds->Print();
         return ds; 
     }
    
 } // namespace FIT
 } // namespace HS
-
 
 // #include "Data.h"
 

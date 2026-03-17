@@ -8,7 +8,7 @@ namespace HS{
 
 
     FiledTree::~FiledTree(){
-      std::cout<<"FiledTree::~FiledTree()  tree name "<<fTree->GetName()<<" "<<fTree->GetEntries()<<" "<<fFile->GetName()<<endl;
+      //  std::cout<<"FiledTree::~FiledTree()  tree name "<<fTree->GetName()<<" "<<fTree->GetEntries()<<" "<<fFile->GetName()<<endl;
       if(fMode==Mode_t::recreate||fMode==Mode_t::create||
 	 fMode==Mode_t::update||fMode==Mode_t::copyfull||
 	 fMode==Mode_t::copyempty){

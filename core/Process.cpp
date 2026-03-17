@@ -25,7 +25,9 @@ namespace PROCESS {
         
         Int_t nFits = fm->GetN();
         if (nFits == 0) return;
-
+	
+	ROOT::EnableThreadSafety();
+ 
         std::vector<Int_t> fitIndices(nFits);
         std::iota(fitIndices.begin(), fitIndices.end(), 0);
 
@@ -50,7 +52,7 @@ namespace PROCESS {
             
             // Reconstruct worker state safely
             FitManager workerFm(*fm);
-            workerFm.LoadData(fm->GetDataTreeName(), fm->GetDataFileNames());
+	    // workerFm.LoadData(fm->GetDataTreeName(), fm->GetDataFileNames());
             workerFm.Data().LoadSetup(&workerFm.SetUp());
             
             // Redirect output so Minuit doesn't spam the console

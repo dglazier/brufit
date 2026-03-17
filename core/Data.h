@@ -28,7 +28,6 @@ namespace FIT {
 
     // Modern C++ Type Aliases
     using strings_t   = std::vector<TString>;
-    using weights_ptr = std::shared_ptr<HS::FIT::Weights>;
     using dset_uptr   = std::unique_ptr<RooDataSet>;
     using roodsets_t  = std::vector<RooDataSet*>;
     
@@ -55,8 +54,7 @@ namespace FIT {
      * @brief Concrete implementation for handling unbinned event data.
      * @details Manages the translation of raw TTrees into RooDataSets. 
      * Uses transient file pointers to ensure the class can be cleanly 
-     * copied across isolated worker processes (TProcessExecutor) without 
-     * triggering unique_ptr or ROOT file handle collisions.
+     * copied across isolated worker processes without file handle collisions.
      */
     class DataEvents : public FitData {
       
@@ -66,7 +64,7 @@ namespace FIT {
         /** @brief Constructs a data manager pointing to specific ROOT files. */
         DataEvents(Setup& setup, TString tname, const strings_t& files);
 
-        // Standard Rule of 5 semantics (now completely safe due to removal of uncopyable vectors)
+        // Standard Rule of 5 semantics
         DataEvents(const DataEvents&) = default;
         DataEvents& operator=(const DataEvents& other) = default;
         DataEvents(DataEvents&&) = default;
@@ -120,9 +118,6 @@ namespace FIT {
         void LoadWeights(TString wname, TString fname, TString wobj = "HSsWeights");
         ///@}
       
-    protected:
-        void LoadWeights();
-
     private:
         HS::FIT::Setup* fSetup = nullptr;          ///<! Pointer to the active fit configuration
         strings_t fFileNames;                      ///< List of paths to the data ROOT files
@@ -138,16 +133,16 @@ namespace FIT {
         Int_t fNBoots = -1;
         Int_t fNToys = -1;
         
-        weights_ptr fInWeights;                    ///<! Transient weights object loaded from disk
         WeightsConfig fWgtsConf;                   ///< Metadata for locating external weights
 
-        std::shared_ptr<RooRealVar> fWeightVar;    ///<! Variable representing the applied weight
+        std::shared_ptr<RooRealVar> fWeightVar;    ///< Safely shared variable representing the applied weight
       
         ClassDefOverride(HS::FIT::DataEvents, 1);
     };
     
 } // namespace FIT
 } // namespace HS
+
 
 // ////////////////////////////////////////////////////////////////
 // ///

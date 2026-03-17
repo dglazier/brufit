@@ -51,6 +51,7 @@
 #pragma link C++ class HS::FIT::RooHSEventsHistPDF+;
 #pragma link C++ class HS::FIT::BruEventsHistPeakPDF+;
 #pragma link C++ class HS::FIT::RooHSEventsPDF+;
+#pragma link C++ class HS::FIT::RooPDF+;
 #pragma link C++ class HS::FIT::RooMcmc+;
 #pragma link C++ class HS::FIT::RooMcmcSeq+;
 #pragma link C++ class HS::FIT::RooMcmcSeqHelper+;
@@ -77,6 +78,13 @@
 #pragma link C++ class HS::FIT::GaussianConstraint+;
 #pragma link C++ class HS::FIT::PhotoTwoSpin0Amps+;
 #pragma link C++ class HS::FIT::PhotoSpin1Spin0Amps+;
+#pragma link C++ class HS::FIT::MCEventCache+;
+#pragma link C++ class HS::FIT::BruEventsPDF+;
+#pragma link C++ class bru::BruEventsPDF+;
+#pragma link C++ class bru::BruComponentsPDF+;
+#pragma link C++ class bru::BruEventsHistPDF+;
+#pragma link C++ class bru::BruEventsHistPeakPDF+;
+
 #pragma link C++ defined_in "PredefinedParsers.h";
 //#pragma link C++ class HS::FIT::+;
 

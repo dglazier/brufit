@@ -7,9 +7,13 @@
 
 #include "FitManager.h"
 
-#include "RooHSEventsPDF.h"
-#include "RooHSEventsHistPDF.h"
-#include "RooComponentsPDF.h"
+// --- NEW BRU NAMESPACE INCLUDES ---
+#include "BruEventsPDF.h"
+#include "BruEventsHistPDF.h"
+//#include "BruComponentsPDF.h"
+//#include "RooHSEventsPDF.h"
+//#include "RooHSEventsHistPDF.h"
+//#include "RooComponentsPDF.h"
 #include "AmpMinuit2.h" // Ensure the default minimizer is included
 
 #include <TSystem.h>
@@ -27,7 +31,7 @@ namespace FIT {
     // Constructors & Assignment Operators
     // ========================================================================
 
- FitManager::FitManager(const FitManager& other) : TNamed(other.fName, other.fTitle) {
+    FitManager::FitManager(const FitManager& other) : TNamed(other.fName, other.fTitle) {
         fSetup = other.fSetup;
         fBinner = other.fBinner;
         fData = other.fData;
@@ -59,8 +63,8 @@ namespace FIT {
             TNamed::operator=(other); 
             fSetup = other.fSetup;
             fBinner = other.fBinner;
-	    fData = other.fData;
-           fPlotOptions = other.fPlotOptions;
+            fData = other.fData;
+            fPlotOptions = other.fPlotOptions;
             fUsePrevResult = other.fUsePrevResult;
             fPrevResultDir = other.fPrevResultDir;
             fPrevResultMini = other.fPrevResultMini;
@@ -95,7 +99,7 @@ namespace FIT {
     
         // Get dataset for the current bin (fFiti)
         fCurrDataSet = std::move(Data().Get(fFiti));
-	std::cout << " FitManager::Run()  "<< fCurrDataSet.get() <<std::endl;
+        std::cout << " FitManager::Run()  "<< fCurrDataSet.get() <<std::endl;
  
         std::cout << "fCurrDataSet->numEntries() = " << fCurrDataSet->numEntries() << std::endl;
         
@@ -110,12 +114,12 @@ namespace FIT {
             return kFALSE;
         }
  
-        // Look for Special case of RooHSEventsPDFs and initialize them
+        // Look for Special case of BruEventsPDFs and initialize them
         FillEventsPDFs();
  
         // Add external fit constraints
         fCurrSetup->AddFitOption(RooFit::ExternalConstraints(fCurrSetup->Constraints()));
-      
+        
         // Initialise species yields based on dataset entries
         if (fCurrSetup->Yields().getSize() == 1) { 
             // Special case: only 1 yield
@@ -126,7 +130,7 @@ namespace FIT {
                             fCurrDataSet->sumEntries() / 2, 0, 
                             fCurrDataSet->sumEntries() * fYldMaxFactor);
         }
-      
+        
         // Create extended maximum likelihood PDF
         fCurrSetup->TotalPDF();
         
@@ -185,7 +189,7 @@ namespace FIT {
         // Fallback to Minuit2 if no minimizer was specified
         if (!fMinimiser) SetMinimiser(std::make_unique<HS::FIT::Minuit2>());
 
-	if (fuseBinnedFit == kFALSE) {
+        if (fuseBinnedFit == kFALSE) {
             fMinimiser->Run(*fCurrSetup, *fCurrDataSet);
         } else {
             // binnedClone() is a RooDataSet method. We must downcast first.
@@ -197,8 +201,6 @@ namespace FIT {
                 fMinimiser->Run(*fCurrSetup, *fCurrDataSet);
             }
         }
-
- 
         
         // Plot best fit and return
         if (fDoPlotting) PlotDataModel();
@@ -212,9 +214,13 @@ namespace FIT {
         UInt_t idata = GetDataBin(fFiti);
         auto& pdfs = fCurrSetup->PDFs();
         auto savedir = gDirectory;
-      
+        
         for (Int_t ip = 0; ip < pdfs.getSize(); ip++) {
-            auto pdf = dynamic_cast<RooHSEventsPDF*>(&pdfs[ip]);
+            
+            // --- UPDATED: Use bru::BruEventsPDF ---
+            auto pdf = dynamic_cast<bru::BruEventsPDF*>(&pdfs[ip]);
+	  // auto pdf = dynamic_cast<RooHSEventsPDF*>(&pdfs[ip]);
+            
             if (pdf != nullptr) {
                 // Set truth prefix for MC
                 pdf->SetTruthPrefix(fTruthPrefix);
@@ -227,13 +233,13 @@ namespace FIT {
                     fBinner.FileNames(pdf->GetName())[idata]
                 );
                 auto tree = filetree->Tree();
-	
+    
                 auto mcgenfiletree = (fBinner.FileNames(pdf->GetName() + TString("__MCGen")).empty() ? 
                     nullptr : 
                     FiledTree::Read(fBinner.TreeName(pdf->GetName() + TString("__MCGen")), fBinner.FileNames(pdf->GetName() + TString("__MCGen"))[idata])
                 );
                 auto mcgentree = (mcgenfiletree ? mcgenfiletree->Tree() : nullptr);
-	  
+      
                 savedir->cd();
                 
                 if (!tree.get()) {
@@ -251,12 +257,13 @@ namespace FIT {
                     ip--;
                 } else { 
                     // Use it and pass the simulated tree
+                    // (SetEvTree automatically extracts to MCEventCache under the hood)
                     pdf->SetInWeights(fCurrSetup->GetPDFInWeights(pdf->GetName()));
                     pdf->SetEvTree(tree.get(), fCurrSetup->Cut(), mcgentree.get());
 
                     // See if data to load for proto data
                     if (!fCurrDataSet) fCurrDataSet = std::move(Data().Get(idata));
-                    //if (fCurrDataSet) pdf->AddProtoData(fCurrDataSet.get());
+                    
                     if (fCurrDataSet) {
                         if (auto* unbinnedData = dynamic_cast<RooDataSet*>(fCurrDataSet.get())) {
                             pdf->AddProtoData(unbinnedData);
@@ -264,8 +271,12 @@ namespace FIT {
                             std::cerr << "WARNING: AddProtoData requires an unbinned RooDataSet." << std::endl;
                         }
                     }
-                    RooHSEventsHistPDF* histspdf = nullptr;
-                    if ((histspdf = dynamic_cast<RooHSEventsHistPDF*>(pdf))) {
+                    
+                    // --- UPDATED: Use bru::BruEventsHistPDF ---
+                    bru::BruEventsHistPDF* histspdf = nullptr;
+                    if ((histspdf = dynamic_cast<bru::BruEventsHistPDF*>(pdf))) {
+		      //RooHSEventsHistPDF* histspdf = nullptr;
+		      //if ((histspdf = dynamic_cast<RooHSEventsHistPDF*>(pdf))) {
                         histspdf->CreateHistPdf();
                         fCurrSetup->AddGausConstraint(histspdf->AlphaConstraint());
                         fCurrSetup->AddGausConstraint(histspdf->OffConstraint());
@@ -277,16 +288,16 @@ namespace FIT {
                 }
                 
                 // Keep the simulated tree alive until Reset() is called
-                fFiledTrees.push_back(std::move(filetree));	
+                fFiledTrees.push_back(std::move(filetree));    
                 if (mcgenfiletree) {
-                    fFiledTrees.push_back(std::move(mcgenfiletree));	  
+                    fFiledTrees.push_back(std::move(mcgenfiletree));    
                 }
             }
         }
         savedir->cd();
     }
 
- void FitManager::PlotDataModel() {
+    void FitManager::PlotDataModel() {
         // Cast the dataset. If it's a binned RooDataHist, this becomes nullptr,
         // so ensure your Plot classes check for null!
         auto* dataset = dynamic_cast<RooDataSet*>(fCurrDataSet.get());
@@ -383,8 +394,8 @@ namespace FIT {
     }
 
     void FitManager::RedirectOutput(const TString& log) {
-        const char* mess = Form("text output will be sent to file %s", log.Data());
-        std::cout << "FitManager::RedirectOutput " << mess << std::endl;
+      //const char* mess = Form("text output will be sent to file %s", log.Data());
+      // std::cout << "FitManager::RedirectOutput " << mess << std::endl;
         
         if (log == TString("")) {
             gSystem->RedirectOutput(nullptr, "w");
@@ -407,7 +418,6 @@ namespace FIT {
 
 } // namespace FIT
 } // namespace HS
-
 
 // #include "FitManager.h"
 

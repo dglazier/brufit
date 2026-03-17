@@ -6,8 +6,8 @@
 #include "Setup.h"
 #include "Weights.h"
 #include "RooHSComplex.h"
-#include "RooHSEventsPDF.h"
-#include "RooComponentsPDF.h"
+#include "BruEventsPDF.h"
+#include "BruComponentsPDF.h"
 #include <RooGenericPdf.h>
 #include <RooAbsData.h>
 #include <RooDataSet.h>
@@ -16,7 +16,7 @@
 
 namespace HS {
 namespace FIT {
-
+  using namespace bru;
     // ========================================================================
     // Constructors & Thread-Safe Copy Semantics
     // ========================================================================
@@ -279,17 +279,17 @@ namespace FIT {
             opt = opt(0, opt.First("$"));
 
             RooAbsArg* pdf = nullptr;
-            if (opt.Contains("RooComponentsPDF")) pdf = ComponentsPDF(opt);
+            if (opt.Contains("BruComponentsPDF")) pdf = ComponentsPDF(opt);
             else pdf = fWS.factory(opt);
 
-            // Weights are mapped specifically for RooHSEventsPDFs
-            if (auto *evPdf = dynamic_cast<RooHSEventsPDF*>(pdf)) {
+            // Weights are mapped specifically for BruEventsPDFs
+            if (auto *evPdf = dynamic_cast<BruEventsPDF*>(pdf)) {
                 fPDFInWeights[evPdf->GetName()] = wopt;
             } else {	
-                cout << "WARNING Setup::FactoryPDF trying to give weights to non RooHSEventsPDF " << opt << " " << wopt << endl;
+                cout << "WARNING Setup::FactoryPDF trying to give weights to non BruEventsPDF " << opt << " " << wopt << endl;
             }	
         } else {
-            if (opt.Contains("RooComponentsPDF")) ComponentsPDF(opt);
+            if (opt.Contains("BruComponentsPDF")) ComponentsPDF(opt);
             else fWS.factory(opt);
         }
     }
@@ -322,7 +322,7 @@ namespace FIT {
 
     void Setup::LoadSpeciesPDF(TString opt, Float_t Scale0) {
         auto* pdf = reinterpret_cast<RooGenericPdf*>(fWS.pdf(opt)->clone());
-        fPDFs.addOwned(*pdf);
+       fPDFs.addOwned(*pdf);
 
         auto dataVarsPdf = *(fPDFs.find(opt)->getParameters(DataVars()));
         for (auto& extra : dataVarsPdf) {
@@ -339,7 +339,7 @@ namespace FIT {
     }
 
     RooAbsPdf* Setup::ComponentsPDF(TString opt) {
-        opt.ReplaceAll("RooComponentsPDF::", "");
+        opt.ReplaceAll("BruComponentsPDF::", "");
         opt.ReplaceAll(" ", "");
         TString pdfName = opt(0, opt.First("("));
       
@@ -348,7 +348,7 @@ namespace FIT {
       
         TString sobs = opt(opt.First("{") + 1, opt.First("}") - opt.First("{") - 1);
         auto obsStrings = sobs.Tokenize(",");
-        RooArgList obsList("RooComponentsPDF::ComponentObservables");
+        RooArgList obsList("BruComponentsPDF::ComponentObservables");
       
         RooArgSet varsAndCatsAndPars(FitVarsAndCats());
         varsAndCatsAndPars.add(Parameters());
@@ -369,7 +369,7 @@ namespace FIT {
         for (Int_t i = 0; i < compStrings->GetEntries(); i++) {
             auto compo = TString(compStrings->At(i)->GetName());
             compo.ReplaceAll(";", "*");
-            RooArgList termList(Form("RooComponentsPDF::Term%d", ic++));
+            RooArgList termList(Form("BruComponentsPDF::Term%d", ic++));
             TString term = compStrings->At(i)->GetName();
             auto termStrings = term.Tokenize(";");
         
@@ -408,7 +408,7 @@ namespace FIT {
         }
         delete compStrings;
 
-        auto pdf = new RooComponentsPDF(pdfName, pdfName, baseLine, obsList, compsLists);
+        auto pdf = new BruComponentsPDF(pdfName, pdfName, baseLine, obsList, compsLists);
         
         // Ownership passed to Workspace upon import; legacy list catches any edges cases
         fNeedToDeleteThis.Add(pdf); 
@@ -660,8 +660,8 @@ namespace FIT {
 // #include "Setup.h"
 // #include "Weights.h"
 // #include "RooHSComplex.h"
-// #include "RooHSEventsPDF.h"
-// #include "RooComponentsPDF.h"
+// #include "BruEventsPDF.h"
+// #include "BruComponentsPDF.h"
 // #include <RooGenericPdf.h>
 // #include <RooAbsData.h>
 // #include <RooDataSet.h>
@@ -1012,7 +1012,7 @@ namespace FIT {
 
 // 	RooAbsArg* pdf=nullptr;
 // 	//Checck for special non-RooFit PDFs
-// 	if(opt.Contains("RooComponentsPDF")){
+// 	if(opt.Contains("BruComponentsPDF")){
 // 	  pdf=ComponentsPDF(opt);
 // 	}
 // 	else	//create PDF as normal
@@ -1021,19 +1021,19 @@ namespace FIT {
 
 // 	///////////////////////////////////
 // 	//check if EventsPDF
-// 	auto *evPdf=dynamic_cast<RooHSEventsPDF*>(pdf);
+// 	auto *evPdf=dynamic_cast<BruEventsPDF*>(pdf);
 // 	if(evPdf){
 // 	  // evPdf->SetInWeights(wgtcon);
 // 	  fPDFInWeights[evPdf->GetName()]=wopt;
 // 	}	
 // 	else{	
-// 	  cout<<	"WARNING Setup::FactoryPDF trying to give weights to non RooHSEventsPDF "<< opt<<" "<<wopt<<endl;
+// 	  cout<<	"WARNING Setup::FactoryPDF trying to give weights to non BruEventsPDF "<< opt<<" "<<wopt<<endl;
 // 	}	
 //       }
 //       else{
 // 	RooAbsArg* pdf=nullptr;
 // 	//Check for special non-RooFit PDFs
-// 	if(opt.Contains("RooComponentsPDF")){
+// 	if(opt.Contains("BruComponentsPDF")){
 // 	  pdf=ComponentsPDF(opt);
 // 	}
 // 	else	//create PDF as normal
@@ -1120,7 +1120,7 @@ namespace FIT {
 //     //////////////////////////////////////////////////////////
 //     ///Special ComponentsPDF factory
 //     RooAbsPdf* Setup::ComponentsPDF(TString opt){
-//       opt.ReplaceAll("RooComponentsPDF::","");
+//       opt.ReplaceAll("BruComponentsPDF::","");
 //       opt.ReplaceAll(" ","");
 //       TString pdfName=opt(0,opt.First("("));
 //       // fWS.Print();
@@ -1131,7 +1131,7 @@ namespace FIT {
 //       //make observable list
 //       TString sobs=opt(opt.First("{")+1,opt.First("}")-opt.First("{")-1);
 //       auto obsStrings=sobs.Tokenize(",");
-//       RooArgList obsList("RooComponentsPDF::ComponentObservables");
+//       RooArgList obsList("BruComponentsPDF::ComponentObservables");
       
 //       RooArgSet varsAndCatsAndPars(FitVarsAndCats());
 //       varsAndCatsAndPars.add(Parameters());
@@ -1162,7 +1162,7 @@ namespace FIT {
 // 	auto compo = TString(compStrings->At(i)->GetName());
 // 	compo.ReplaceAll(";","*");
 // 	//	cout<<" Setup::ComponentsPDF component    "<<i<<" "<<compo<<endl;
-// 	RooArgList termList(Form("RooComponentsPDF::Term%d",ic++));
+// 	RooArgList termList(Form("BruComponentsPDF::Term%d",ic++));
 // 	TString term = compStrings->At(i)->GetName();
 // 	auto termStrings=term.Tokenize(";");
 // 	for( Int_t j=0;j<termStrings->GetEntries();j++ ){
@@ -1209,7 +1209,7 @@ namespace FIT {
 //       delete compStrings;
 //       //std::cout<<"Create "<<pdfName<<std::endl;
 //       //create pdf and import to workspace
-//       auto pdf=new RooComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
+//       auto pdf=new BruComponentsPDF(pdfName,pdfName,baseLine,obsList,compsLists);
 //       fNeedToDeleteThis.Add(pdf);
 //       //std::cout<<"Import "<<pdf->GetName()<<std::endl;
 //       fWS.import(*pdf,RooFit::Silence(),RooFit::RecycleConflictNodes());

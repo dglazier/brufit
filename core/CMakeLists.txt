@@ -18,6 +18,7 @@ set(DICTIONARY_HEADERS
     BruMetropolisHastings.h BruMcmc.h HSMetropolisHastings.h 
     Process.h FitSelector.h PhotoTwoSpin0Amps.h 
     PhotoSpin1Spin0Amps.h Utilities.h
+    MCEventCache.h BruEventsPDF.h BruComponentsPDF.h BruEventsHistPDF.h
 )
 
 ROOT_GENERATE_DICTIONARY(G__${BRUFIT_LIB} ${DICTIONARY_HEADERS} LINKDEF BruFitLinkDef.h)
@@ -35,7 +36,8 @@ add_library(${BRUFIT_LIB} SHARED
     RooMcmc.cpp AmpMinuit2.cpp AmpMcmc.cpp BruSequentialProposal.cpp 
     BruCovarianceProposal.cpp BruMetropolisHastings.cpp BruMcmc.cpp 
     HSMetropolisHastings.cpp Process.cpp FitSelector.cpp 
-    PhotoTwoSpin0Amps.cpp PhotoSpin1Spin0Amps.cpp 
+    PhotoTwoSpin0Amps.cpp PhotoSpin1Spin0Amps.cpp
+    MCEventCache.cpp BruEventsPDF.cpp BruComponentsPDF.cpp BruEventsHistPDF.cpp
     G__${BRUFIT_LIB}.cxx
 )
 
