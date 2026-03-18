@@ -12,7 +12,7 @@
 
 
   //////////////////////////////Make signal PDF
-  RF.SetUp().FactoryPDF("BruEventsHistPDF::Signal(Mmiss,smear_Sig[0,0,20],off_Sig[0,-2,2],scale_Sig[1,0.8,1.2])");
+  RF.SetUp().FactoryPDF("BruEventsHistPDF::Signal(Mmiss,smear_Sig[0,0,5],off_Sig[0,-2,2],scale_Sig[1,0.8,1.2])");
   RF.SetUp().LoadSpeciesPDF("Signal",1);
 
   //////////////////////////////Make background PDF

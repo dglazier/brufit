@@ -35,6 +35,9 @@ namespace bru {
         Double_t analyticalIntegral(Int_t code, const char* rangeName) const override;
         Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const override;
 
+        // --- ADDED: AVX2 Vectorized Batch Engine ---
+        void doEval(RooFit::EvalContext & ctx) const override;
+
         void HistIntegrals(const char* rangeName) const override;
         void CalcWeightedBaseLine(const char* rangeName) const;
       
@@ -150,7 +153,6 @@ namespace bru {
 /*         using vecUPtrReal = std::vector<unique_ptr<RooRealProxy>>; */
 /*         using vecUPtrCat = std::vector<unique_ptr<RooCategoryProxy>>; */
 /*         using vecComponents = std::vector<vecUPtrReal>; */
- 
 /*     public: */
 /*         BruComponentsPDF() = default;  */
 /*         BruComponentsPDF(const char *name, const char *title, Double_t base, const RooArgList& obsList, const std::vector<RooArgList> compList); */
@@ -171,12 +173,10 @@ namespace bru {
 /*         void initGenerator(Int_t code) override; */
 
 /*     protected: */
-/*         // BUG FIX: Lazy integration initialization */
-/*         mutable Bool_t _IntegratorInit = kFALSE; */
-/*         void SetupIntegrator() const; */
+/*         void initIntegrator() const override; */
 
 /*         void InitAssertPositiveCheck() const override { */
-/*             SetupIntegrator(); // Ensure safe array sizing before looping */
+/* 	  initIntegrator();  */
 /*             RedirectServersToPdf(); */
 /*             if (_MCAPDepTerm.empty() == kTRUE) */
 /*                 cacheMCAP(&_AssertPosDataReal, &_AssertPosDataCats); */
@@ -188,11 +188,11 @@ namespace bru {
 /*             _assertPostive = kFALSE; */
 /*         }; */
       
-/*         Double_t cacheMCAP(const std::vector<Double_t> *vars, const std::vector<Int_t> *cats) const; */
+/*         Double_t cacheMCAP(const std::vector<Float_t> *vars, const std::vector<Int_t> *cats) const; */
 /*         Double_t evaluateMCAP() const; */
 	 
 /*         Double_t evaluateData() const override; */
-/*         Double_t evaluateMC(const std::vector<Double_t> *vars, const std::vector<Int_t> *cats) const override; */
+/*         Double_t evaluateMC(const std::vector<Float_t> *vars, const std::vector<Int_t> *cats) const override; */
 /*         void MakeSets(); */
 /*         void RecalcComponentIntegrals(Int_t code, const char* rangeName) const; */
 /*         Double_t componentIntegral(Int_t icomp) const; */
@@ -207,7 +207,8 @@ namespace bru {
 /*         RooListProxy _ActualObs; */
 /*         RooListProxy _ActualCats; */
 /*         RooListProxy _ActualComps; */
-      
+
+	
 /*         vecComponents _Components; */
 /*         vecUPtrReal _Observables; */
 /*         vecUPtrCat _Categories; */
@@ -221,7 +222,7 @@ namespace bru {
 /*         std::vector<RooRealVar*> _IntegrateObs; */
 /*         std::vector<RooCategory*> _IntegrateCats; */
 /*         RooArgSet _IntegrateSet; */
-/*         RooArgSet _Parameters; //! */
+/*         RooArgSet _Parameters;  */
    
 /*         mutable std::vector<Double_t> _CacheCompDepIntegral; */
 /*         mutable std::vector<Double_t> _CacheCompDepSigmaIntegral; */

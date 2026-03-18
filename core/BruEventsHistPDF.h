@@ -16,6 +16,7 @@
 #include <RooRealVar.h>
 #include <RooAbsPdf.h>
 #include <TH2.h>
+#include <vector>
 
 namespace bru {
     
@@ -29,6 +30,12 @@ namespace bru {
         BruEventsHistPDF(const BruEventsHistPDF& other, const char* name=nullptr);
         TObject* clone(const char* newname) const override { return new BruEventsHistPDF(*this, newname); }
         ~BruEventsHistPDF() override;
+
+        // Modern RooFit Batch Evaluation
+        void doEval(RooFit::EvalContext & ctx) const override;
+        
+        // Custom MC Batch Evaluation
+        virtual void evaluateMCBatch(const std::vector<Double_t>& mcx_array, std::vector<Double_t>& output) const;
 
     protected:
         Double_t _MCx{};
@@ -59,11 +66,23 @@ namespace bru {
         RooRealVar* _x_off = nullptr; 
         RooRealVar* _alphaVar = nullptr;
 
+	// --- AVX2 FAST-MATH CACHE SYSTEM ---
+        std::vector<double> _cachedBins;
+        double _xMin = 0.0;
+        double _xWidth = 0.0;
+        int _nx = 0;
+        double _yMin = 0.0;
+        double _yWidth = 0.0;
+        int _ny = 0;
+        
+        virtual void initializeCache(); // Eagerly called during PDF setup/cloning
+
     private:
         RooGaussian *_AlphaConstr = nullptr;
         RooGaussian *_OffConstr = nullptr;
         RooGaussian *_ScaleConstr = nullptr;
   
+      
     public:
      
         Bool_t SetEvTree(TTree* tree, TString cut, TTree* MCGenTree = nullptr) override;

@@ -11,9 +11,9 @@
   RF.SetUp().SetIDBranchName("fgID");
 
   //Fit  Signal with smoothed and interpolated histogram pdf with 1000 bins, and 5000 for normalisation integral
-  Int_t smooth = 1;
+  Int_t smooth = 2;
   Int_t interpolate = 1;
-  Int_t NPdfBins = 100;
+  Int_t NPdfBins = 20;
   Int_t NNormBins = 50000;
  
   //////////////////////////////Make signal PDF
@@ -30,7 +30,7 @@
   //RF.Bins().LoadBinVar("Eg",5,3,4);
 
   ////////////////////////////Make Bootstrap(before LoadData)
-  RF.Data().BootStrap(100);
+  RF.Data().BootStrap(1000);
   //We want to run a standard fit first to
   //bootstrap around. Give name of Results directory and minimiser here
   // RF.InitPrevResult("/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/sPlotEventsPDF/outPeakHistBins","HSMinuit2");
@@ -43,7 +43,7 @@
   //RF.ReloadSimulated("SigData.root", "Signal");
   //RF.ReloadSimulated("BGData.root", "BG");
 
-  RF.TurnOffPlotting();
+  //RF.TurnOffPlotting();
   gBenchmark->Start("timer");
   //Or try an mcmc minimser 1000-># of points, 200->burnin 10 ~ 1/step size
   //auto mcmc=new BruMcmcCovariance(200,100,0.1,0.23,0.16,0.3);

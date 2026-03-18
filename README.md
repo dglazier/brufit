@@ -23,6 +23,14 @@ mkdir build && cd build
 # -DCMAKE_INSTALL_PREFIX defines where the final files go
 cmake .. -DCMAKE_INSTALL_PREFIX=../install
 
+Note If you have compled your root install to use vectorisations
+it is recommended to also compile brufit for this. Add the cmake option
+-DCMAKE_CXX_FLAGS="-march=native" when configuring.
+Note to install root with SIMD vectorisations you need to configure
+its cmake with
+
+      -DCMAKE_CXX_FLAGS="-march=native" -Dveccore=ON -Dvc=ON
+
 # 4. Compile and Install
 # -j$(nproc) uses all CPU cores for a faster build
 cmake --build . -- -j$(nproc)
