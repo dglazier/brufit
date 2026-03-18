@@ -129,50 +129,54 @@ namespace bru {
     }
 
   
-// =========================================================================
-    // ADDED: AVX2 Vectorized Batch Engine for Components
-    // =========================================================================
-    void BruComponentsPDF::doEval(RooFit::EvalContext& ctx) const {
-        auto output = ctx.output();
-        size_t nEvents = output.size();
+  // =========================================================================
+  // ADDED: AVX2 Vectorized Batch Engine for Components
+  // =========================================================================
+  void BruComponentsPDF::doEval(RooFit::EvalContext& ctx) const {
+    auto output = ctx.output();
+    size_t nEvents = output.size();
+    
+    // Fill baseline efficiently
+    std::fill(output.begin(), output.end(), _BaseLine);
+
+    // Buffer array to prevent allocations inside the loop
+    std::vector<double> compBuffer(nEvents);
+
+    for (auto& comp : _Components) {
+      std::fill(compBuffer.begin(), compBuffer.end(), 1.0);
         
-        // Fill baseline efficiently
-        std::fill(output.begin(), output.end(), _BaseLine);
-
-        // Buffer array to prevent allocations inside the loop
-        std::vector<double> compBuffer(nEvents);
-
-        for (auto& comp : _Components) {
-            std::fill(compBuffer.begin(), compBuffer.end(), 1.0);
+      for (auto& termProxy : comp) {
+	// Fetch the data span from RooFit
+	auto termData = ctx.at(*termProxy); 
             
-            for (auto& termProxy : comp) {
-                // Fetch the data span from RooFit
-                auto termData = ctx.at(*termProxy); 
-                
-                // Check if this term is a scalar parameter (size 1) or an array
-                bool isScalar = (termData.size() == 1);
-                
-                // Safe Branchless Loop
-                for (size_t i = 0; i < nEvents; ++i) {
-                    // If scalar, use index 0. Otherwise, use index i.
-                    compBuffer[i] *= isScalar ? termData[0] : termData[i];
-                }
-            }
-            
-            // Add component product to the final PDF array
-            for (size_t i = 0; i < nEvents; ++i) {
-                output[i] += compBuffer[i];
-            }
-        }
-
-        // --- SAFETY CLAMP ---
-        // Clean up any stray NaNs or perfect zeros to prevent log(-inf) crashes
-        for (size_t i = 0; i < nEvents; ++i) {
-            if (std::isnan(output[i]) || output[i] < 1e-15) {
-                output[i] = 1e-15;
-            }
-        }
+	// BRANCH HOISTING: Check scalar vs array outside the loop 
+	// to allow the compiler to auto-vectorize (SIMD)
+	if (termData.size() == 1) {
+	  const double scalarVal = termData[0];
+	  for (size_t i = 0; i < nEvents; ++i) {
+	    compBuffer[i] *= scalarVal;
+	  }
+	} else {
+	  for (size_t i = 0; i < nEvents; ++i) {
+	    compBuffer[i] *= termData[i];
+	  }
+	}
+      }
+        
+      // Add component product to the final PDF array
+      for (size_t i = 0; i < nEvents; ++i) {
+	output[i] += compBuffer[i];
+      }
     }
+
+    // --- SAFETY CLAMP ---
+    // Clean up any stray NaNs or perfect zeros to prevent log(-inf) crashes
+    for (size_t i = 0; i < nEvents; ++i) {
+      if (std::isnan(output[i]) || output[i] < 1e-15) {
+	output[i] = 1e-15;
+      }
+    }
+  }
   
     Double_t BruComponentsPDF::evaluateData() const {
         Double_t val = _BaseLine;

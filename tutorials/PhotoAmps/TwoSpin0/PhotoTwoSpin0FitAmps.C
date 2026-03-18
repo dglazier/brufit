@@ -61,8 +61,7 @@
 
   //set some fitter options
   Fitter.SetUp().AddFitOption(RooFit::PrintEvalErrors(-1));//suppress error messaages
-  Fitter.SetUp().AddFitOption(RooFit::NumCPU(6)); //number of CPUs to split likelihood calc.
-  
+   
   //default error strategy for Minuit fits is asymptotically correct approach
   //https://arxiv.org/abs/1911.01303, but this may be slow
   Fitter.SetUp().ErrorsWrong();//"naive" error calculation, much faster
