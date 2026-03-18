@@ -30,7 +30,7 @@
   //RF.Bins().LoadBinVar("Eg",5,3,4);
 
   ////////////////////////////Make Bootstrap(before LoadData)
-  RF.Data().BootStrap(1000);
+  RF.Data().BootStrap(100);
   //We want to run a standard fit first to
   //bootstrap around. Give name of Results directory and minimiser here
   // RF.InitPrevResult("/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/sPlotEventsPDF/outPeakHistBins","HSMinuit2");
