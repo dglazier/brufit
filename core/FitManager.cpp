@@ -137,7 +137,14 @@ namespace FIT {
         // Execute the minimization
         FitTo(); 
 
-        return kTRUE;
+	Bool_t fitSuccess = fMinimiser->Success();
+        
+        if (!fitSuccess) {
+            std::cout << "WARNING FitManager::Run: Fit failed. Returning kFALSE." << std::endl;
+        }
+
+        return fitSuccess;
+       
     }
 
     void FitManager::CreateCurrSetup() {
@@ -201,9 +208,12 @@ namespace FIT {
                 fMinimiser->Run(*fCurrSetup, *fCurrDataSet);
             }
         }
-        
-        // Plot best fit and return
-        if (fDoPlotting) PlotDataModel();
+        if (fDoPlotting && fMinimiser->Success()) {
+	  if (fDoPlotting) PlotDataModel();
+        } else if (!fMinimiser->Success()) {
+	  std::cout << "FitManager::FitTo: Skipping PlotDataModel() due to failed fit." << std::endl;
+        }
+      
     }
 
     // ========================================================================

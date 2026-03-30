@@ -28,10 +28,6 @@
 #pragma link C++ class HS::FIT::BruMetropolisHastings+;
 #pragma link C++ class HS::FIT::BruSequentialProposal+;
 #pragma link C++ class HS::FIT::BruCovarianceProposal+;
-#pragma link C++ class HS::FIT::BruMcmc+;
-#pragma link C++ class HS::FIT::BruMcmcSeq+;
-#pragma link C++ class HS::FIT::BruMcmcSeqHelper+;
-#pragma link C++ class HS::FIT::BruMcmcCovariance+;
 #pragma link C++ class HS::FIT::Minimiser+;
 #pragma link C++ class HS::FIT::Minuit+;
 #pragma link C++ class HS::FIT::Minuit2+;
@@ -84,6 +80,10 @@
 #pragma link C++ class bru::BruComponentsPDF+;
 #pragma link C++ class bru::BruEventsHistPDF+;
 #pragma link C++ class bru::BruEventsHistPeakPDF+;
+#pragma link C++ class HS::FIT::BruMcmc+;
+#pragma link C++ class HS::FIT::BruMcmcSeq+;
+#pragma link C++ class HS::FIT::BruMcmcSeqHelper+;
+#pragma link C++ class HS::FIT::BruMcmcCovariance+;
 
 #pragma link C++ defined_in "PredefinedParsers.h";
 //#pragma link C++ class HS::FIT::+;

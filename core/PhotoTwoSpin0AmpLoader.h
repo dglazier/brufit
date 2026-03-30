@@ -493,12 +493,12 @@ TString SimplifyAll(TString moment){
 	  forNormalise+=Form("-@a_%d_%d[]*@a_%d_%d[]",il,im,il,im);
 	}
 
-	setup.LoadParameter(Form("aphi_%d_%d[0,%lf,%lf]",il,im,-10*TMath::Pi(),10*TMath::Pi()));
+	setup.LoadParameter(Form("aphi_%d_%d[0,%lf,%lf]",il,im,-TMath::Pi(),TMath::Pi()));
 
 	if(nRefl==2){
 	  setup.LoadParameter(Form("b_%d_%d[0,-1,1]",il,im));
 	  forNormalise+=Form("-@b_%d_%d[]*@b_%d_%d[]",il,im,il,im);
-	  setup.LoadParameter(Form("bphi_%d_%d[0,%lf,%lf]",il,im,-10*TMath::Pi(),10*TMath::Pi()));
+	  setup.LoadParameter(Form("bphi_%d_%d[0,%lf,%lf]",il,im,-TMath::Pi(),TMath::Pi()));
 	}
       
 	if(counter==nwaves){//final parameter for normalisation

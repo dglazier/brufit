@@ -31,6 +31,12 @@ its cmake with
 
       -DCMAKE_CXX_FLAGS="-march=native" -Dveccore=ON -Dvc=ON
 
+To check if it has been done see if the library loads OK.
+
+      root [0] gSystem->Load("libRooBatchCompute_AVX2")
+      (int) 0
+
+
 # 4. Compile and Install
 # -j$(nproc) uses all CPU cores for a faster build
 cmake --build . -- -j$(nproc)
@@ -62,7 +68,7 @@ alias brufit='root $BRUFIT/macros/LoadBru.C'
 setenv BRUFIT /path/to/brufit 
 
 # Tell the system where the compiled libraries are
-setenv LD_LIBRARY_PATH ${BRUFIT}/install/lib:$LD_LIBRARY_PATH
+setenv LD_LIBRARY_PATH ${BRUFIT}/install/lib:${BRUFIT}/install/lib64:$LD_LIBRARY_PATH
 setenv DYLD_LIBRARY_PATH ${BRUFIT}/install/lib:$DYLD_LIBRARY_PATH # Required for macOS
 setenv ROOT_INCLUDE_PATH ${BRUFIT}/install/include:$ROOT_INCLUDE_PATH
 

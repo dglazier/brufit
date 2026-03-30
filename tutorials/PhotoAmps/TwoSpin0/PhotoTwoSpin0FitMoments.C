@@ -1,7 +1,7 @@
 {
-  FitManager Fitter;// manage the fitting
+   FitManager Fitter;// manage the fitting
   //set the output directory for the fit results files Results*.root
-  Fitter.SetUp().SetOutDir("fitBruMoments/");
+  Fitter.SetUp().SetOutDir("fitBruAmps/");
 
   //Use amlitude configue class to define model
   PhotoTwoSpin0Amps config("PWA");
@@ -19,18 +19,20 @@
 
   //load simulated data for normalisation integral
   //treename, filename, PDF name
-  Fitter.LoadSimulated("ToyData","flat/Toy0.root",config.GetName());
+  Fitter.LoadSimulated("ToyData","/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/PhotoAmps/TwoSpin0/flat/Toy0.root",config.GetName());
 
   //load data to be fit (this was created by PhotoTwoSpin0Gen.C)
-  Fitter.LoadData("ToyData","genBruAmps/Toy0.root");
+  Fitter.LoadData("ToyData","/home/dglazier/Dropbox/HaSpect/dev/brufit/tutorials/PhotoAmps/TwoSpin0/genBruAmps/Toy0.root");
  
   //Now set model options
   //Lmax
+  // config.SetLmax(8);
   config.SetLmax(2);
   //Mmax = Lmax if not set
+  //config.SetMmax(4);
   config.SetMmax(2);
   //number of reflectivities = 1 or 2
-  config.SetNrefl(1);
+  config.SetNrefl(2);
  //Only use even , S,D,... waves
  // config.SetOnlyEvenWaves();
    
@@ -41,25 +43,14 @@
   config.LoadModelPDF();
 
   
-
-  //set some fitter options
-  Fitter.SetUp().AddFitOption(RooFit::PrintEvalErrors(-1));//suppress error messaages
-  Fitter.SetUp().AddFitOption(RooFit::EvalBackend("legacy"));
-  Fitter.SetUp().AddFitOption(RooFit::NumCPU(8)); //number of CPUs to split likelihood calc.
-  Fitter.SetUp().GetVar("CosTh")->setBins(20);
-  //default error strategy for Minuit fits is asymptotically correct approach
-  //https://arxiv.org/abs/1911.01303, but this may be slow
-  Fitter.SetUp().ErrorsWrong();//"naive" error calculation, much faster
-  //Fitter.SetUp().ErrorSumW2();//sumW2 correction if using weights
-
   //some plotter options
   // Fitter.TurnOffPlotting();
-  Fitter.SetPlotOptions("MCMC:AUTOCORR"); //Make MCMC related plots
-  // Fitter.SetPlotOptions("goff"); //save plots but do not show (batch)
+  //Fitter.SetPlotOptions("MCMC:AUTOCORR"); //Make MCMC related plots
+  //Fitter.SetPlotOptions("goff"); //save plots but do not show (batch)
 
   //********************************************
   //Perform fit with default Minuit2 minimiser
-  //Here::Go(&Fitter);
+  // Here::Go(&Fitter);
  
   //********************************************
   //Perform fit 10 times Minuit2 minimiser
@@ -75,15 +66,20 @@
   //auto mcmc=new BruMcmcSeqHelper(2000,1000,0.1,0.23,0.16,0.3);
   //brufit covariance matric based proposal
   // give a vector of number of iterations for each phase {}
-  auto mcmc=new BruMcmcCovariance({200,2000,500},50,0.1,0.23,0.16,0.3);
+  // auto mcmc=new BruMcmcCovariance({200,2000,500},50,0.1,0.23,0.16,0.3);
   ////mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
+  //Fitter.SetMinimiser(mcmc);
+  //Here::Go(&Fitter);
+  //std::vector<Int_t> Niters,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.15,float accmax=0.35)
+  //  auto mcmc=new BruMcmcCovariance({10000,100000,200000},100,1,0.23,0.16,0.3);
+  auto mcmc=new BruMcmcCovariance({5000,20000,10000},100,1,0.23,0.16,0.3);
   Fitter.SetMinimiser(mcmc);
   Here::Go(&Fitter);
  
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains
   //Nsamples,burnin,step size,NChains
-  //  auto mcmc=new AmpMcmc(&config,10000,1000,0.01,5);
+  //  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},100,10);
   //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
   //Fitter.SetMinimiser(mcmc);
   //Here::Go(&Fitter);

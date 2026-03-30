@@ -653,7 +653,24 @@ namespace FIT {
             }
         }
     }
+  RooArgList Setup::FilterParameters(const std::string& match) {
+        RooArgList filteredList;
+        TString matchStr(match.c_str());
 
+        // Assuming Parameters() returns your RooArgSet/RooArgList of shape parameters
+        for (auto* var : static_range_cast<RooRealVar*>(Parameters())) {
+            if (!var) continue;
+            
+            TString parName = var->GetName();
+            
+            // kIgnoreCase ensures "Phi" and "phi" both trigger a match
+            if (parName.Contains(matchStr, TString::kIgnoreCase)) {
+                filteredList.add(*var);
+            }
+        }
+        
+        return filteredList;
+    }
 } // namespace FIT
 } // namespace HS
 

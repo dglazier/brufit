@@ -85,6 +85,12 @@ namespace bru {
         _CacheCompDepIntegral = other._CacheCompDepIntegral;
         _CacheCompDepSigmaIntegral = other._CacheCompDepSigmaIntegral;
         _MCAPDepTerm = other._MCAPDepTerm;
+
+	// =======================================================
+        // Inherit the integration state so clones don't recalculate!
+        // =======================================================
+        _FirstCalculation = other._FirstCalculation;
+        _PrevParVals = other._PrevParVals;
     } 
 
     void BruComponentsPDF::MakeSets() {
@@ -141,7 +147,7 @@ namespace bru {
 
     // Buffer array to prevent allocations inside the loop
     std::vector<double> compBuffer(nEvents);
-
+     
     for (auto& comp : _Components) {
       std::fill(compBuffer.begin(), compBuffer.end(), 1.0);
         
@@ -298,7 +304,7 @@ namespace bru {
         BruEventsPDF::initGenerator(code);
     }
 
-    void BruComponentsPDF::initIntegrator() const {
+void BruComponentsPDF::initIntegrator() const {
       if (!_once) return; 
       _once = kFALSE;     
        
@@ -306,17 +312,20 @@ namespace bru {
      
         _DependentTermProxy.resize(_NComps);
         _DependentTermParams.resize(_NComps);
-        _PrevParVals.resize(_NComps);
-        _CacheCompDepIntegral.resize(_NComps);
-        _CacheCompDepSigmaIntegral.resize(_NComps);
         _IndependentTermProxy.resize(_NComps);
     
+        // Check if we inherited a perfectly good cache from a master PDF clone!
+        bool inheritedCache = (_PrevParVals.size() == _NComps);
+        
+        if (!inheritedCache) {
+            _PrevParVals.resize(_NComps);
+            _CacheCompDepIntegral.assign(_NComps, 1.0);
+            _CacheCompDepSigmaIntegral.assign(_NComps, 0.0);
+        }
+
         UInt_t icomp = 0;
         for (auto& comp : _Components) {
-            _CacheCompDepIntegral[icomp] = 1;
-            _CacheCompDepSigmaIntegral[icomp] = 0;
             UInt_t iterm = 0;
-            Double_t product = 1;
             for (auto& term : comp) {
                 auto arg = _ActualComps.find(term->GetName());
                 auto deps = arg->getObservables(VarSet(0));
@@ -330,8 +339,12 @@ namespace bru {
                             auto* rarg = dynamic_cast<RooRealVar*>(p_arg);      
                             if (!vecContains(rarg, _DependentTermParams[icomp])) {
                                 _DependentTermParams[icomp].push_back(rarg);
-                                Double_t initf = -1E6;
-                                _PrevParVals[icomp].push_back(initf);
+                                
+                                // Only inject dummy values if this is a fresh, uncopied PDF
+                                if (!inheritedCache) {
+                                    Double_t initf = -1E6;
+                                    _PrevParVals[icomp].push_back(initf);
+                                }
                             }
                         }
                     }
@@ -343,6 +356,51 @@ namespace bru {
             icomp++;
         }
     }
+  // void BruComponentsPDF::initIntegrator() const {
+  //     if (!_once) return; 
+  //     _once = kFALSE;     
+       
+  //     BruEventsPDF::initIntegrator();
+     
+  //       _DependentTermProxy.resize(_NComps);
+  //       _DependentTermParams.resize(_NComps);
+  //       _PrevParVals.resize(_NComps);
+  //       _CacheCompDepIntegral.resize(_NComps);
+  //       _CacheCompDepSigmaIntegral.resize(_NComps);
+  //       _IndependentTermProxy.resize(_NComps);
+    
+  //       UInt_t icomp = 0;
+  //       for (auto& comp : _Components) {
+  //           _CacheCompDepIntegral[icomp] = 1;
+  //           _CacheCompDepSigmaIntegral[icomp] = 0;
+  //           UInt_t iterm = 0;
+  //           Double_t product = 1;
+  //           for (auto& term : comp) {
+  //               auto arg = _ActualComps.find(term->GetName());
+  //               auto deps = arg->getObservables(VarSet(0));
+        
+  //               if (deps->getSize()) {
+  //                   _DependentTermProxy[icomp].push_back(term.get());
+  //                   auto parDeps = arg->getObservables(_Parameters);
+            
+  //                   if (parDeps->getSize()) {
+  //                       for (auto* p_arg : *parDeps) {
+  //                           auto* rarg = dynamic_cast<RooRealVar*>(p_arg);      
+  //                           if (!vecContains(rarg, _DependentTermParams[icomp])) {
+  //                               _DependentTermParams[icomp].push_back(rarg);
+  //                               Double_t initf = -1E6;
+  //                               _PrevParVals[icomp].push_back(initf);
+  //                           }
+  //                       }
+  //                   }
+  //               } else {
+  //                   _IndependentTermProxy[icomp].push_back(term.get());
+  //               }
+  //               iterm++;
+  //           }
+  //           icomp++;
+  //       }
+  //   }
 
     void BruComponentsPDF::DoFirstIntegrations(const char* rangeName) const {
         for (UInt_t icomp = 0; icomp < _NComps; icomp++)
@@ -366,8 +424,21 @@ namespace bru {
         auto check = AssertPositivePDF();
         if (check == kFALSE) return _Last[0] = 0;
        
-        if (_FirstCalculation == kTRUE) DoFirstIntegrations();
-       
+        if (_FirstCalculation == kTRUE) {
+	  DoFirstIntegrations();
+
+	  bool safeToDropTree = true;
+             for (UInt_t icomp = 0; icomp < _NComps; icomp++) {
+                 if (!_DependentTermParams[icomp].empty()) safeToDropTree = false;
+             }
+             
+             if (safeToDropTree && _DataCache) {
+                 std::cout << "BruComponentsPDF: Integrals are parameter-independent. Freeing MC Tree Memory!" << std::endl;
+                 // Assuming _DataCache has a clear function like this:
+                 // _DataCache->_vecReal.clear(); 
+                 // _DataCache->_vecReal.shrink_to_fit();
+             }
+	}
         if (_WeightedBaseLine == 0 && _BaseLine != 0 && _DataCache->_UseEvWeights)
             CalcWeightedBaseLine(rangeName);
         else
@@ -428,7 +499,7 @@ namespace bru {
     void BruComponentsPDF::RecalcComponentIntegrals(Int_t code, const char* rangeName) const {
         Long64_t ilow, ihigh = 0;
         SetLowHighVals(ilow, ihigh);
-      
+	std::cout<< " BruComponentsPDF::RecalcComponentIntegrals "<<std::endl;
         for (const auto& icomp : _RecalcComponent) {
             for (const auto& term : _DependentTermProxy[icomp]) {
                 auto unconstTerm = const_cast<RooAbsReal*>(&term->arg());

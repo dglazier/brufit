@@ -37,12 +37,14 @@ namespace HS{
       static const TString ResultTreeName(){return "ResultTree";}
 
       void SetSetup(Setup *setup){fSetup=setup;}
-      
+      Bool_t Success() const { return fSuccess; }
+
     protected:
       Setup *fSetup=nullptr; //!not owned by minimiser
       RooAbsData* fData=nullptr; //!not owned by minimiser
 
       TString FileName(){return TString("/Results")+GetName()+".root";}
+      Bool_t fSuccess=kTRUE; // Defaults to true so legacy MINUIT fits still plot
 
     private:
   

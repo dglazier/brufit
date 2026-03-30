@@ -173,7 +173,8 @@ namespace FIT {
         RooArgList& PDFs() { return fPDFs; }
         const RooArgList& constPDFs() const { return fPDFs; }
         RooArgList& Constraints() { return fConstraints; }
-
+      RooArgList FilterParameters(const std::string& match);
+      
         Double_t SumOfYields();
         
         void AddGausConstraint(RooGaussian *pdf);

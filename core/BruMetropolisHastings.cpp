@@ -10,242 +10,210 @@
 namespace HS{
   namespace FIT{
     
+   
     RooStats::MarkovChain* BruMetropolisHastings::ConstructChain()
     {
       if (fParameters.getSize() == 0 || !fPropFunc || !fFunction) {
-	coutE(Eval) << "Critical members unintialized: parameters, proposal " <<
-	  " function, or (log) likelihood function" << std::endl;
-	return nullptr;
+        coutE(Eval) << "Critical members unintialized: parameters, proposal function, or (log) likelihood function" << std::endl;
+        return nullptr;
       }
   
       if (fChainParams.getSize() == 0) fChainParams.add(fParameters);
-      
-      // RooRealVar NSinceIntChanged("NSinceIntChanged","NSinceIntChanged",0,0,1E12);
-      //fChainParams.add(NSinceIntChanged);
       
       RooArgSet x;
       RooArgSet xPrime;
       x.addClone(fParameters);
       xPrime.addClone(fParameters);
    
-      //      xChain.add(x);
-      //      xChain.add(NSinceIntChanged);
-      
-      
       auto* chain = new RooStats::MarkovChain();
-      // only the POI will be added to the chain
       chain->SetParameters(fChainParams);
+
+      // --- 1. FAST MEMORY MAPPING ---
+      // Map the RooRealVars into fast C++ vectors to bypass string-lookups during the loop
+      std::vector<RooRealVar*> curVars, propVars, masterVars;
+      for (auto *var : static_range_cast<RooRealVar*>(x)) curVars.push_back(var);
+      for (auto *var : static_range_cast<RooRealVar*>(xPrime)) propVars.push_back(var);
+      for (auto *var : static_range_cast<RooRealVar*>(fParameters)) masterVars.push_back(var);
+      size_t nVars = curVars.size();
+
+      // --- 2. CHAIN BUFFER ---
+      // Buffer the accepted steps in RAM to avoid RooDataSet overhead during the loop
+      std::vector<std::vector<Double_t>> chainBufferVals;
+      std::vector<Double_t> chainBufferNLL;
+      std::vector<Double_t> chainBufferWeights;
+      chainBufferVals.reserve(fNumIters);
+      chainBufferNLL.reserve(fNumIters);
+      chainBufferWeights.reserve(fNumIters);
 
       Int_t weight = 0;
       Double_t xL = 0.0, xPrimeL = 0.0, a = 0.0;
 
-      // ibucur: i think the user should have the possibility to display all the message
-      //    levels should they want to; maybe a setPrintLevel would be appropriate
-      //    (maybe for the other classes that use this approach as well)?
       RooFit::MsgLevel oldMsgLevel = RooMsgService::instance().globalKillBelow();
       RooMsgService::instance().setGlobalKillBelow(RooFit::PROGRESS);
-
-      // We will need to check if log-likelihood evaluation left an error status.
-      // Now using faster eval error logging with CountErrors.
       RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CountErrors);
-      //N.B: need to clear the count in case of previous errors !
-      // the clear needs also to be done after calling setEvalErrorLoggingMode
       RooAbsReal::clearEvalErrorLog();
 
       bool hadEvalError = true;
-
-    
       ooccoutP((TObject *)nullptr, Generation) << "Metropolis-Hastings progress: ";
 
-      // do main loop
-      //for (i = 0; i < fNumIters; i++) {
-      int icount=0;
-      int totcount=0;
-      int snapcount=0;
-      int NsinceIntegralChanged=0;
-      int havePrinted=0;
-      //x.Print("v");
+      int icount = 0;
+      int totcount = 0;
+      int snapcount = 0;
+      int havePrinted = 0;
+      Long64_t totalProposals = 0;
       
-      //Check if we have PDF proposal
-      auto bseqprop=dynamic_cast<BruSequentialProposal*>(fPropFunc);
-      if(bseqprop==nullptr){
-	std::cerr<<"ERROR BruMetropolisHastings need a BruSequentialProposal "<<std::endl;
-	delete chain;
-	return nullptr;
+      auto bseqprop = dynamic_cast<BruSequentialProposal*>(fPropFunc);
+      if(bseqprop == nullptr){
+        std::cerr<<"ERROR BruMetropolisHastings need a BruSequentialProposal "<<std::endl;
+        delete chain;
+        return nullptr;
       }
       bseqprop->ResetCounter();
-      //std::cout<<"DEBUG RooStats::MarkovChain* BruMetropolisHastings::ConstructChain"<<std::endl; fParameters.Print();
 
-      Long64_t totalProposals=0;
-      while (icount <fNumIters) {
-	totcount++; //can be reset 
-	totalProposals++;  //will not be reset
-	
-	//std::cout<<"DEBUG RooStats::MarkovChain another one "<<std::endl;
-	//std::cout<<"        METHAST "<<totcount<<std::endl;
-	// reset error handling flag
-	hadEvalError = false;
+      // --- INITIAL EVALUATION ---
+      for (size_t i = 0; i < nVars; ++i) curVars[i]->setVal(masterVars[i]->getVal());
+      xL = fFunction->getVal();
 
-	//recalc XL with sampled integral
-	/*	auto xLtest = fFunction->getVal();//DEBUGGING
-	Double_t newBalance = fBalancePDF==nullptr?1: fBalancePDF->getVal();
-	if(TMath::Abs(newBalance-fOldBalance)>1E-8){
-	  xL=xLtest;
-	  NSinceIntChanged.setVal(0);
-	  //std::cout<<"Changed integral for CHAIN "<<newBalance <<" "<<fOldBalance<<std::endl;
-	}
-	else{
-	  NSinceIntChanged.setVal(NSinceIntChanged.getVal()+1);
-	  //std::cout<<"Increment for CHAIN"<<newBalance <<" "<<fOldBalance<<std::endl;
+      // --- THE BARE-METAL MCMC LOOP ---
+      while (icount < fNumIters) {
 
-	}
-	*/
-	
-	// print a dot every 1% of the chain construction
-	if (totcount%1000 == 0){
-
-	  
-	  fAcceptance = ((Double_t)snapcount)/totcount;
-	  std::cout<<"  BruMetropolisHastings accepted "<<snapcount<<" out of "<<totcount<<" for acceptance "<<fAcceptance<<std::endl;
-	  // CheckForBurnIn(chain);
-	  //check acceptance, if too low exit
-	  //if(fTryHelp==kTRUE){
-	  //if(fAcceptance<fMinAcc||fAcceptance>fMaxAcc){
-	  RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
-	  //	  std::cout<<"WARNING BruMetropolisHastings acceptance not optimal exiting..." <<" current Likelihood "<<CalcNLL(xL)<<" "<<fPropFunc->ClassName()<<" "<<dynamic_cast<RooStats::SequentialProposal*>(fPropFunc)<<std::endl;
-
-	  // x.Print("v");
-	  // auto bseqprop=dynamic_cast<BruSequentialProposal*>(fPropFunc);
-	  //if(bseqprop!=nullptr){
-	    //	    sp.reset(new RooStats::SequentialProposal(fNorm));
-	    //std::cout<<"new seq "<<sp.get()<<std::endl;
-	    //SetProposalFunction(*sp.get());
-	    //std::cout<<"new seq "<<sp.get()<<std::endl;
-	  auto ok = bseqprop->CheckStepSize(fAcceptance);
-	  if(ok==kFALSE){//can't get within acceptance
-	    delete chain;
-	    return nullptr; //return fail
-	  }
-	  snapcount =0;
-	  totcount=0;
-	  continue;
-	
-	
-	  
-
-	}
-	if (icount%100 == 0&&havePrinted==0){
-	  ooccoutP((TObject*)nullptr, Generation) << " "<<icount<<"/"<<fNumIters;
-	  havePrinted=1;
-	}
-	if (icount%100 == 1) havePrinted=0;
-
-
-
-	if(xL==0)    {
-	  RooStats::SetParameters(&x, &fParameters);
-	  xL = fFunction->getVal();
-	}
-	fPropFunc->Propose(xPrime, x);
-	RooStats::SetParameters(&xPrime, &fParameters);
-	xPrimeL = fFunction->getVal();
-	
-	//	std::cout<<"********************************************L"<<xPrimeL<<" "<<xL<<std::endl;
-
-	// check if log-likelihood for xprime had an error status
-	if (wasEvalErrors()) {
-	  xPrimeL = RooNumber::infinity();
-	  hadEvalError = true;
-	  
-	  // --totcount;//dont't count for acceptance purposes
-	  // std::cout<<"DEBUG  BruMetropolisHastings was errors "<<std::endl;
-	  // for(Int_t ix =0;ix<x.getSize();ix++){
-	  //   if(x.getRealValue(x[ix]->GetName())!=xPrime.getRealValue(x[ix]->GetName())) std::cout<<"\t"<<x[ix]->GetName()<<"\t"<<x.getRealValue(x[ix]->GetName())<<" "<<xPrime.getRealValue(x[ix]->GetName());
-	  // }
-	  // std::cout<<std::endl;
-	}
-	else{
-	  // std::cout<<"**************DEBUG  BruMetropolisHastings no errors "<<std::endl;
-	  // for(Int_t ix =0;ix<x.getSize();ix++){
-	  //   if(x.getRealValue(x[ix]->GetName())!=xPrime.getRealValue(x[ix]->GetName())) std::cout<<"\t"<<x[ix]->GetName()<<"\t"<<x.getRealValue(x[ix]->GetName())<<" "<<xPrime.getRealValue(x[ix]->GetName());
-
-	  //  }
+	// --- STOCHASTIC HOT-SWAP ---
+	if (fBatchedNLLs.size() > 0 && fSwapFreq > 0 && totalProposals > 0 && (totalProposals % fSwapFreq == 0)) {
+          fCurrentBatch = (fCurrentBatch + 1) % fBatchedNLLs.size();
+          fFunction = fBatchedNLLs[fCurrentBatch]; 
+          std::cout << "Shaking the landscape! Swapped to Batch " << fCurrentBatch << std::endl;
+          
+          // =======================================================
+          // THE FIX: Reset the Baseline NLL safely
+          // =======================================================
+          // 1. Force the master RooRealVars back to the current accepted 
+          //    state (curVars). If the last step was rejected, masterVars 
+          //    are currently stuck at the bad proposed values!
+          for (size_t i = 0; i < nVars; ++i) {
+	    masterVars[i]->setVal(curVars[i]->getVal());
+          }
+          
+          // 2. Re-evaluate the baseline NLL on the new batch
+          xL = fFunction->getVal(); 
 	}
 
-	// why evaluate the last point again, can't we cache it?
-	// kbelasco: commenting out lines below to add/test caching support
-	//RooStats::SetParameters(&x, &fParameters);
-	//xL = fFunction->getVal();
+        totcount++; 
+        totalProposals++;  
+        hadEvalError = false;
 
+	// ==========================================================
+	// --- FAST-FAIL BAILOUT ---
+	// If we are grinding infinitely without accepts, abort the 
+	// chain early to allow the TuneCovarianceStep to rescue the scale.
+	// ==========================================================
 
-       a = xPrimeL - xL;//**DO this one
+        if (totalProposals % 1000 == 0) {
+            double currentAcc = (double)icount / totalProposals;
+            
+            if (totalProposals >= 3000 && currentAcc < 0.01) {
+                std::cout << "\nBruMetropolisHastings: WARNING - Fast Bailout Triggered! "
+                          << "Acceptance is critically low (" << currentAcc * 100 << "%) after " 
+                          << totalProposals << " proposals. Aborting chain to allow immediate retuning." << std::endl;
+                break;
+            }
+        }
 
-       //std::cout<<"DEBUG RooStats::MarkovChain a "<<a<<" "<<xL<<" "<<xPrimeL<<" "<<icount<<" "<<snapcount<<" weight "<<weight<<" should "<<ShouldTakeStep(a)<<" error "<<hadEvalError<<std::endl;
+	// ==========================================================
+        // Acceptance Tuning Logic
+        if (totcount % 1000 == 0) {
+          fAcceptance = ((Double_t)snapcount) / totcount;
+          std::cout << "  BruMetropolisHastings accepted " << snapcount << " out of " << totcount << " for acceptance " << fAcceptance << std::endl;
+          
+          RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
+          auto ok = bseqprop->CheckStepSize(fAcceptance);
+          if (ok == kFALSE) {
+            delete chain;
+            return nullptr; 
+          }
+          snapcount = 0;
+          totcount = 0;
+          continue;
+        }
+
+        // Progress Printing
+        if (icount % 100 == 0 && havePrinted == 0) {
+          ooccoutP((TObject*)nullptr, Generation) << " " << icount << "/" << fNumIters;
+          havePrinted = 1;
+        }
+        if (icount % 100 == 1) havePrinted = 0;
+
+        // Propose new step
+        fPropFunc->Propose(xPrime, x);
+        
+        // Fast push proposed values to the master NLL parameters
+        for (size_t i = 0; i < nVars; ++i) masterVars[i]->setVal(propVars[i]->getVal());
+        xPrimeL = fFunction->getVal();
+        
+        if (wasEvalErrors()) {
+          xPrimeL = RooNumber::infinity();
+          hadEvalError = true;
+        }
+
+        a = xPrimeL - xL;
        
-       if (!hadEvalError && !fPropFunc->IsSymmetric(xPrime, x)) {
-	  //Sequential proposal has density 1 so this does nothing
-	  Double_t xPrimePD = fPropFunc->GetProposalDensity(xPrime, x);
-	  Double_t xPD      = fPropFunc->GetProposalDensity(x, xPrime);
-
-	  a += TMath::Log(xPrimePD) - TMath::Log(xPD);
-
-	  if(TMath::IsNaN(a))std::cerr<<"BruMetropolisHastings::MakeChain() whn making symmtric s is nan"<<std::endl; exit(0);
-	  
-	  //std::cout<<"DEBUG RooStats::MarkovChain symmetric  "<<a<<ShouldTakeStep(a)<<" "<<TMath::Log(xPrimePD) - TMath::Log(xPD)<<" x'pd "<<xPrimePD<<" xpd "<<xPD<<std::endl;
-	  //if(pdfProposal){
-	  // std::cout<<"DEBUG RooStats::MarkovChain pdf "<<pdfProposal->GetPdf()->getVal(x)<<" "<<pdfProposal->GetPdf()->getVal(xPrime)<<std::endl;
-	  //}
-	
-
-	}
+        if (!hadEvalError && !fPropFunc->IsSymmetric(xPrime, x)) {
+          Double_t xPrimePD = fPropFunc->GetProposalDensity(xPrime, x);
+          Double_t xPD      = fPropFunc->GetProposalDensity(x, xPrime);
+          a += TMath::Log(xPrimePD) - TMath::Log(xPD);
+        }
        
-	if (!hadEvalError && ShouldTakeStep(a)) {
-	  // go to the proposed point xPrime
-	  // add the current point with the current weight
-	  // ? dglazier should this not have xPrimeL the current val
-	  if (weight != 0.0){
-	    //  std::cout<<"DEBUG RooStats::MarkovChain Add to chain "<<a<<std::endl;
-	    //xPrime.Print("v");
-	    chain->Add(xPrime, CalcNLL(xPrimeL),(Double_t)weight);
-	    //	    chain->Add(xChain, CalcNLL(xPrimeL),(Double_t)weight);
-	    //      fOldBalance=newBalance;
+        if (!hadEvalError && ShouldTakeStep(a)) {
+          // ACCEPTED: Record CURRENT state (x) with its accumulated weight
+          if (weight != 0.0) {
+	    std::vector<Double_t> stepVals(nVars);
+	    for (size_t i = 0; i < nVars; ++i) stepVals[i] = curVars[i]->getVal();
+              
+	    chainBufferVals.push_back(std::move(stepVals));
+	    chainBufferNLL.push_back(CalcNLL(xL));
+	    chainBufferWeights.push_back((Double_t)weight);
+              
 	    icount++;
 	    snapcount++;
-	  }
-	  
-	  // reset the weight and go to xPrime
-	  weight = 1;
-	  RooStats::SetParameters(&xPrime, &x);
-	  xL = xPrimeL;
-	  
-
-	} else {
-	  // stay at the current point
-	  weight++;
-	}
+          }
+          
+          // Jump to new state (xPrime)
+          weight = 1;
+          for (size_t i = 0; i < nVars; ++i) curVars[i]->setVal(propVars[i]->getVal());
+          xL = xPrimeL;
+        } else {
+          // REJECTED: Stay at current state, increment weight
+          weight++;
+        }
       }
 
-      // make sure to add the last point
-      if (weight != 0.0)
-	chain->Add(x, CalcNLL(xPrimeL), (Double_t)weight);
-      //chain->Add(xChain, CalcNLL(xPrimeL), (Double_t)weight);
+      // Record the final point
+      if (weight != 0.0) {
+	std::vector<Double_t> stepVals(nVars);
+	for (size_t i = 0; i < nVars; ++i) stepVals[i] = curVars[i]->getVal();
+	chainBufferVals.push_back(std::move(stepVals));
+	chainBufferNLL.push_back(CalcNLL(xL));
+	chainBufferWeights.push_back((Double_t)weight);
+      }
+      
       ooccoutP((TObject *)nullptr, Generation) << std::endl;
+
+      // --- 3. FLUSH BUFFER TO CHAIN ---
+      // Now we pay the RooDataSet memory penalty exactly once at the very end
+      for(size_t i = 0; i < chainBufferVals.size(); ++i) {
+	for (size_t v = 0; v < nVars; ++v) masterVars[v]->setVal(chainBufferVals[i][v]);
+	chain->Add(fParameters, chainBufferNLL[i], chainBufferWeights[i]);
+      }
 
       RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
 
       Int_t numAccepted = chain->Size();
-      coutI(Eval) << "Proposal acceptance rate: " <<
-	((float)icount)/totalProposals * 100 << "%" << std::endl;
+      fAcceptance = ((Double_t)icount) / totalProposals;
+      
+      coutI(Eval) << "Proposal acceptance rate: " << ((float)icount)/totalProposals * 100 << "%" << std::endl;
       coutI(Eval) << "Number of steps in chain: " << numAccepted << std::endl;
-
-      //clear burnin checker
-      // fMeans.clear();
-      //fSigmas.clear();
-      //fNWorse=0;
  
       return chain;
     }
-
 
     Bool_t BruMetropolisHastings::wasEvalErrors(){
       if(RooAbsReal::numEvalErrors()){
@@ -297,15 +265,6 @@ namespace HS{
 	if(var==(*vars)[vars->getSize()-1]){
 	  std::cout<<"NLL diff "<<mean<<" "<<fMeans[iv]<<" diff "<<mean-fMeans[iv]<<" "<<TMath::Abs((mean-fMeans[iv])/biggestSigma)<<" "<<std::endl;
 
-	  /*  if(fNBetterThanSave>fNWorseThanSave+5)
-	    {
-	      fNWorse=0;
-	      fNBetter=0;
-	      fNWorseThanSave=0;
-	      fNBetterThanSave=0;
-	      fSaveNLL=0;
-	    }
-	  */
 	  if(mean-fMeans[iv]>0){
 	    ++fNWorse;
 	    if(fSaveNLL==0)
