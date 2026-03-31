@@ -24,7 +24,8 @@ find_package(ROOT REQUIRED COMPONENTS
     Gpad 
     Tree
     TreePlayer  # <-- ADD THIS FOR TTreeFormula
-    Matrix      # <-- ADD THIS FOR TRobustEstimator
+    Physics      # <-- ADD THIS FOR TRobustEstimator
+    Matrix
     RooFit 
     RooFitCore 
     RooStats 
