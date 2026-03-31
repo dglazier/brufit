@@ -50,7 +50,8 @@ target_include_directories(${BRUFIT_LIB}
 )
 
 # Link against ROOT targets
-target_link_libraries(${BRUFIT_LIB} PUBLIC ROOT::RooFit ROOT::RooFitCore ROOT::RooStats ROOT::MathMore ROOT::Proof ROOT::Minuit2 ROOT::Tree)
+# Link against ROOT targets
+target_link_libraries(${BRUFIT_LIB} PUBLIC ROOT::RooFit ROOT::RooFitCore ROOT::RooStats ROOT::MathMore ROOT::Proof ROOT::Minuit2 ROOT::Tree ROOT::TreePlayer ROOT::Matrix)
 
 # --- 4. Installation ---
 install(TARGETS ${BRUFIT_LIB}

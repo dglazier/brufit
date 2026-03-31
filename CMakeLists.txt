@@ -22,7 +22,9 @@ find_package(ROOT REQUIRED COMPONENTS
     Hist 
     Graf 
     Gpad 
-    Tree 
+    Tree
+    TreePlayer  # <-- ADD THIS FOR TTreeFormula
+    Matrix      # <-- ADD THIS FOR TRobustEstimator
     RooFit 
     RooFitCore 
     RooStats 
