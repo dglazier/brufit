@@ -45,8 +45,26 @@ void BruCovarianceProposal::UpdateCholesky() {
       // Apply the user's StepSizeFactor on top of the native Gelman scaling
       _covMatrix = _baseMatrix * static_cast<Double_t>(StepSizeFactor() * gelmanScale);
       
-      double jitter = 1e-12; 
+      // =======================================================
+      // FIX 1: Adaptive Jitter
+      // Calculate the maximum diagonal element so our jitter 
+      // naturally scales with massive Yield variances.
+      // =======================================================
+      double maxDiag = 1e-12;
+      for (int i = 0; i < _covMatrix.GetNrows(); ++i) {
+          if (_covMatrix(i, i) > maxDiag) maxDiag = _covMatrix(i, i);
+      }
+      double jitter = maxDiag * 1e-8; // Start just above ROOT's machine tolerance
+      
       bool decomposed = false;
+      
+      // =======================================================
+      // FIX 2: Mute ROOT's internal error spam
+      // We expect this to fail occasionally. Mute ROOT so it 
+      // doesn't panic the user while our loop safely fixes it.
+      // =======================================================
+      int oldLevel = gErrorIgnoreLevel;
+      gErrorIgnoreLevel = kFatal;
       
       for (int attempts = 0; attempts < 10; attempts++) {
           TDecompChol chol(_covMatrix);
@@ -63,10 +81,47 @@ void BruCovarianceProposal::UpdateCholesky() {
               jitter *= 10.0; 
           }
       }
-        if (!decomposed) {
+      
+      // Restore normal warning/error printing
+      gErrorIgnoreLevel = oldLevel;
+
+      if (!decomposed) {
           std::cerr << "BruCovarianceProposal: FATAL - Matrix is fundamentally singular even with maximum jitter!" << std::endl;
       }
-   }
+    }
+   //  void BruCovarianceProposal::UpdateCholesky() {
+   //    if (_baseMatrix.GetNrows() == 0) return;
+
+   //    int d = _baseMatrix.GetNrows();
+   //    // The universally optimal Gelman MCMC scaling factor for d dimensions
+   //    double gelmanScale = (2.38 * 2.38) / (double)d; 
+ 
+   //    _covMatrix.ResizeTo(_baseMatrix.GetNrows(), _baseMatrix.GetNcols());
+   //    // Apply the user's StepSizeFactor on top of the native Gelman scaling
+   //    _covMatrix = _baseMatrix * static_cast<Double_t>(StepSizeFactor() * gelmanScale);
+      
+   //    double jitter = 1e-12; 
+   //    bool decomposed = false;
+      
+   //    for (int attempts = 0; attempts < 10; attempts++) {
+   //        TDecompChol chol(_covMatrix);
+   //        if (chol.Decompose()) {
+   //            _lMatrix.ResizeTo(_covMatrix.GetNrows(), _covMatrix.GetNcols());
+   //            _lMatrix = chol.GetU(); 
+   //            _lMatrix.T(); 
+   //            decomposed = true;
+   //            break; 
+   //        } else {
+   //            for (int i = 0; i < _covMatrix.GetNrows(); ++i) {
+   //                _covMatrix(i, i) += jitter;
+   //            }
+   //            jitter *= 10.0; 
+   //        }
+   //    }
+   //      if (!decomposed) {
+   //        std::cerr << "BruCovarianceProposal: FATAL - Matrix is fundamentally singular even with maximum jitter!" << std::endl;
+   //    }
+   // }
     
     void BruCovarianceProposal::Propose(RooArgSet& xPrime, RooArgSet& x )
     {
