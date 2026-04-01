@@ -304,11 +304,11 @@ namespace bru {
         BruEventsPDF::initGenerator(code);
     }
 
-void BruComponentsPDF::initIntegrator() const {
-      if (!_once) return; 
-      _once = kFALSE;     
+ void BruComponentsPDF::initIntegrator() const {
+        if (!_once) return; // GUARD: Ensure this only ever runs once
+        _once = kFALSE;     // Flip the flag
        
-      BruEventsPDF::initIntegrator();
+        BruEventsPDF::initIntegrator();
      
         _DependentTermProxy.resize(_NComps);
         _DependentTermParams.resize(_NComps);
@@ -324,23 +324,106 @@ void BruComponentsPDF::initIntegrator() const {
         }
 
         UInt_t icomp = 0;
+        bool hasBadFactorization = false; // Track if we should print a summary
+
         for (auto& comp : _Components) {
             UInt_t iterm = 0;
             for (auto& term : comp) {
                 auto arg = _ActualComps.find(term->GetName());
-                auto deps = arg->getObservables(VarSet(0));
-        
-                if (deps->getSize()) {
+                
+                // 1. Analyze dependencies FIRST
+                std::unique_ptr<RooArgSet> deps(arg->getObservables(VarSet(0)));
+                std::unique_ptr<RooArgSet> parDeps(arg->getObservables(_Parameters));
+                
+                bool hasObs = (deps->getSize() > 0);
+                
+                // --- Differentiate Free vs Constant Parameters ---
+                bool hasFreePars = false;
+                for (auto* p : *parDeps) {
+                    auto* rarg = dynamic_cast<RooRealVar*>(p);
+                    if (rarg && !rarg->isConstant()) {
+                        hasFreePars = true;
+                        break; // As soon as we find ONE free parameter, it's mixed.
+                    }
+                }
+                
+		// 2. Trigger warning ONLY if it mixes Data and FREE Parameters
+	        if (hasObs && hasFreePars && !inheritedCache) { 
+                    hasBadFactorization = true;
+                    
+                    TString obsNames = "";
+                    for(auto* o : *deps) { obsNames += o->GetName(); obsNames += " "; }
+                    
+                    TString freeParNames = "";
+                    TString constParNames = "";
+                    for(auto* p : *parDeps) { 
+                        auto* rarg = dynamic_cast<RooRealVar*>(p);
+                        if (rarg) {
+                            if (!rarg->isConstant()) {
+                                freeParNames += p->GetName(); freeParNames += " "; 
+                            } else {
+                                constParNames += p->GetName(); constParNames += " "; 
+                            }
+                        }
+                    }
+                    
+                    TString expression = arg->GetTitle();
+                    if (dynamic_cast<RooRealVar*>(arg)) expression = "[Fundamental Variable]";
+                    
+                    TString childrenBreakdown = "";
+                    for (const auto* server : arg->servers()) {
+                        std::unique_ptr<RooArgSet> sDeps(server->getObservables(VarSet(0)));
+                        std::unique_ptr<RooArgSet> sPars(server->getObservables(_Parameters));
+                        
+                        bool sHasObs = (sDeps->getSize() > 0);
+                        bool sHasFreePars = false;
+                        bool sHasConstPars = false;
+                        
+                        for (auto* sp : *sPars) {
+                            auto* srarg = dynamic_cast<RooRealVar*>(sp);
+                            if (srarg) {
+                                if (!srarg->isConstant()) sHasFreePars = true;
+                                else sHasConstPars = true;
+                            }
+                        }
+                        
+                        childrenBreakdown += "       - ";
+                        childrenBreakdown += server->GetName();
+                        childrenBreakdown += " : ";
+                        
+                        if (sHasObs && sHasFreePars) childrenBreakdown += "[MIXED - PRIMARY BOTTLENECK]\n";
+                        else if (sHasObs)            childrenBreakdown += "[Observable]\n";
+                        else if (sHasFreePars)       childrenBreakdown += "[Free Parameter]\n";
+                        else if (sHasConstPars)      childrenBreakdown += "[Constant Parameter]\n";
+                        else                         childrenBreakdown += "[Unknown / Derived]\n";
+                    }
+                    
+                    std::cout << "\n============================================================\n";
+                    std::cout << " [BruComponentsPDF FACTORIZATION WARNING] " << std::endl;
+                    std::cout << " -> PDF Name  : " << GetName() << std::endl;
+                    std::cout << " -> Term Name : " << term->GetName() << " (Component " << icomp << ")" << std::endl;
+                    std::cout << " -----------------------------------------------------------" << std::endl;
+                    std::cout << " -> THE MATH CAUSING THE ISSUE:" << std::endl;
+                    std::cout << "    * Expression : " << expression << std::endl;
+                    if (obsNames.Length() > 0)     std::cout << "    * Observables      : " << obsNames << std::endl;
+                    if (freeParNames.Length() > 0) std::cout << "    * Free Parameters  : " << freeParNames << std::endl;
+                    if (constParNames.Length() > 0)std::cout << "    * Const Parameters : " << constParNames << std::endl;
+                    std::cout << "    * Breakdown of immediate terms:" << std::endl;
+                    std::cout << (childrenBreakdown.Length() > 0 ? childrenBreakdown : "       (None)\n");
+                    std::cout << " -----------------------------------------------------------" << std::endl;
+               } 
+                // 3. Route to the correct caching proxy
+                if (hasObs) {
+                    // Data-dependent term. Evaluate against tree.
                     _DependentTermProxy[icomp].push_back(term.get());
-                    auto parDeps = arg->getObservables(_Parameters);
-            
-                    if (parDeps->getSize()) {
+                    
+                    // ONLY register FREE parameters as triggers for recalculation
+                    if (hasFreePars) {
                         for (auto* p_arg : *parDeps) {
                             auto* rarg = dynamic_cast<RooRealVar*>(p_arg);      
-                            if (!vecContains(rarg, _DependentTermParams[icomp])) {
+                            if (rarg && !rarg->isConstant() && !vecContains(rarg, _DependentTermParams[icomp])) {
                                 _DependentTermParams[icomp].push_back(rarg);
                                 
-                                // Only inject dummy values if this is a fresh, uncopied PDF
                                 if (!inheritedCache) {
                                     Double_t initf = -1E6;
                                     _PrevParVals[icomp].push_back(initf);
@@ -349,13 +432,82 @@ void BruComponentsPDF::initIntegrator() const {
                         }
                     }
                 } else {
+                    // It has no observables! It's either a constant or a purely free parameter.
+                    // Meaning it's perfectly parameterized and evaluates instantly.
                     _IndependentTermProxy[icomp].push_back(term.get());
                 }
+                
                 iterm++;
             }
             icomp++;
         }
+        
+        if (hasBadFactorization && !inheritedCache) {
+            std::cout << " [BruComponentsPDF] ^^^ Factorization warnings found. Fit will run, but may be extremely slow! ^^^ \n" << std::endl;
+	    std::cout << " -> WHY THIS IS BAD:" << std::endl;
+	    std::cout << "    This specific expression mixes FREE parameters and data. Its " << std::endl;
+	    std::cout << "    phase-space integral cannot be cached. The MCMC is forced " << std::endl;
+	    std::cout << "    to loop over the ENTIRE dataset every time it steps!" << std::endl;
+	    std::cout << " -> HOW TO FIX IT:" << std::endl;
+	    std::cout << "    Look for the [MIXED] terms above. You must rewrite the math " << std::endl;
+	    std::cout << "    in your Setup macro to isolate FREE parameters from observables " << std::endl;
+	    std::cout << "    using semicolons (;). Constant parameters do not affect caching." << std::endl;
+	    std::cout << "============================================================\n" << std::endl;
+ 
+        }
     }
+// void BruComponentsPDF::initIntegrator() const {
+//       if (!_once) return; 
+//       _once = kFALSE;     
+       
+//       BruEventsPDF::initIntegrator();
+     
+//         _DependentTermProxy.resize(_NComps);
+//         _DependentTermParams.resize(_NComps);
+//         _IndependentTermProxy.resize(_NComps);
+    
+//         // Check if we inherited a perfectly good cache from a master PDF clone!
+//         bool inheritedCache = (_PrevParVals.size() == _NComps);
+        
+//         if (!inheritedCache) {
+//             _PrevParVals.resize(_NComps);
+//             _CacheCompDepIntegral.assign(_NComps, 1.0);
+//             _CacheCompDepSigmaIntegral.assign(_NComps, 0.0);
+//         }
+
+//         UInt_t icomp = 0;
+//         for (auto& comp : _Components) {
+//             UInt_t iterm = 0;
+//             for (auto& term : comp) {
+//                 auto arg = _ActualComps.find(term->GetName());
+//                 auto deps = arg->getObservables(VarSet(0));
+        
+//                 if (deps->getSize()) {
+//                     _DependentTermProxy[icomp].push_back(term.get());
+//                     auto parDeps = arg->getObservables(_Parameters);
+            
+//                     if (parDeps->getSize()) {
+//                         for (auto* p_arg : *parDeps) {
+//                             auto* rarg = dynamic_cast<RooRealVar*>(p_arg);      
+//                             if (!vecContains(rarg, _DependentTermParams[icomp])) {
+//                                 _DependentTermParams[icomp].push_back(rarg);
+                                
+//                                 // Only inject dummy values if this is a fresh, uncopied PDF
+//                                 if (!inheritedCache) {
+//                                     Double_t initf = -1E6;
+//                                     _PrevParVals[icomp].push_back(initf);
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 } else {
+//                     _IndependentTermProxy[icomp].push_back(term.get());
+//                 }
+//                 iterm++;
+//             }
+//             icomp++;
+//         }
+//     }
   // void BruComponentsPDF::initIntegrator() const {
   //     if (!_once) return; 
   //     _once = kFALSE;     
