@@ -3,6 +3,7 @@
 #include <RooRandom.h>
 #include <TVectorD.h>
 #include <TDecompChol.h>
+#include <TError.h>
 #include <cmath>
 
 namespace HS{
