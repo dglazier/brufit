@@ -50,7 +50,7 @@ namespace HS{
         
         // Re-scale the matrix cleanly using the new fScale
         UpdateCholesky();
-        return kFALSE;
+        return doExit;
       }
       
       void TuneCovarianceStep(Bool_t tune) { _tuneCovStep = tune; }

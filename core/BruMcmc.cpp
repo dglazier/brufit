@@ -423,53 +423,101 @@ Bool_t BruMcmc::MakeChain() {
           }
       }
     } 
-   
-    void BruMcmc::Result(){
+ void BruMcmc::Result(){
       AddEntryBranch();
-      RooArgList saveFloatFinalList(*fChainData->get()) ;
-
       AddFormulaToMCMCTree();
   
-      for(Int_t i = 0; i < fParams->getSize(); i++){
+      // Use a modern C++ range-based loop over the RooArgSet
+      for(auto* arg : *fParams){
 
-        auto* var = dynamic_cast<RooRealVar*>(saveFloatFinalList.at(i));
+        auto* targetPar = dynamic_cast<RooRealVar*>(arg);
+        if (!targetPar) continue;
+        
+        TString pName = targetPar->GetName();
         
         // ==========================================================
-        // --- Explicitly Calculate Weighted Mean and Sigma ---
+        // --- STABLE TWO-PASS ALGORITHM FOR UNCERTAINTIES ---
         // ==========================================================
         Double_t sumW   = 0.0;
         Double_t sumWX  = 0.0;
-        Double_t sumWX2 = 0.0;
         
+        // PASS 1: Calculate the Mean safely
         for (int entry = 0; entry < fChainData->numEntries(); ++entry) {
-            fChainData->get(entry); // Loads the row into the dataset's internal buffer
+            const RooArgSet* row = fChainData->get(entry); // Get the actual row
             Double_t weight = fChainData->weight();
-            Double_t val    = var->getVal();
+            Double_t val    = row->getRealValue(pName);    // Safely extract by name
             
             sumW   += weight;
             sumWX  += weight * val;
-            sumWX2 += weight * val * val;
         }
         
-        Double_t mean = 0.0;
-        Double_t sigma = 0.0;
-        
-        if (sumW > 0) {
-            mean = sumWX / sumW;
-            Double_t variance = (sumWX2 / sumW) - (mean * mean);
-            sigma = variance > 0 ? std::sqrt(variance) : 0.0;
+        Double_t mean = sumW > 0 ? (sumWX / sumW) : 0.0;
+        Double_t sumVariance = 0.0;
+
+        // PASS 2: Calculate Variance using (x - mu)^2 to prevent cancellation
+        for (int entry = 0; entry < fChainData->numEntries(); ++entry) {
+            const RooArgSet* row = fChainData->get(entry);
+            Double_t weight = fChainData->weight();
+            Double_t val    = row->getRealValue(pName);
+            
+            sumVariance += weight * (val - mean) * (val - mean);
         }
+        
+        Double_t sigma = sumW > 0 ? std::sqrt(sumVariance / sumW) : 0.0;
         // ==========================================================
 
-        std::cout << var->GetName() << " " << mean << " +- " << sigma << std::endl;
+        std::cout << pName << " " << mean << " +- " << sigma << std::endl;
         
-        auto var2 = dynamic_cast<RooRealVar*>(fParams->find(var->GetName()));
-        if (var2) {
-            var2->setVal(mean);
-            var2->setError(sigma);
-        }
+        targetPar->setVal(mean);
+        targetPar->setError(sigma);
       }
-    }
+    } 
+    // void BruMcmc::Result(){
+    //   AddEntryBranch();
+    //   RooArgList saveFloatFinalList(*fChainData->get()) ;
+
+    //   AddFormulaToMCMCTree();
+  
+    //   for(Int_t i = 0; i < fParams->getSize(); i++){
+
+    //     auto* var = dynamic_cast<RooRealVar*>(saveFloatFinalList.at(i));
+        
+    //     // ==========================================================
+    //     // --- Explicitly Calculate Weighted Mean and Sigma ---
+    //     // ==========================================================
+    //     Double_t sumW   = 0.0;
+    //     Double_t sumWX  = 0.0;
+    //     Double_t sumWX2 = 0.0;
+        
+    //     for (int entry = 0; entry < fChainData->numEntries(); ++entry) {
+    //         fChainData->get(entry); // Loads the row into the dataset's internal buffer
+    //         Double_t weight = fChainData->weight();
+    //         Double_t val    = var->getVal();
+            
+    //         sumW   += weight;
+    //         sumWX  += weight * val;
+    //         sumWX2 += weight * val * val;
+    //     }
+        
+    //     Double_t mean = 0.0;
+    //     Double_t sigma = 0.0;
+        
+    //     if (sumW > 0) {
+    //         mean = sumWX / sumW;
+    //         Double_t variance = (sumWX2 / sumW) - (mean * mean);
+    //         sigma = variance > 0 ? std::sqrt(variance) : 0.0;
+    //     }
+    //     // ==========================================================
+
+    //     std::cout << var->GetName() << " " << mean << " +- " << sigma << std::endl;
+        
+    //     auto var2 = dynamic_cast<RooRealVar*>(fParams->find(var->GetName()));
+    //     if (var2) {
+    //         var2->setVal(mean);
+    //         var2->setError(sigma);
+    //     }
+    //   }
+    // }
     void BruMcmc::AddFormulaToMCMCTree(){
       fTreeMCMC->ResetBranchAddresses();
 
