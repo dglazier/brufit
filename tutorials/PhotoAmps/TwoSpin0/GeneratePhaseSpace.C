@@ -15,7 +15,7 @@
 
    //Define PDF as constant RooComponentsPDF
    Flat.SetUp().LoadFunctionVar("RooConstVar::Val(1)");
-   Flat.SetUp().FactoryPDF("RooComponentsPDF::Flat(1,{CosTh,Phi,PolPhi,Pol},=Val)");
+   Flat.SetUp().FactoryPDF("BruComponentsPDF::Flat(1,{CosTh,Phi,PolPhi,Pol},=Val)");
    //Load generator to produce 1E6 events
    Flat.SetUp().LoadSpeciesPDF("Flat",1E6); //# events
 
