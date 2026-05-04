@@ -17,8 +17,7 @@ namespace HS{
     public:
 
       // Updated: Replaced single Int_t with vector, removed Float_t norm
-      AmpMcmc(AmpConfigure* configure, std::vector<Int_t> Niters, Int_t Nburn=10, UInt_t nrefits=0, Bool_t nozeroinit=kFALSE);
-      
+      AmpMcmc(AmpConfigure* configure, std::vector<Int_t> Niters, UInt_t nrefits,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.16,float accmax=0.3, Bool_t nozeroinit=false);
       ~AmpMcmc() override = default;
 
       void RandomiseParameters();
