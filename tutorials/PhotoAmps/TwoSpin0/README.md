@@ -23,6 +23,7 @@ To perform this analysis you need to :
 2. Generate a data set with amplitudes
 
    	    brufit PhotoTwoSpin0Gen.C
+   	    //brufit PhotoTwoSpin0CircGen.C if you want to include circular polarisation
 
 3. Fit the data partial waves
 
@@ -48,6 +49,7 @@ give values for the amplitudes in this formalism.
 3b.) Fit data moments
 
        	   brufit PhotoTwoSpin0FitMoments.C
+       	   // brufit PhotoTwoSpin0FitCircMoments.C if you want to include circular polarisation
 
 To verify uncertainties bootstrapping algorithm can be applied.
 In brufit this requires to iniate boostrapping with a number of

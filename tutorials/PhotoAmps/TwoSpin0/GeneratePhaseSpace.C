@@ -10,12 +10,13 @@
    Flat.SetUp().LoadVariable("CosTh[-1,1]"); 
    Flat.SetUp().LoadVariable("Phi[-3.14159,3.14159]");
    Flat.SetUp().LoadVariable("PolPhi[-3.14159,3.14159]");
-   Flat.SetUp().LoadVariable("Pol[0.5,1]");
-
+   Flat.SetUp().LoadVariable("Pol[0.3,0.7]");
+   Flat.SetUp().LoadVariable("CircPol[0.3,0.7]");
+   Flat.SetUp().LoadVariable("Heli[-1,1]");
 
    //Define PDF as constant RooComponentsPDF
    Flat.SetUp().LoadFunctionVar("RooConstVar::Val(1)");
-   Flat.SetUp().FactoryPDF("BruComponentsPDF::Flat(1,{CosTh,Phi,PolPhi,Pol},=Val)");
+   Flat.SetUp().FactoryPDF("BruComponentsPDF::Flat(1,{CosTh,Phi,PolPhi,Pol,CircPol,Heli},=Val)");
    //Load generator to produce 1E6 events
    Flat.SetUp().LoadSpeciesPDF("Flat",1E6); //# events
 

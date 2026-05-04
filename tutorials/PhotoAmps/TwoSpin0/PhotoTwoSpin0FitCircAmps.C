@@ -2,7 +2,7 @@
   
   FitManager Fitter;// manage the fitting
   //set the output directory for the fit results files Results*.root
-  Fitter.SetUp().SetOutDir("fitBruAmps/");
+  Fitter.SetUp().SetOutDir("fitBruCircAmps/");
 
   //Use amlitude configue class to define model
   PhotoTwoSpin0Amps config("PWA");
@@ -11,7 +11,11 @@
   config.SetDecayAngleCosTh("CosTh[0.21,-1,1]");
   config.SetDecayAnglePhi("Phi[0.2,-3.14159,3.14159]");
   config.SetPolPhi("PolPhi[0.2,-3.14159,3.14159]");
-  config.SetPolarisation("Pol[0.3,0.7]");
+  config.SetPolarisation("Pol[0.5,0.3,0.7]");
+  config.SetPolCirc("CircPol[0.4,0,0.7.]");
+  config.SetBeamHelicity("Heli[1,-1.0001,1.0001.]");
+  Fitter.SetUp().SetDataOnlyCut("Heli!=0");
+
   //config.SetConstPolarisation("Pol[0.75]"); //alternative
  
   //In case using weights etc.
@@ -22,7 +26,7 @@
   Fitter.LoadSimulated("ToyData","flat/Toy0.root",config.GetName());
 
   //load data to be fit (this was created by PhotoTwoSpin0Gen.C)
-  Fitter.LoadData("ToyData","genBruAmps/Toy0.root");
+  Fitter.LoadData("ToyData","genBruAmpsCirc/Toy0.root");
  
   //Now set model options
   //Lmax
@@ -36,7 +40,10 @@
   config.SetNrefl(1);
  //Only use even , S,D,... waves
   //config.SetOnlyEvenWaves();
-   
+
+  //include circular pol intensities
+  config.UseCircularPol();
+
   //Load required functions
   config.ConfigurePWAs();
 
@@ -94,7 +101,7 @@
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains
   //Nsamples,burnin,step size,NChains
-  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},100,10);
+  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},2,100,0.1,0.23,0.16,0.3,false);
   mcmc->SetCyclicParameters(Fitter.SetUp().FilterParameters("phi"));
   Fitter.SetMinimiser(mcmc);
   Here::Go(&Fitter);
