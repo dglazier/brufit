@@ -94,7 +94,7 @@
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains
   //Nsamples,burnin,step size,NChains
-  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},100,10);
+  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},2,100,0.1,0.23,0.16,0.3,false);
   mcmc->SetCyclicParameters(Fitter.SetUp().FilterParameters("phi"));
   Fitter.SetMinimiser(mcmc);
   Here::Go(&Fitter);
