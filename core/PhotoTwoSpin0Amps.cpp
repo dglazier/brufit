@@ -275,7 +275,7 @@ namespace HS{
 	if(_HelicityIsCat==kFALSE){
 	  if(PolCirc.Length()==0){
 	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))",BeamHel.Data(),BeamHel.Data()));
-	    mp.AddParameter("parPcirc[0.5,0,1]");
+	    mp.AddParameter("parPcirc[0.,0,1]");
 	  }
 	  else{  
 	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@%s[]",BeamHel.Data(),BeamHel.Data(),PolCirc.Data()));
@@ -285,7 +285,7 @@ namespace HS{
 	if(_HelicityIsCat==kTRUE){
 	  if(PolCirc.Length()==0){
 	    mp.AddFormula(Form("PCIRC=@%s[]",BeamHel.Data()));
-	    mp.AddParameter("parPcirc[0.5,0,1]");
+	    mp.AddParameter("parPcirc[0.,0,1]");
 
 	  }
 	  else{
