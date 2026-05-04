@@ -12,15 +12,19 @@
 // --- NEW HEADERS FOR PROGRESS BAR ---
 #include <sys/mman.h> 
 #include <atomic>      
+#include <thread>
+#include <chrono>
 
 namespace HS {
 namespace FIT {
 namespace PROCESS {
       
-    // ========================================================================
-    // Modern Multicore Processor (Replaces PROOF)
-    // ========================================================================
-    void Multi::Go(FitManager* fm, Int_t nWorkers) {
+  // ========================================================================
+  // Modern Multicore Processor (Replaces PROOF)
+  // optional delayTime(ms) protects against large volume mc data
+  //all being read and cached at same time
+  // ========================================================================
+  void Multi::Go(FitManager* fm, Int_t nWorkers, Int_t delayTime) {
         if (!fm) return;
         
         Int_t nFits = fm->GetN();
@@ -49,8 +53,12 @@ namespace PROCESS {
 
         // Map distributes the lambda function across the worker processes.
         pool.Map([&](Int_t ifit) {
-            
-            // Reconstruct worker state safely
+
+	  // Stagger the first 10 workers to ease the initial I/O load
+	  if (ifit < 10) {
+	    std::this_thread::sleep_for(std::chrono::seconds(ifit * delayTime));
+	  }
+	  // Reconstruct worker state safely
             FitManager workerFm(*fm);
 	    // workerFm.LoadData(fm->GetDataTreeName(), fm->GetDataFileNames());
             workerFm.Data().LoadSetup(&workerFm.SetUp());

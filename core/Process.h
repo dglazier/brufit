@@ -44,11 +44,12 @@ namespace PROCESS {
      * @class Multi
      * @brief Modern, process-based parallel execution (replaces PROOF).
      * Distributes individual bin fits across multiple CPU cores safely.
+     *  optional delayTime(ms) protects against large volume mc data
      */
     class Multi {
     public:
-        static void Go(const std::shared_ptr<FitManager>& fm, Int_t nWorkers = 0) { Go(fm.get(), nWorkers); }
-        static void Go(FitManager* fm, Int_t nWorkers = 0);
+      static void Go(const std::shared_ptr<FitManager>& fm, Int_t nWorkers = 0, Int_t delayTime=2) { Go(fm.get(), nWorkers,delayTime); }
+        static void Go(FitManager* fm, Int_t nWorkers = 0, Int_t delayTime=2);
     };
 
     class Farm {
