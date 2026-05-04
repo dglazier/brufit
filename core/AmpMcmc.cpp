@@ -7,8 +7,8 @@ namespace HS{
   namespace FIT{
     
     // Pass the vector of iterations to the base class, and hardcode norm to 0.01 since the tuner overwrites it anyway
-    AmpMcmc::AmpMcmc(AmpConfigure* configure, std::vector<Int_t> Niters, Int_t Nburn, UInt_t nrefits, Bool_t nozeroinit) 
-      : BruMcmcCovariance(Niters, Nburn, 1), fNFits{nrefits}, fNoZeroInitialVal{nozeroinit}, _ampHelper{configure} {
+    AmpMcmc::AmpMcmc(AmpConfigure* configure, std::vector<Int_t> Niters, UInt_t nrefits,Int_t Nburn, Float_t norm,float target,float accmin,float accmax, Bool_t nozeroinit) 
+      : BruMcmcCovariance(Niters,Nburn,norm,target,accmin,accmax), fNFits{nrefits}, fNoZeroInitialVal{nozeroinit}, _ampHelper{configure} {
       SetNameTitle("HSAmpMcmc","Mcmc multi fit for amplitudes");
     }
 
