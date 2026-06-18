@@ -29,8 +29,7 @@ find_package(ROOT REQUIRED COMPONENTS
     RooFit 
     RooFitCore 
     RooStats 
-    MathMore 
-    Proof 
+    MathMore  
     Minuit2
 )
 # 1. Force CMake to default to Release mode (which uses -O3)
