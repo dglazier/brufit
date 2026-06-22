@@ -3,6 +3,7 @@
 #include <TTree.h>
 #include <TString.h>
 
+#include <cmath>
 #include <utility>
 
 namespace HS{
