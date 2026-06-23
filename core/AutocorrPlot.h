@@ -3,7 +3,7 @@
 
 #include "Setup.h"
 #include "PlotResults.h"
-#include "RooMcmc.h"
+#include "BruMcmc.h"
 #include <RooDataSet.h>
 #include <RooHist.h>
 #include <TList.h>
@@ -14,7 +14,7 @@ namespace HS{
     class AutocorrPlot : public PlotResults {
 
     public:
-      AutocorrPlot(Setup *setup,  RooMcmc* mcmc, TList* canvases);
+      AutocorrPlot(Setup *setup,  BruMcmc* mcmc, TList* canvases);
       AutocorrPlot()=default;
       AutocorrPlot(const AutocorrPlot& )=default;
       AutocorrPlot(AutocorrPlot&& )=default;

@@ -129,18 +129,20 @@ namespace HS{
       
      if(fChain->Size()>fNumStepsThres && fChain->Size()<fNumIters-10) fDontDeleteChain = kTRUE;      
       
-      if(!fDontDeleteChain)
-      	{
-	  if(fChainData){ delete fChainData; fChainData=nullptr;}      
-	  fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
-	  fNumIters = fNumIters-fChain->Size();
-	}
-	  else
-	{
-	  if(fChainData) fChainData->append(*(fChain->GetAsDataSet(EventRange(0, fChain->Size()))));	
-	  fNumIters = fNumIters-fChain->Size();		  
-	  }
-
+     if(!fDontDeleteChain)
+       {
+	 if(fChainData){ delete fChainData; fChainData=nullptr;}      
+	 // fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size())); //about to be deprecated, try following line instead
+	 fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::Name("mcmcChain")));
+	 fNumIters = fNumIters-fChain->Size();
+       }
+     else
+       {
+	 // if(fChainData) fChainData->append(*(fChain->GetAsDataSet(EventRange(0, fChain->Size()))));	
+	 if(fChainData) fChainData->append(*(dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::Name("mcmcChain")))));	
+	 fNumIters = fNumIters-fChain->Size();		  
+       }
+     
       if(fChainData){
 	if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr;}
 	//	cout<<"Get tree from chains "<<endl;//(*gDirectory).GetName()<<endl;
@@ -153,9 +155,10 @@ namespace HS{
 	
  	delete fChainData; fChainData=nullptr;
       }  
-     if(fChain->Size()>fNumBurnInSteps)
-	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
-
+      if(fChain->Size()>fNumBurnInSteps){
+	//	fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
+  	fChainData=dynamic_cast<RooDataSet*>(fChain->GetAsConstDataSet()->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size()),RooFit::Name("mcmcChain")));
+      }
  
       nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
 
@@ -562,13 +565,15 @@ std::cout<<"Sets dataRMS_matrix"<<std::endl;
       _formVals.reserve(formulas.getSize());
       _formBranches.reserve(formulas.getSize());
 
-      TIter iter=formulas.createIterator();
+      // TIter iter=formulas.createIterator();
       Int_t iform=0;
 
       //getLeaves before extra branches
       auto parLeaves=fTreeMCMC->GetListOfLeaves();
       
-      while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+      //while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+      for(auto* formu_abs:formulas){
+	auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
 	TString formuName=formu->GetName();
 	_formVals[iform]=0;
 	_formBranches[iform]=nullptr;
@@ -591,10 +596,12 @@ std::cout<<"Sets dataRMS_matrix"<<std::endl;
 	    
 	}
 	//now calculate value of formula for these parameters
-	iter.Reset();
+	//iter.Reset();
 	iform=0;
-	while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
-	  
+	//while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
+	for(auto* formu_abs:formulas){
+	  auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
+  
 	  _formVals[iform]=formu->getValV();
 	  _formBranches[iform]->Fill();
 	  iform++;

@@ -170,7 +170,9 @@ namespace FIT{
 					}
 					auto newPars = fCurrSetup->ParsAndYields();
 // 					newPars.Print("v");
-					RooDataSet mcmcDS("mcmcDS","mcmcDS",resultTree.get(),newPars);
+					//	RooDataSet mcmcDS("mcmcDS","mcmcDS",resultTree.get(),newPars);
+					//deprecated RooDataSet constructor, use
+					RooDataSet mcmcDS("mcmcDS","mcmcDS",newPars,RooFit::Import(*resultTree.get()));
 					mcmcDS.Print("v");
 
 					Int_t numentries = mcmcDS.numEntries();

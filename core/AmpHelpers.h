@@ -77,7 +77,7 @@ namespace HS{
       for(auto par:static_range_cast<RooRealVar *>(parMoments)){
     	auto* mom=dynamic_cast<RooFormulaVar*>(ampMoments.find(par->GetName()));
       	if((mom)!=nullptr){
-      	  cout<<"copy formula value for "<<mom->GetName()<<" "<<mom->getVal()<<std::endl;
+	  // cout<<"copy formula value for "<<mom->GetName()<<" "<<mom->getVal()<<std::endl;
       	  par->setVal(mom->getVal());
       	}
       }

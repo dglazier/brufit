@@ -42,10 +42,20 @@ namespace HS{
 
       void SetNorm(Float_t norm){fNorm=norm;}
       void SetTargetAccept(Float_t target){fTargetAcc=target;};
+
+       void SetBatchedFunctions(const std::vector<RooAbsReal*>& nlls, int swapFreq) {
+        fBatchedNLLs = nlls;
+        fSwapFreq = swapFreq;
+      }
+
     protected:
       Bool_t wasEvalErrors();
     private:
       RooAbsPdf* fBalancePDF=nullptr;
+  
+      std::vector<RooAbsReal*> fBatchedNLLs;
+      int fSwapFreq = 0;
+      int fCurrentBatch = 0;
       
       // Bool_t fRandomiseStart=kTRUE;
       Bool_t fTryHelp=kFALSE;

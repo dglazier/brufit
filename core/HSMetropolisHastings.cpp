@@ -74,10 +74,12 @@ namespace HS{
 	RooStats::RandomizeCollection(x);
 	//remove yields
 	RooArgSet noYldPars;
-	TIter iter=x.createIterator();
-	while(auto* arg=dynamic_cast<RooRealVar*>(iter()))
+	//TIter iter=x.createIterator();
+	//while(auto* arg=dynamic_cast<RooRealVar*>(iter()))
+	for(auto* arg:x){
 	  if(!TString(arg->GetName()).Contains("Yld") )
 	    noYldPars.add(*arg);
+	}
 	
 	RooStats::SetParameters(&noYldPars, &fParameters);
 	xL = fFunction->getVal();

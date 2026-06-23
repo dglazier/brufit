@@ -19,10 +19,11 @@ namespace HS{
       fOutDir=setup.GetOutDir();
       
       auto vars=setup.DataVars();//get dataset variables
-      auto it=vars.iterator(); //iterate over them
+      //auto it=vars.iterator(); //iterate over them
 
-      TObject * var=nullptr;
-      while ((var=it.Next())){
+      //  TObject * var=nullptr;
+      //while ((var=it.Next())){
+      for(const auto var:vars){
 	fVarNames.push_back(var->GetName()); //store name of dataset varible for filtering tree branches
       }
  

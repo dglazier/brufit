@@ -17,7 +17,7 @@ namespace HS{
       
     public:
     ComponentsPdfParser(string name):PdfParser(std::move(name)){};
-      
+     ComponentsPdfParser() =default;
    
       //Deal with HS::FIT
       string ConstructPDF(string str) override;

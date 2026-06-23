@@ -140,11 +140,13 @@ namespace HS{
     void PhotoTwoSpin0Amps::LoadModelPDF(Long64_t Nevents){
       //Nevents in case this is a toy generator
       //  ComponentsPdfParser  parser = PolarisedSphHarmonicMoments("AngularDist","trucosThGJ","truphiGJ","truphiCM","trucosThCM",_Lmax*2,0,_Lmax*2);
-      ComponentsPdfParser  parser = PolarisedSphHarmonicMoments();
+      // ComponentsPdfParser  parser = PolarisedSphHarmonicMoments();
+      _parser = PolarisedSphHarmonicMoments();
+      
       //std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF got a parser"<<std::endl;
       auto level = RooMsgService::instance().globalKillBelow();
       RooMsgService::instance().setGlobalKillBelow(RooFit::DEBUG) ;
-      _Setup->ParserPDF(_Sum,parser);
+      _Setup->ParserPDF(_Sum,_parser);
       //dynamic_cast<RooHSEventsPDF*>(_Setup->WS().pdf("PWA"))->SetConstInt();
       // std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF loaded parser"<<std::endl;
       _Setup->LoadSpeciesPDF(GetName(),Nevents); //100000 events
@@ -273,7 +275,7 @@ namespace HS{
 	if(_HelicityIsCat==kFALSE){
 	  if(PolCirc.Length()==0){
 	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))",BeamHel.Data(),BeamHel.Data()));
-	    mp.AddParameter("parPcirc[0.5,0,1]");
+	    mp.AddParameter("parPcirc[0.,0,1]");
 	  }
 	  else{  
 	    mp.AddFormula(Form("PCIRC=(@%s[]/TMath::Abs(@%s[]))*@%s[]",BeamHel.Data(),BeamHel.Data(),PolCirc.Data()));
@@ -283,7 +285,7 @@ namespace HS{
 	if(_HelicityIsCat==kTRUE){
 	  if(PolCirc.Length()==0){
 	    mp.AddFormula(Form("PCIRC=@%s[]",BeamHel.Data()));
-	    mp.AddParameter("parPcirc[0.5,0,1]");
+	    mp.AddParameter("parPcirc[0.,0,1]");
 
 	  }
 	  else{

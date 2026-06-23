@@ -1,4 +1,5 @@
 {
+  
   FitManager Fitter;// manage the fitting
   //set the output directory for the fit results files Results*.root
   Fitter.SetUp().SetOutDir("fitBruAmps/");
@@ -10,8 +11,7 @@
   config.SetDecayAngleCosTh("CosTh[0.21,-1,1]");
   config.SetDecayAnglePhi("Phi[0.2,-3.14159,3.14159]");
   config.SetPolPhi("PolPhi[0.2,-3.14159,3.14159]");
-  config.SetPolarisation("Pol[0.9,0.5,1]");
-   
+  config.SetPolarisation("Pol[0.3,0.7]");
   //config.SetConstPolarisation("Pol[0.75]"); //alternative
  
   //In case using weights etc.
@@ -29,10 +29,13 @@
   config.SetLmax(2);
   //Mmax = Lmax if not set
   config.SetMmax(1);
+  //config.SetLmax(3);
+  //Mmax = Lmax if not set
+  //config.SetMmax(3);
   //number of reflectivities = 1 or 2
   config.SetNrefl(1);
  //Only use even , S,D,... waves
-  config.SetOnlyEvenWaves();
+  //config.SetOnlyEvenWaves();
    
   //Load required functions
   config.ConfigurePWAs();
@@ -59,28 +62,22 @@
   // Fitter.SetUp().SetParVal("a_2_0",0.567,kFALSE); //D0
   
 
-  //set some fitter options
-  Fitter.SetUp().AddFitOption(RooFit::PrintEvalErrors(-1));//suppress error messaages
-  Fitter.SetUp().AddFitOption(RooFit::NumCPU(6)); //number of CPUs to split likelihood calc.
-  
-  //default error strategy for Minuit fits is asymptotically correct approach
-  //https://arxiv.org/abs/1911.01303, but this may be slow
-  Fitter.SetUp().ErrorsWrong();//"naive" error calculation, much faster
-  //Fitter.SetUp().ErrorSumW2();//sumW2 correction if using weights
-
+ 
   //some plotter options
   // Fitter.TurnOffPlotting();
   // Fitter.SetPlotOptions("MCMC"); //Make MCMC related plots
-  // Fitter.SetPlotOptions("goff"); //save plots but do not show (batch)
-
-  //********************************************
+  //Fitter.SetPlotOptions("goff"); //save plots but do not show (batch)
+ 
+  // (dynamic_cast<BruEventsPDF*>(&Fitter.SetUp().PDFs()[0]))->SetConstInt();
+  // (dynamic_cast<RooHSEventsPDF*>(&Fitter.SetUp().PDFs()[0]))->SetConstInt();
+ //********************************************
   //Perform single fit with default Minuit2 minimiser
-   Here::Go(&Fitter);
+  //Here::Go(&Fitter);
  
   //********************************************
   //Perform fit 20 times Minuit2 minimiser
   //All results are saved in same Results file in the TTree ResultTreeBru
-  //Fitter.SetMinimiser(new AmpMinuit2(&config,20));
+  //Fitter.SetMinimiser(new AmpMinuit2(&config,5));
   //Here::Go(&Fitter);
   
   //********************************************
@@ -89,18 +86,18 @@
   //most basic sequential proposal (Nsamples,burnin,step size, desired acceptance, min acceptance, max acceptance)
   //auto mcmc=new BruMcmcSeqHelper(2000,1000,0.1,0.23,0.16,0.3);
   //brufit covariance matric based proposal
-  // auto mcmc=new BruMcmcCovariance(2000,1000,0.1,0.23,0.16,0.3);
-  ////mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
+  // auto mcmc=new BruMcmcCovariance({2000,10000,5000},100,1,0.23,0.16,0.3);
+  // mcmc->SetCyclicParameters(Fitter.SetUp().FilterParameters("phi"));
   // Fitter.SetMinimiser(mcmc);
-  //Here::Go(&Fitter);
+  // Here::Go(&Fitter);
  
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains
   //Nsamples,burnin,step size,NChains
-  //auto mcmc=new AmpMcmc(&config,5000,200,0.01,10);
-  //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
-  //Fitter.SetMinimiser(mcmc);
-  //Here::Go(&Fitter);
+  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},2,100,0.1,0.23,0.16,0.3,false);
+  mcmc->SetCyclicParameters(Fitter.SetUp().FilterParameters("phi"));
+  Fitter.SetMinimiser(mcmc);
+  Here::Go(&Fitter);
 
   
-}
+ }

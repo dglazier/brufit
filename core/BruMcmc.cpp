@@ -1,4 +1,5 @@
 #include "BruMcmc.h"
+#include "BruComponentsPDF.h"
 #include "BruMetropolisHastings.h"
 
 #include <TROOT.h>
@@ -6,7 +7,6 @@
 #include <TDirectory.h>
 #include <TLeaf.h>
 #include <TTreeIndex.h>
-#include <RooStats/UniformProposal.h>
 #include <RooStats/SequentialProposal.h>
 #include <RooStats/ProposalHelper.h>
 #include <TRobustEstimator.h>
@@ -15,655 +15,666 @@
 #include <TH1D.h>
 #include <TMatrixDSym.h>
 #include <RooGlobalFunc.h>
+#include <RooProduct.h>
+#include <RooProdPdf.h>
+#include <RooRealVar.h>
+#include <cmath>
+
 namespace HS{
   namespace FIT{
 
     using namespace RooFit;
     using namespace RooStats;
-
     
-    BruMcmc::~BruMcmc(){
-      if(!_formBranches.empty()){
-	for(auto br:_formBranches)
-	  delete br;
-      }
-      if(fChain!=nullptr){delete fChain;fChain =nullptr;}
-      if(fChainData!=nullptr) {delete fChainData;fChainData=nullptr;}
+    void BruMcmc::InitModel() {
+        std::cout << "BruMcmc::InitModel" << std::endl;
+        fPdf = fSetup->Model();
+        
+        fPOI.removeAll();
+        fPOI.add(fSetup->Parameters());
+        fPOI.add(fSetup->Yields());
+        
+        fNuisParams.removeAll();
+        fConditionalObs.removeAll();
+        fGlobalObs.removeAll();
+        fPriorPdf = nullptr; 
     }
-    
+
     void BruMcmc::Run(Setup &setup,RooAbsData &fitdata){
-      //initialise MCMCCalculator
       fSetup=&setup;
       fData=&fitdata;
-      cout<<"BruMcmc::Run"<<endl;
-      SetModel(fSetup->GetModelConfig());
+      std::cout<<"BruMcmc::Run"<<std::endl;
+      
+      InitModel();
       SetupBasicUsage();
 
       MakeChain();
-      
     }
   
-    ///////////////////////////////////////////
-    Bool_t BruMcmc::MakeChain()
+    // ---------------------------------------------------------
+    // MODULAR METHOD 1: Construct the Core Math (NLL)
+    // ---------------------------------------------------------
+    RooAbsReal* BruMcmc::BuildNLL(RooAbsData* data,
+        std::unique_ptr<RooAbsPdf>& localProdPdf,
+        std::unique_ptr<RooAbsReal>& baseNll,
+        std::unique_ptr<RooRealVar>& alphaVar,
+        std::unique_ptr<RooProduct>& correctedNll) 
     {
-      if (!fData || !fPdf   ) return kFALSE;
+        RooAbsPdf * activePdf = fPdf;
+        if (fPriorPdf) {
+            TString prodName = TString("product_") + TString(fPdf->GetName()) + TString("_") + TString(fPriorPdf->GetName());
+            localProdPdf.reset(new RooProdPdf(prodName, prodName, RooArgList(*fPdf, *fPriorPdf)));
+            activePdf = localProdPdf.get();
+        }
+
+        std::unique_ptr<RooArgSet> constrainedParams(activePdf->getParameters(*data));
+
+        auto foptions = fSetup->FitOptions();
+        TObject* opt=nullptr;
+        if((opt=foptions.find("Save"))!=nullptr) foptions.Remove(opt);
+        if((opt=foptions.find("SumW2Error"))!=nullptr) foptions.Remove(opt);
+       
+        auto cmd1 = RooFit::ConditionalObservables(fConditionalObs);
+        foptions.Add(dynamic_cast<RooCmdArg*>(&cmd1));
+      
+        auto cmd2 = RooFit::Constrain(*constrainedParams);
+        foptions.Add(dynamic_cast<RooCmdArg*>(&cmd2));
+ 
+        baseNll.reset(activePdf->createNLL(*data, foptions));
+        baseNll->constOptimizeTestStatistic(RooAbsArg::Activate, false);
+      
+        if(data->isNonPoissonWeighted() && fCorrectForWeights){
+            Double_t SumW = SumWeights();
+            Double_t SumW2 = SumWeights2();
+            Double_t alphaVal = SumW / SumW2;
+
+            TString NllName = baseNll->GetName();
+            NllName.ReplaceAll("-", "m");
+            NllName.ReplaceAll("+", "p");
+            baseNll->SetName(NllName);
+        
+            alphaVar.reset(new RooRealVar("alpha_weight", "alpha_weight", alphaVal));
+            alphaVar->setConstant(kTRUE);
+
+            correctedNll.reset(new RooProduct("alphanll", Form("%lf * %s", alphaVal, baseNll->GetName()), RooArgList(*alphaVar, *baseNll)));
+            return correctedNll.get();
+        }
+
+        return baseNll.get();
+    }
+    
+ void BruMcmc::BuildBatchedNLLs(int numBatches) {
+      // =======================================================
+      // THE FIX: Deep Search the PDF Tree
+      // Force the Master PDF to calculate and cache the integrals ONCE.
+      // We must iterate over all components because the BruComponentsPDF 
+      // is usually hidden inside a RooSimultaneous or RooProdPdf!
+      // =======================================================
+      std::cout << "BruMcmc: Deep searching model for BruComponentsPDFs to pre-calculate phase space..." << std::endl;
+      
+      std::unique_ptr<RooArgSet> comps(fPdf->getComponents());
+      for (auto* arg : *comps) {
+          auto* bruPdf = dynamic_cast<bru::BruComponentsPDF*>(arg);
+          if (bruPdf) {
+              std::cout << " -> Forcing initial integration for component: " << bruPdf->GetName() << std::endl;
+              
+              // This triggers CheckChange (which returns true because _Last is 0)
+              // and runs DoFirstIntegrations(), permanently caching the math!
+              bruPdf->analyticalIntegral(1, ""); 
+          }
+      }
+      
+      ClearBatches(); // Ensure we are clean
+      int totalEvents = fData->numEntries();
+      int batchSize = totalEvents / numBatches;
+
+      std::cout << "BruMcmc: Slicing data into " << numBatches << " batches..." << std::endl;
+
+      for (int b = 0; b < numBatches; ++b) {
+          int startIndex = b * batchSize;
+          int endIndex = (b == numBatches - 1) ? totalEvents : (b + 1) * batchSize;
+
+          auto subData = std::unique_ptr<RooAbsData>(fData->reduce(RooFit::EventRange(startIndex, endIndex)));
+          auto cache = std::unique_ptr<NLLCache>(new NLLCache());
+              
+          // Elegantly pass the slice into your custom BuildNLL
+          cache->finalNll = BuildNLL(subData.get(), cache->localProdPdf, cache->baseNll, cache->alphaVar, cache->correctedNll);
+              
+          // Turn off expensive profiling for burn-in batches
+          cache->finalNll->constOptimizeTestStatistic(RooAbsArg::Activate, false); 
+
+          fBatchedNLLPointers.push_back(cache->finalNll);
+          fBatchedData.push_back(std::move(subData));
+          fBatchedNLLCache.push_back(std::move(cache));
+      }
+    } 
+    void BruMcmc::ClearBatches() {
+      fBatchedNLLPointers.clear();
+      fBatchedNLLCache.clear();
+      fBatchedData.clear();
+      fBatchSwapFreq = 0;
+      std::cout << "BruMcmc: Batched memory cleared." << std::endl;
+    }
+    
+    // ---------------------------------------------------------
+    // MODULAR METHOD 2: Run the stepping loop
+    // ---------------------------------------------------------
+bool BruMcmc::RunHastings(RooAbsReal* nll) {
+        fParams.reset(nll->getParameters(*fData)); 
+        RemoveConstantParameters(fParams.get());
+
+        BruMetropolisHastings mh;
+        mh.SetFunction(*nll);
+        mh.SetParameters(*(fParams.get()));
+        if (fChainParams.getSize() > 0) mh.SetChainParameters(fChainParams);
+        mh.SetProposalFunction(*fPropFunc);
+        mh.SetNumIters(fNumIters);
+
+        // ==========================================================
+        // --- STOCHASTIC GRADIENT BATCHING ---
+        // Pass the pre-compiled NLL slices down to the MH engine
+        // so it can rotate the physics landscape during the burn-in!
+        // ==========================================================
+        if (fBatchSwapFreq > 0 && !fBatchedNLLPointers.empty()) {
+            mh.SetBatchedFunctions(fBatchedNLLPointers, fBatchSwapFreq);
+        }
+
+        fChain.reset(mh.ConstructChain()); 
+        fChainAcceptance = mh.GetAcceptance();
+
+        if(fChain == nullptr){
+            if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr; }
+            return false;
+        }
+        return true;
+    }
+    // bool BruMcmc::RunHastings(RooAbsReal* nll) {
+    //     fParams.reset(nll->getParameters(*fData)); 
+    //     RemoveConstantParameters(fParams.get());
+
+    //     BruMetropolisHastings mh;
+    //     mh.SetFunction(*nll);
+    //     mh.SetParameters(*(fParams.get()));
+    //     if (fChainParams.getSize() > 0) mh.SetChainParameters(fChainParams);
+    //     mh.SetProposalFunction(*fPropFunc);
+    //     mh.SetNumIters(fNumIters);
+
+    //     fChain.reset(mh.ConstructChain()); 
+    // 	fChainAcceptance = mh.GetAcceptance();
+
+    //     if(fChain == nullptr){
+    //         if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr; }
+    //         return false;
+    //     }
+    //     return true;
+    // }  
+
+    // ---------------------------------------------------------
+    // MODULAR METHOD 3: Format and Extract Data
+    // ---------------------------------------------------------
+    void BruMcmc::SaveChainToTree() {
+        if(fChainData.get()){ fChainData.reset(); }
+        if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr; }
+     
+        const RooDataSet* internalData = fChain->GetAsConstDataSet();
+        if(!internalData) return;
+
+        auto saveDir = gDirectory;
+        if(fOutFile) fOutFile->cd();
+        
+        fTreeMCMC = RooStats::GetAsTTree("MCMCTree","MCMCTree", *internalData);
+        
+        if(fChain->Size() > fNumBurnInSteps){
+	        fChainData.reset(dynamic_cast<RooDataSet*>(internalData->reduce(RooFit::EventRange(fNumBurnInSteps, fChain->Size()), RooFit::Name("mcmcChain"))) );
+        } else {
+	        fChainData.reset(dynamic_cast<RooDataSet*>(internalData->Clone("mcmcChain")));
+        }
+        saveDir->cd();
+    }
+
+    // ---------------------------------------------------------
+    // MAIN ENTRY POINT 
+    // ---------------------------------------------------------
+Bool_t BruMcmc::MakeChain() {
+      std::cout << " NEW MAKE CHAIN " << std::endl;
+      fSuccess = kFALSE; // Assume failure until it completes successfully
+      
+      if (!fData || !fPdf) return kFALSE;
       if (fPOI.getSize() == 0) return kFALSE;
 
-      // if a proposal function has not been specified create a default one
-      bool useDefaultPropFunc = (fPropFunc == nullptr);
-      bool usePriorPdf = (fPriorPdf != nullptr);
-      if (useDefaultPropFunc) fPropFunc = new UniformProposal();
-   
-      // if prior is given create product
-      RooAbsPdf * prodPdf = fPdf;
-      if (usePriorPdf) {
-	TString prodName = TString("product_") + TString(fPdf->GetName()) + TString("_") + TString(fPriorPdf->GetName() );
-	prodPdf = new RooProdPdf(prodName,prodName,RooArgList(*fPdf,*fPriorPdf) );
-      }
- 
-      RooArgSet* constrainedParams = prodPdf->getParameters(*fData);
+      std::unique_ptr<RooAbsPdf> localProdPdf;
+      std::unique_ptr<RooAbsReal> baseNll;
+      std::unique_ptr<RooRealVar> alphaVar;
+      std::unique_ptr<RooProduct> correctedNll;
+        
+      RooAbsReal* finalNll = nullptr;
 
-      //   RooAbsReal* nll = prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs));
-      auto foptions = fSetup->FitOptions();
-
-      //remove not applicable options      
-      TObject* opt=nullptr;
-      if((opt=foptions.find("Save"))!=nullptr){
-	foptions.Remove(opt);
-      }
-       if((opt=foptions.find("SumW2Error"))!=nullptr){
-	foptions.Remove(opt);
+      // ==========================================================
+      // --- NLL ROUTING ---
+      // If stochastic swapping is active, use the pre-compiled batch cache
+      // Otherwise, build a fresh NLL using the current fData pointer
+      // ==========================================================
+      if (fBatchSwapFreq > 0 && !fBatchedNLLPointers.empty()) {
+          finalNll = fBatchedNLLPointers[0]; 
+      } else {
+          finalNll = BuildNLL(fData, localProdPdf, baseNll, alphaVar, correctedNll);
       }
 
-       
-      auto cmd = ConditionalObservables(fConditionalObs);
-      foptions.Add(dynamic_cast<RooCmdArg*>(&cmd));
-      cmd=Constrain(*constrainedParams);
-      foptions.Add(dynamic_cast<RooCmdArg*>(&cmd));
- 
-      RooAbsReal* nll = prodPdf->createNLL(*fData,foptions);
-      delete constrainedParams;
+      if (!finalNll) return kFALSE;
 
-      
-      nll->constOptimizeTestStatistic(RooAbsArg::Activate,false) ;
-      
-      // add in sumw/sumw2 term
-      RooAbsReal* delnll=nullptr;
-      if(fData->isNonPoissonWeighted()&&fCorrectForWeights){
-      	Double_t SumW=SumWeights();
-      	Double_t SumW2=SumWeights2();
-	TString NllName=nll->GetName();
-	NllName.ReplaceAll("-","m");
-	NllName.ReplaceAll("+","p");
-	nll->SetName(NllName);
-      	RooFormulaVar *alphanll=new RooFormulaVar("alphanll",Form("%lf*%s",SumW/SumW2,nll->GetName()),RooArgSet(*nll));
-	delnll=nll;//keep a pointer for deleting
-      	nll=alphanll;
+      std::unique_ptr<BruSequentialProposal> defaultPropFunc;
+      if (fPropFunc == nullptr) {
+          defaultPropFunc.reset(new BruSequentialProposal(fNorm));
+          fPropFunc = defaultPropFunc.get();
       }
- 
-      fParams = nll->getParameters(*fData);
-      RemoveConstantParameters(fParams);
 
-       BruMetropolisHastings mh;
-      
-      mh.SetFunction(*nll);
-      mh.SetParameters(*fParams);
-      if (fChainParams.getSize() > 0) mh.SetChainParameters(fChainParams);
-      mh.SetProposalFunction(*fPropFunc);
-      mh.SetNumIters(fNumIters);
-    
-      if(fChain){ delete fChain; fChain=nullptr;}
+      // Execute the Hastings stepping engine
+      bool success = RunHastings(finalNll);
 
-      fChain= mh.ConstructChain(); //mh is still owner and will delete
-      cout<<"DEBUG "<<" Got chain "<<fChain<<endl;
-      if(fChain==nullptr){
-	if (useDefaultPropFunc) delete fPropFunc;
-	if (usePriorPdf) delete prodPdf;
-	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
+      if (defaultPropFunc) fPropFunc = nullptr; 
 
-	fChainAcceptance=mh.GetAcceptance();
-	
-	delete nll;
-	if(delnll) delete delnll;
-
-	return kFALSE; //unsuccessful
+      if (!success) {
+          CleanMakeChain();
+          return kFALSE; 
       }
-      
-      if(fChainData!=nullptr){ delete fChainData; fChainData=nullptr;}
-      cout<<"DEBUG "<<" Got chain data 2 "<<fChainData<<" "<<fChain->Size()<<endl;
+
+      SaveChainToTree();
      
-      fChainData=fChain->GetAsDataSet(EventRange(0, fChain->Size()));
-
-      cout<<"DEBUG "<<" Got chain data 3 "<<fChainData<<" "<<fTreeMCMC<<endl;
-      if(fChainData!=nullptr){
-	if(fTreeMCMC!=nullptr){ delete fTreeMCMC; fTreeMCMC=nullptr;}
-	auto saveDir=gDirectory;
-	fOutFile->cd();
-	fTreeMCMC=RooStats::GetAsTTree("MCMCTree","MCMCTree",*fChainData);
-	saveDir->cd();
- 	delete fChainData; fChainData=nullptr;
+      // Only deactivate the test statistic optimization if we built it dynamically here
+      if (baseNll) {
+          baseNll->constOptimizeTestStatistic(RooAbsArg::DeActivate, false);
       }
-      cout<<"DEBUG "<<" Got chain size  "<< fChain->Size() <<" burnin "<< fNumBurnInSteps<<endl;
-
-     if(fChain->Size()>fNumBurnInSteps){
-       fChainData=fChain->GetAsDataSet(EventRange(fNumBurnInSteps, fChain->Size()));
-     }
-     
- 
-      nll->constOptimizeTestStatistic(RooAbsArg::DeActivate,false) ;
 
       CleanMakeChain();
-      if (useDefaultPropFunc) delete fPropFunc;
-      if (usePriorPdf) delete prodPdf;
-      delete nll;
-      if(delnll) delete delnll;
        
-  
+      fSuccess = kTRUE; // We made it to the end! Mark as successful.
       return kTRUE;
     }
-    void BruMcmc::CleanMakeChain(){
-    }
+   
     ////////////////////////////////////////////////////////
-    
-    TMatrixDSym BruMcmc::MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin){
-          
+ TMatrixDSym BruMcmc::MakeMcmcCovarianceMatrix(TTree* tree, size_t burnin, Bool_t decoupleYields) {
       auto pars = fSetup->NonConstParsAndYields();
       Int_t Npars = pars.size();
-      Int_t Nentries = tree->GetEntries()-burnin;
-      Int_t param_index=0;     
-      vector<Double_t> params(Npars);
-      Double_t data[Npars];
-      //Int_t NburnC = fNumBurnInStepsCov;
-  
-     
-      //Loop over parameters of the model and set values from the tree
-      //Needed for RobustEstimator
-      //Only needed once
-      int pindex=0;
-      tree->ResetBranchAddresses();
-      for(RooAbsArg* ipar : pars)
-	{
-	  if(ipar->isConstant()) continue;
-	  
-	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
-	    pindex++;
-	  }
-	}
-      Npars=pindex; //should be = number of branches in tree, protects for constant pars
-      cout<<"Robust "<<Nentries<<" "<<Npars<<" "<<tree->GetEntries()<<" "<<burnin<<endl;
-      //Create instance of TRobustEstimator
-      TRobustEstimator r(Nentries,Npars);
+      Int_t Nentries = tree->GetEntries() - burnin;
+      std::vector<Double_t> params(Npars);
 
-      std::vector<TH1F> hists(Npars);
-      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
-      // for (int ientry = 0; ientry<Nentries; ientry++)
-      for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
-	{//Loop over entries of the tree
-	  tree->GetEntry(ientry);
-	 
-	  for (int param_index = 0; param_index<Npars; param_index++)
-	    { //Loop over parameters of the model
-	      //And set 'data' element
-	      data[param_index]=params[param_index];
-	      hists[param_index].Fill(data[param_index]);
-	    }
-	 
-	  r.AddRow(data);//Appends data to RE
-	}
-     
-      r.Evaluate(); //Necessary to calculate RE properly
-      const TMatrixDSym* covMatSym=nullptr;
-      covMatSym = r.GetCovariance(); //actually returns pointer to reference so do not delete
-      covMatSym->Print();
-      //covMatSym is the symmetric covariance matrix to be used in the proposal function
-      TMatrixDSym covMatSymNorm=*covMatSym;
-  
-      cout<<"covMatSym->Determinant = "<<covMatSym->Determinant()<<endl;
-      if(TMath::Abs(covMatSym->Determinant())==0 ){//need a better condition
-	cout<<"BruMcmc::MakeMcmcCovarianceMatrix Determinant too small,  will create a  diagnal matrix from RMS"<<endl;
-	  for(int iy=0;iy<Npars;++iy){
-	    cout<<pars[iy]->GetName()<<endl;
-	    
-	    //zero all but last elements of row
-	    for(Int_t id=0;id<Npars;++id){
-	      covMatSymNorm(iy,id)=0;
-	    }
-	    
-	    auto row=iy;
-	    covMatSymNorm(row,row)=hists[row].GetRMS()*hists[row].GetRMS();
-	    
-	  }
-	  covMatSymNorm.Print();
- 	
+      int pindex = 0;
+      tree->ResetBranchAddresses();
+      for(RooAbsArg* ipar : pars) {
+          if(ipar->isConstant()) continue;
+          if(tree->SetBranchAddress(ipar->GetName(), &params[pindex]) == 0) pindex++;
+      }
+      Npars = pindex; 
+
+      std::vector<bool> isCyclic(Npars, false);
+      std::vector<bool> isYield(Npars, false); // Track yields to decouple them later
+      std::vector<double> maxVal(Npars, 0.0), minVal(Npars, 0.0);
+      std::vector<double> sumSin(Npars, 0.0), sumCos(Npars, 0.0);
+      std::vector<double> means(Npars, 0.0);
+        
+      for (int i = 0; i < Npars; ++i) {
+          auto var = dynamic_cast<RooRealVar*>(pars[i]);
+          
+          if (fCyclicPars.contains(*var)) {
+              isCyclic[i] = true;
+              maxVal[i] = var->getMax();
+              minVal[i] = var->getMin();
+          }
+          if (fSetup->Yields().contains(*var)) {
+              isYield[i] = true; // Flag as a yield
+          }
+      }
+        
+      // --- PASS 1: Calculate Means (Circular & Arithmetic) ---
+      for (int ientry = burnin; ientry < Nentries + burnin; ientry++) {
+          tree->GetEntry(ientry);
+          for (int p = 0; p < Npars; p++) {
+              if (isCyclic[p]) {
+                  double len = maxVal[p] - minVal[p];
+                  double angle = (params[p] - minVal[p]) / len * 2.0 * TMath::Pi() - TMath::Pi();
+                  sumSin[p] += TMath::Sin(angle);
+                  sumCos[p] += TMath::Cos(angle);
+              } else {
+                  means[p] += params[p];
+              }
+          }
+      }
+        
+      std::vector<double> circMean(Npars, 0.0);
+      for (int p = 0; p < Npars; p++) {
+          if (isCyclic[p]) {
+              double meanAngle = TMath::ATan2(sumSin[p], sumCos[p]);
+              circMean[p] = (meanAngle + TMath::Pi()) / (2.0 * TMath::Pi()) * (maxVal[p] - minVal[p]) + minVal[p];
+          } else {
+              means[p] /= Nentries; // Finalize arithmetic mean
+          }
       }
 
-  
-      
-      
-      tree->ResetBranchAddresses();
+      std::cout << "BruMcmc: Calculating Empirical Covariance for " << Nentries << " accepted steps..." << std::endl;
 
-      // TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
-      
-      // TFile* saveSeq=new TFile(saveName,"recreate");
-
-      // cout<<"Set tree file "<<tree->GetDirectory()<<endl;
-      // // auto saveDir=tree->GetDirectory();
-      // //tree->SetDirectory(saveSeq);
-      // AddEntryBranch();
-      // //tree->Write();
-      // saveSeq->WriteObject(tree,tree->GetName());
-      // // tree->SetDirectory(saveDir);
-      // delete saveSeq;
-      //      tree->SetDirectory(nullptr);
-      
-      return covMatSymNorm;
-    }
-    ////////////////////////////////////////////////////////
-    
-    TMatrixDSym BruMcmc::MakeMcmcNonYieldCovarianceMatrix(TTree* tree,size_t burnin){
-          
-      //auto pars = fSetup->NonConstParsAndYields();
-      auto pars = fSetup->Parameters();
-      Int_t Npars = pars.size();
-      auto yields = fSetup->Yields();
-      Int_t Nyields = yields.size();
-
-
-      Int_t Nentries = tree->GetEntries()-burnin;
-      vector<Double_t> params(Npars);
-      vector<Double_t> byields(Nyields);
-      //Int_t NburnC = fNumBurnInStepsCov;
-  
-     
-      //Loop over parameters of the model and set values from the tree
-      //Needed for RobustEstimator
-      //Only needed once
-      int pindex=0;
-      for(RooAbsArg* ipar : pars)
-	{
-	  if(ipar->isConstant()) continue;
-	  
-	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
-	    pindex++;
-	  }
-	}
-      Npars=pindex; //should be = number of branches in tree, protects for constant pars
-      int yindex=0;
-      std::vector<TH1D> yield_hists;
-      for(RooAbsArg* iyield : yields)
-	{
-	  if(iyield->isConstant()) continue;
-	  
-	  auto realvar=dynamic_cast<RooRealVar*>(iyield);
-
-	  if(tree->SetBranchAddress(iyield->GetName(), &byields[yindex])==0){
-	    yield_hists.push_back(std::move(TH1D(iyield->GetName(),iyield->GetName(),1000,realvar->getMax(),realvar->getMin())));
-	    yindex++;
-	  }
-	}
-      Nyields=yindex; //should be = number of branches in tree, protects for constant pars
-      cout<<" MakeMcmcNonYieldCovarianceMatrix "<<Nentries<<" "<<Npars<<" "<<tree->GetEntries()<<" "<<burnin<<endl;
-      //Create instance of TRobustEstimator
-      TRobustEstimator r(Nentries,Npars+Nyields);
-      vector<Double_t> data(Npars+Nyields);
-     
-
-      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
-      // for (int ientry = 0; ientry<Nentries; ientry++)
-      for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
-	{//Loop over entries of the tree
-	  tree->GetEntry(ientry);
-	 
-	  for (int param_index = 0; param_index<Npars; param_index++)
-	    { //Loop over parameters of the model
-	      //And set 'data' element
-	      data[param_index]=params[param_index];
-	    }
-	 
-	  r.AddRow(data.data());//Appends data to RE
-	  
-	  for (int yield_index = 0; yield_index<Nyields; yield_index++)
-	    { //Loop over yields of the model
-	      //And fill histogram to get rms
-	      yield_hists[yield_index].Fill(byields[yield_index]);
-	      data[Npars+yield_index]=0;
-	    }
-
-
-	}
-
-      
-     
-      r.Evaluate(); //Necessary to calculate RE properly
-      const TMatrixDSym* covMatSym=nullptr;
-      covMatSym = r.GetCovariance(); //actually returns pointer to reference so do not delete
-       //covMatSym is the symmetric covariance matrix to be used in the proposal function
-     
-      TMatrixDSym covMatSymNorm=*covMatSym;
-
-      //add final rows with yeilds uncorrelated
-      for(int iy=0;iy<Nyields;++iy){
-	//zero all but last elements of row
-	for(Int_t id=0;id<data.size();++id)
-	  data[id]=0;
-	//add new row for his yield
-
-	cout<<"MakeMcmcNonYieldCovarianceMatrix add yeilds "<<yield_hists[iy].GetName()<<" covariance "<<yield_hists[iy].GetRMS()*yield_hists[iy].GetRMS()<<endl;
-	//data.push_back(yield_hists[iy].GetRMS()*yield_hists[iy].GetRMS());
-	//covMatSymNorm.AddRow(data.data());
-	//	covMatSymNorm.ResizeTo(covMatSymNorm.GetNrows()+1,covMatSymNorm.GetNcols()+1);
-	//	covMatSymNorm.Use(covMatSymNorm.GetNrows()-(Nyields-iy),data.data());
-	auto row=covMatSymNorm.GetNrows()-(Nyields-iy);
-	cout<<"change "<<row<<" row from "<<covMatSymNorm(row,row)<<" to ";
-	covMatSymNorm(row,row)=yield_hists[iy].GetRMS()*yield_hists[iy].GetRMS();
-	cout<<covMatSymNorm(row,row)<<endl;
-	
+      // --- PASS 2: Calculate Covariance Matrix ---
+      TMatrixDSym covMatSym(Npars);
+      for (int i = 0; i < Npars; i++) {
+          for (int j = 0; j < Npars; j++) covMatSym(i, j) = 0.0;
       }
-      covMatSymNorm.Print();
- 
-      tree->ResetBranchAddresses();
 
-      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
-      
-      TFile* saveSeq=new TFile(saveName,"recreate");
-      AddEntryBranch();
-      tree->Write();
-      delete saveSeq;
-      
-      return covMatSymNorm;
-    }
-    TMatrixDSym BruMcmc::MakeMcmcPrincipalCovarianceMatrix(TTree* tree,size_t burnin){
-          
-      auto pars = fSetup->NonConstParsAndYields();
-      Int_t Npars = pars.size();
-      Int_t Nentries = tree->GetEntries()-burnin;
-      Int_t param_index=0;     
-      vector<Double_t> params(Npars);
-      Double_t data[Npars];
-      //Int_t NburnC = fNumBurnInStepsCov;
-  
+      for (int ientry = burnin; ientry < Nentries + burnin; ientry++) {
+          tree->GetEntry(ientry);
+          std::vector<double> delta(Npars, 0.0);
+
+          for (int p = 0; p < Npars; p++) {
+              if (isCyclic[p]) {
+                  double len = maxVal[p] - minVal[p];
+                  delta[p] = std::remainder(params[p] - circMean[p], len); 
+              } else {
+                  delta[p] = params[p] - means[p];
+              }
+          }
+
+          // Build upper triangle
+          for(int i = 0; i < Npars; i++) {
+              for(int j = i; j < Npars; j++) {
+                  covMatSym(i, j) += delta[i] * delta[j];
+              }
+          }
+      }
+
+      // Finalize Matrix: Divide by (N-1) and mirror to lower triangle
+      for(int i = 0; i < Npars; i++) {
+          for(int j = i; j < Npars; j++) {
+              covMatSym(i, j) /= (Nentries - 1);
+              
+              // DECOUPLE YIELD DRAG: Only zero out correlations if decoupleYields is kTRUE
+              if (decoupleYields && i != j && (isYield[i] || isYield[j])) {
+                  covMatSym(i, j) = 0.0;
+              }
+              
+              covMatSym(j, i) = covMatSym(i, j); // Mirror
+          }
+      }
      
-      //Loop over parameters of the model and set values from the tree
-      //Needed for RobustEstimator
-      //Only needed once
-      int pindex=0;
-      for(RooAbsArg* ipar : pars)
-	{
-	  if(ipar->isConstant()) continue;
-	  if(tree->SetBranchAddress(ipar->GetName(), &params[pindex])==0){
-	    pindex++;
-	  }
-	}
-      Npars=pindex; //should be = number of branches in tree, protects for constant pars
-      cout<<"Robust "<<Nentries<<" "<<Npars<<" "<<tree->GetEntries()<<" "<<burnin<<endl;
-      //Create instance of TRobustEstimator
-      //TRobustEstimator r(Nentries,Npars);
-      TPrincipal principal(Npars,"ND");
-      //Loop over entries of the tree to 'AddRow' of data to RobustEstimator
-      // for (int ientry = 0; ientry<Nentries; ientry++)
-      for (int ientry = burnin; ientry<Nentries+burnin; ientry++)
-	{//Loop over entries of the tree
-	  tree->GetEntry(ientry);
-	 
-	  for (int param_index = 0; param_index<Npars; param_index++)
-	    { //Loop over parameters of the model
-	      //And set 'data' element
-	      data[param_index]=params[param_index];
-	    }
-	  principal.AddRow(data);
-	  //	  r.AddRow(data);//Appends data to RE
-	}
-      // Do the actual analysis
-      //principal.MakePrincipals();
-      //principal.Print();
- 
- 
-      // r.Evaluate(); //Necessary to calculate RE properly
-      const TMatrixD* covMat=nullptr;
-      covMat = principal.GetCovarianceMatrix(); //actually returns pointer to reference so do not delete
-      //covMat->Print();
-      //covMatSym is the symmetric covariance matrix to be used in the proposal function
-      // const TMatrixD* m = p.GetCovarianceMatrix();
-     TMatrixD mt = *covMat; mt.T();
-     TMatrixDDiag d(mt); d = 0;
-     TMatrixD tempMat = *covMat+mt;
-     //tempMat.Print();
-     TMatrixDSym  covMatSym(0,Npars-1);
-     covMatSym.SetMatrixArray(tempMat.GetMatrixArray());
-     covMatSym.Print();
-     tree->ResetBranchAddresses();
-
-      TString saveName=fSetup->GetOutDir()+fSetup->GetName()+"/MCMCSeq.root";
-       
-      TFile* saveSeq=new TFile(saveName,"recreate");
-      AddEntryBranch();
-      tree->Write();
-      delete saveSeq;
-      
+      covMatSym.Print();
+      tree->ResetBranchAddresses();
       return covMatSym;
-    }
-
+    } 
+    ////////////////////////////////////////////////////////
+  
     /////////////////////////////////////////////////////////
-    void BruMcmc::AddEntryBranch(){
-    std::cout<<"BruMcmc::AddEntryBranch()"<<std::endl;
-       //Add entry branch to mcmc tree for easy cutting on BurnIn
-      //fMCMCtree contains all events
-      Long64_t entry=0;
-      auto entryBranch=fTreeMCMC->Branch("entry",&entry,"entry/L");
-      for(entry=0;entry<fTreeMCMC->GetEntries();entry++)
-	entryBranch->Fill();
+ void BruMcmc::AddEntryBranch(){
       
-      std::cout<<"BruMcmc::AddEntryBranch() Done"<<std::endl;
-    }
-    void BruMcmc::Result(){
+      Long64_t entry = 0;
+      Double_t weight = 1.0; // Default to 1 just in case
+      
+      if (fTreeMCMC) {
+          auto entryBranch = fTreeMCMC->Branch("entry", &entry, "entry/L");
+          auto weightBranch = fTreeMCMC->Branch("weight", &weight, "weight/D");
+          
+          // Grab the raw dataset that has the weights preserved
+          const RooDataSet* internalData = fChain ? fChain->GetAsConstDataSet() : nullptr;
+          
+          for(entry = 0; entry < fTreeMCMC->GetEntries(); entry++) {
+              if (internalData) {
+                  internalData->get(entry); // Load the row
+                  weight = internalData->weight(); // Extract the hidden weight
+              }
+              
+              entryBranch->Fill();
+              weightBranch->Fill();
+          }
+      }
+    } 
+ void BruMcmc::Result(){
       AddEntryBranch();
-      //Add any formulas
-      //Need to get a copy of variables first or setting
-      //the means as parameter values does not seem to work...
-      RooArgList saveFloatFinalList(*fChainData->get()) ;
-
       AddFormulaToMCMCTree();
   
-      //set paramters to mean values of post burn in distributions
-      //     RooArgList saveFloatFinalList(*fChainData->get()) ;
-      for(Int_t i=0;i<fParams->getSize();i++){
+      // Use a modern C++ range-based loop over the RooArgSet
+      for(auto* arg : *fParams){
 
-	auto* var=dynamic_cast<RooRealVar*>(saveFloatFinalList.at(i));
-      	cout<<var->GetName()<<" "<<fChainData->mean(*var)<<" +- "<<fChainData->sigma(*var)<<endl;
-	auto var2=dynamic_cast<RooRealVar*>(fParams->find(var->GetName()));
-	var2->setVal(fChainData->mean(*var));
-	var2->setError(fChainData->sigma(*var));
+        auto* targetPar = dynamic_cast<RooRealVar*>(arg);
+        if (!targetPar) continue;
+        
+        TString pName = targetPar->GetName();
+        
+        // ==========================================================
+        // --- STABLE TWO-PASS ALGORITHM FOR UNCERTAINTIES ---
+        // ==========================================================
+        Double_t sumW   = 0.0;
+        Double_t sumWX  = 0.0;
+        
+        // PASS 1: Calculate the Mean safely
+        for (int entry = 0; entry < fChainData->numEntries(); ++entry) {
+            const RooArgSet* row = fChainData->get(entry); // Get the actual row
+            Double_t weight = fChainData->weight();
+            Double_t val    = row->getRealValue(pName);    // Safely extract by name
+            
+            sumW   += weight;
+            sumWX  += weight * val;
+        }
+        
+        Double_t mean = sumW > 0 ? (sumWX / sumW) : 0.0;
+        Double_t sumVariance = 0.0;
+
+        // PASS 2: Calculate Variance using (x - mu)^2 to prevent cancellation
+        for (int entry = 0; entry < fChainData->numEntries(); ++entry) {
+            const RooArgSet* row = fChainData->get(entry);
+            Double_t weight = fChainData->weight();
+            Double_t val    = row->getRealValue(pName);
+            
+            sumVariance += weight * (val - mean) * (val - mean);
+        }
+        
+        Double_t sigma = sumW > 0 ? std::sqrt(sumVariance / sumW) : 0.0;
+        // ==========================================================
+
+        std::cout << pName << " " << mean << " +- " << sigma << std::endl;
+        
+        targetPar->setVal(mean);
+        targetPar->setError(sigma);
       }
-       
-      //  fChainData->covarianceMatrix()->Print(); //crashin 6.20
- 
- 
-      //look for the best likelihood
+    } 
+    // void BruMcmc::Result(){
+    //   AddEntryBranch();
+    //   RooArgList saveFloatFinalList(*fChainData->get()) ;
 
-      //It is not recommended to use the best likelihood
-      //code is lef here as an example
-      // fTreeMCMC->BuildIndex(TString("1E6*nll_MarkovChain_local_"));
-      // TTreeIndex *tindex = (TTreeIndex*)fTreeMCMC->GetTreeIndex();
+    //   AddFormulaToMCMCTree();
+  
+    //   for(Int_t i = 0; i < fParams->getSize(); i++){
 
-      // auto index=tindex->GetIndex();
-      // auto values=tindex->GetIndexValues();
-      //  for(Int_t i=0;i<fParams->getSize();i++){
-      //   RooArgList saveFloatMaxLikeList(*fChainData->get(index[0])) ;
+    //     auto* var = dynamic_cast<RooRealVar*>(saveFloatFinalList.at(i));
+        
+    //     // ==========================================================
+    //     // --- Explicitly Calculate Weighted Mean and Sigma ---
+    //     // ==========================================================
+    //     Double_t sumW   = 0.0;
+    //     Double_t sumWX  = 0.0;
+    //     Double_t sumWX2 = 0.0;
+        
+    //     for (int entry = 0; entry < fChainData->numEntries(); ++entry) {
+    //         fChainData->get(entry); // Loads the row into the dataset's internal buffer
+    //         Double_t weight = fChainData->weight();
+    //         Double_t val    = var->getVal();
+            
+    //         sumW   += weight;
+    //         sumWX  += weight * val;
+    //         sumWX2 += weight * val * val;
+    //     }
+        
+    //     Double_t mean = 0.0;
+    //     Double_t sigma = 0.0;
+        
+    //     if (sumW > 0) {
+    //         mean = sumWX / sumW;
+    //         Double_t variance = (sumWX2 / sumW) - (mean * mean);
+    //         sigma = variance > 0 ? std::sqrt(variance) : 0.0;
+    //     }
+    //     // ==========================================================
 
-      // 	RooRealVar* var=dynamic_cast<RooRealVar*>(saveFloatMaxLikeList.at(i));
-      // 	Double_t val=var->getVal();
-      // 	auto var2=dynamic_cast<RooRealVar*>(fParams->find(var->GetName()));
-      // 	var2->setVal(val);
-      // }
-      
-     
-    }
+    //     std::cout << var->GetName() << " " << mean << " +- " << sigma << std::endl;
+        
+    //     auto var2 = dynamic_cast<RooRealVar*>(fParams->find(var->GetName()));
+    //     if (var2) {
+    //         var2->setVal(mean);
+    //         var2->setError(sigma);
+    //     }
+    //   }
+    // }
     void BruMcmc::AddFormulaToMCMCTree(){
-      //avoid future memory leaks/crashes...
       fTreeMCMC->ResetBranchAddresses();
 
       std::cout<<"BruMcmc::AddFormulaToMCMCTree()"<<std::endl;
-      auto formulas=fSetup->ParameterFormulas(); //formulas that just depend on parameters, not variables/observables
+      auto formulas=fSetup->ParameterFormulas(); 
       if(!formulas.getSize()) return;
 
       _formVals.reserve(formulas.getSize());
       _formBranches.reserve(formulas.getSize());
 
-      TIter iter=formulas.createIterator();
       Int_t iform=0;
 
-      //getLeaves before extra branches
       auto parLeaves=fTreeMCMC->GetListOfLeaves();
       
-      while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
-	TString formuName=formu->GetName();
-	_formVals[iform]=0;
-	_formBranches[iform]=nullptr;
-	_formBranches[iform]=fTreeMCMC->Branch(formuName,&_formVals[iform],formuName+"/D");
-	iform++;
+      for(auto* formu_abs:formulas){
+        auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
+        TString formuName=formu->GetName();
+        _formVals[iform]=0;
+        _formBranches[iform]=nullptr;
+        _formBranches[iform]=fTreeMCMC->Branch(formuName,&_formVals[iform],formuName+"/D");
+        iform++;
       }
 
       Long64_t Nmcmc=fTreeMCMC->GetEntries();
       Int_t Nleaf=parLeaves->GetEntries();
  
       for(Int_t entry=0;entry<Nmcmc;entry++){
-	
-	fTreeMCMC->GetEntry(entry);
+        
+        fTreeMCMC->GetEntry(entry);
  
-	//Set value of parameters to value in tree for this event
-	for(Int_t ibr=0;ibr<Nleaf;ibr++){
-	  auto *leaf=dynamic_cast<TLeaf*>(parLeaves->At(ibr));	
-	  auto* brVar=dynamic_cast<RooRealVar*>(fParams->find(leaf->GetName()));
-	  if(brVar!=nullptr) brVar->setVal(leaf->GetValue());
-	    
-	}
-	//now calculate value of formula for these parameters
-	iter.Reset();
-	iform=0;
-	while(auto* formu=dynamic_cast<RooFormulaVar*>(iter())){
-	  
-	  _formVals[iform]=formu->getValV();
-	  _formBranches[iform]->Fill();
-	  iform++;
+        for(Int_t ibr=0;ibr<Nleaf;ibr++){
+          auto *leaf=dynamic_cast<TLeaf*>(parLeaves->At(ibr));	
+          auto* brVar=dynamic_cast<RooRealVar*>(fParams->find(leaf->GetName()));
+          if(brVar!=nullptr) brVar->setVal(leaf->GetValue());
+            
+        }
+        iform=0;
+        for(auto* formu_abs:formulas){
+          auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
+          
+          _formVals[iform]=formu->getValV();
+          _formBranches[iform]->Fill();
+          iform++;
 
-	}
+        }
       }  
     std::cout<<"BruMcmc::AddFormulaToMCMCTree() done"<<std::endl;
      }
     ///////////////////////////////////////////////
     Double_t  BruMcmc::SumWeights(){
-      // Otherwise sum the weights in the event
       Double_t sumw(0), carry(0);
       Int_t i ;
       for (i=0 ; i<fData->numEntries() ; i++) {
-	fData->get(i) ;
+        fData->get(i) ;
  
-	Double_t y = fData->weight() - carry;
-	Double_t t = sumw + y;
-	carry = (t - sumw) - y;
-	sumw = t;
+        Double_t y = fData->weight() - carry;
+        Double_t t = sumw + y;
+        carry = (t - sumw) - y;
+        sumw = t;
       }
       return sumw;
     }
     ///////////////////////////////////////////////////////
     Double_t  BruMcmc::SumWeights2(){
-      // Otherwise sum the weights in the event
       Double_t sumw(0), carry(0);
       Int_t i ;
       for (i=0 ; i<fData->numEntries() ; i++) {
-	fData->get(i) ;
+        fData->get(i) ;
  
-	Double_t y = fData->weight()*fData->weight() - carry;
-	Double_t t = sumw + y;
-	carry = (t - sumw) - y;
-	sumw = t;
+        Double_t y = fData->weight()*fData->weight() - carry;
+        Double_t t = sumw + y;
+        carry = (t - sumw) - y;
+        sumw = t;
       }
       return sumw;
     }
-    //FRom MCMCCalculator
-    void BruMcmc::SetModel( ModelConfig*  model) {
-      cout<<"BruMcmc::SetModel"<<endl;
-      // set the model
-      fModelConfig=model;
-      //fPdf = fModelConfig->GetPdf();
-      fPdf = fSetup->Model();
-      fPriorPdf = fModelConfig->GetPriorPdf();
-      fPOI.removeAll();
-      fNuisParams.removeAll();
-      fConditionalObs.removeAll();
-      fGlobalObs.removeAll();
-      if (fModelConfig->GetParametersOfInterest())
-	fPOI.add(*fModelConfig->GetParametersOfInterest());
-      if (fModelConfig->GetNuisanceParameters())
-	fNuisParams.add(*fModelConfig->GetNuisanceParameters());
-      if (fModelConfig->GetConditionalObservables())
-	fConditionalObs.add( *(fModelConfig->GetConditionalObservables() ) );
-      if (fModelConfig->GetGlobalObservables())
-	fGlobalObs.add( *(fModelConfig->GetGlobalObservables() ) );
-      
-    }
+
     /////////////////////////////////////////////////////
     void BruMcmc::SetupBasicUsage()
     {
       fPropFunc = nullptr;
-      // fNumIters = 100;
-      //fNumBurnInSteps = 10;
-      //fWarmup=fNumBurnInSteps;
      
-      TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+".root";
-      //TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/"+FileName();
+      TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+GetTag()+".root";
 
       fOutFile.reset(TFile::Open(fileName,"recreate"));
        
      }
     ///////////////////////////////////////////////////////////////
     file_uptr BruMcmc::SaveInfo(){
-      
-      std::cout<<"BruMcmc::SaveInfo() "<<fOutFile.get()<<" "<<fTreeMCMC<<std::endl;
       auto saveDir= gDirectory;
-      fOutFile->cd();
-      fTreeMCMC->SetDirectory(fOutFile.get());
-      std::cout<<"BruMcmc::SaveInfo() Result"<<std::endl;
-      Result();
-      fTreeMCMC->Write();
-      std::cout<<"BruMcmc::SaveInfo() written MCMC"<<std::endl;
-    
-      delete fTreeMCMC; fTreeMCMC=nullptr;//or else crashes in destructor
-      //save paramters and chi2s in  dataset (for easy merging)
-      //RooArgSet saveArgs(*fParams);
+      if (fOutFile) fOutFile->cd();
+      
+      if (fTreeMCMC && fChainData) {
+          fTreeMCMC->SetDirectory(fOutFile.get());
+          std::cout<<"BruMcmc::SaveInfo() Result"<<std::endl;
+          Result(); 
+          fTreeMCMC->Write();
+          std::cout<<"BruMcmc::SaveInfo() written MCMC"<<std::endl;
+          delete fTreeMCMC; fTreeMCMC=nullptr;
+      } else {
+          std::cout << "BruMcmc::SaveInfo() WARNING: No MCMC Tree to save." << std::endl;
+      }
+
       RooArgSet saveArgs(fSetup->Parameters());
       saveArgs.add(fSetup->Yields());
       
-      RooRealVar Nllval("NLL","NLL",NLL());
-      saveArgs.add(Nllval);
+      RooRealVar Nllval("NLL", "NLL", fChain ? NLL() : 0.0);
+      if (fChain) {
+          saveArgs.add(Nllval);
+      }
      
       RooDataSet saveDS(FinalParName(),TString(GetName())+"Results",saveArgs);
       saveDS.add(saveArgs);
       saveDS.Write();
       TTree* treeDS=RooStats::GetAsTTree(ResultTreeName(),ResultTreeName(),saveDS);
-      treeDS->Write();
-      delete treeDS;treeDS=nullptr;
+      if (treeDS) {
+          treeDS->Write();
+          delete treeDS; treeDS=nullptr;
+      }
 
-      std::cout<<"BruMcmc::SaveInfo() Done to "<<fOutFile->GetName()<<std::endl;
-      saveDir->cd();
+      std::cout<<"BruMcmc::SaveInfo() Done to "<< (fOutFile ? fOutFile->GetName() : "null") <<std::endl;
+      if (saveDir) saveDir->cd();
       return std::move(fOutFile);
     }
+
+    ///////////////////////////////////////////////////////////////
+    void BruMcmc::SaveStepInfo(){
+      
+      std::cout<<"BruMcmc::SaveStepInfo() "<<fOutFile.get()<<" "<<fTreeMCMC<<" "<< (fOutFile ? fOutFile->GetName() : "null") <<std::endl;
+      auto saveDir= gDirectory;
+      if (fOutFile) fOutFile->cd();
+      
+      if (fTreeMCMC) {
+          fTreeMCMC->SetDirectory(fOutFile.get());
+          AddEntryBranch();
+          AddFormulaToMCMCTree();
+          fTreeMCMC->Write();
+          delete fTreeMCMC; fTreeMCMC=nullptr;
+      }
+    }
+
+   
      //////////////////////////////////////////////////////////////
 
     void BruMcmc::SetParVals(RooArgSet* toThesePars){
       for( auto &pory: fSetup->ParsAndYields()){
-	if( dynamic_cast<RooRealVar*>(pory)){
-	  dynamic_cast<RooRealVar*>(pory)->setVal(dynamic_cast<RooRealVar*>(toThesePars->find(pory->GetName()))->getVal());
-	}
+        if( dynamic_cast<RooRealVar*>(pory)){
+          dynamic_cast<RooRealVar*>(pory)->setVal(dynamic_cast<RooRealVar*>(toThesePars->find(pory->GetName()))->getVal());
+        }
       }
     }
  
    void BruMcmcSeq::Run(Setup &setup,RooAbsData &fitdata){
      fSetup=&setup;
     fData=&fitdata;
-    //initialise MCMCCalculator
     SetData(fitdata);
-    SetModel(setup.GetModelConfig());
+    InitModel();
     SetupBasicUsage();
      
     RooStats::SequentialProposal sp(fNorm);
@@ -676,102 +687,193 @@ namespace HS{
 
      fSetup=&setup;
      fData=&fitdata;
-     //initialise MCMCCalculator
      SetData(fitdata);
-     SetModel(setup.GetModelConfig());
+     InitModel();
      SetupBasicUsage();
 
      SetProposalFunction(_proposal);
      MakeChain();
 
    }
+void BruMcmcCovariance::Run(Setup &setup, RooAbsData &fitdata) {
 
-  void BruMcmcCovariance::Run(Setup &setup,RooAbsData &fitdata){
-
-    //auto foptions = fSetup->FitOptions();
-    /* //Prefit with reduced stats, needs work....remove for now
-    std::cout<<"BruMcmcCovariance::Run check for prefit "<<dynamic_cast<RooDataSet*>(&fitdata)<<std::endl;
-    RooDataSet tiny("tiny", "tiny", *fitdata.get(),
-		    fitdata.isWeighted() ? RooFit::WeightVar(dynamic_cast<RooDataSet*>(&fitdata)->weightVar()->GetName())  : RooCmdArg());
-
-    std::cout<<"BruMcmcCovariance::Run check for prefit "<<std::endl;
-    auto tinyFraction = 0.1;
-    if(0){
-      
-      auto step =(Int_t) 1/tinyFraction; //for 10%
-      for (int i=0; i<fitdata.numEntries(); i+=step)
-	{
-	  const RooArgSet *event = fitdata.get(i);
-	  tiny.add(*event, fitdata.weight());
-	}
-      fData=&tiny;
-
-      std::cout<<"BruMcmcCovariance::Run made tiny datset for prefit!!"<<std::endl;
-      fData->Print("v");
-    }
-    else{
-      fData=&fitdata;
-    }
-    */
+      fData = &fitdata;
+      fSetup = &setup;
     
-    fData=&fitdata;
-    fSetup=&setup;
-    //initialise MCMCCalculator
+      InitModel();
     
-    SetModel(setup.GetModelConfig());
-    SetupBasicUsage();
-    
-    //find a region of hgh likelihood
-    if(_doSeq==kTRUE){
-      SetProposalFunction(_propSeq);
-       MakeChain();
-     }
+      // Pass the cyclic list down to the proposal functions
+      _propSeq.SetCyclicParameters(fCyclicPars);
+      _propCov.SetCyclicParameters(fCyclicPars);
+
+      // =======================================================
+      // --- CRITICAL MULTI-CHAIN FIX (FRESH START) ---
+      // Reset the step sizes so fresh random starts can take large leaps!
+      _propSeq.SetScale(fNorm);
+      _propCov.SetScale(fNorm);
+
+      const Int_t maxRetries = 10; 
+      const int numBatches = 4;
+
+      // Scale newly randomized Yields DOWN to match the 1/4 batched data slice for Phase 1
+      for (auto* y : static_range_cast<RooRealVar*>(fSetup->Yields())) {
+        if (y && !y->isConstant()) {
+          y->setVal(y->getVal() / numBatches);
+          std::cout << "BruMcmc: Scaled Randomized Yield '" << y->GetName() 
+                    << "' DOWN to " << y->getVal() << " for Phase 1 batched burn-in." << std::endl;
+        }
+      }
+      // =======================================================
+
+      // =======================================================
+      // PHASE 1: Stochastic Burn-in (Batched Data)
+      // =======================================================
+      if (_doSeq == kTRUE) {
+        
+        BuildBatchedNLLs(numBatches);
+        SetStochasticSwapping(500); 
+
+        ChangeNIter();
+        SetTag("1DStep");
+        SetupBasicUsage();
+        SetProposalFunction(_propSeq);
+        
+        Bool_t made = MakeChain();
+        Int_t retries = 0;
+        while(made == kFALSE && retries < maxRetries) {
+          std::cout << "\n*** BruMcmcCovariance: 1DStep Failed! Retrying (" << retries + 1 << "/" << maxRetries << ") ***\n" << std::endl;
+          _propSeq.SetScale(fNorm); 
+          made = MakeChain();
+          retries++;
+        }
+      }
      
-     //now move in all parameters simultaneosuly to
-     //give chain for covaiance matrix
-     if(_doND==kTRUE){
-       _propSeq.SetIsSequential(kFALSE);
-       MakeChain();
-     }
+      // =======================================================
+      // TRANSITION TO FULL DATA
+      // Clean up batched memory and upscale the Yields BEFORE Phase 2b!
+      // =======================================================
+      ClearBatches(); 
+      SetStochasticSwapping(0); 
 
-     //Now find accurate covariance matrix for final sampling
-     if(fTreeMCMC!=nullptr){
+      for (auto* y : static_range_cast<RooRealVar*>(fSetup->Yields())) {
+        if (y && !y->isConstant()) {
+          y->setVal(y->getVal() * numBatches);
+          std::cout << "BruMcmc: Scaled Yield Coordinate '" << y->GetName() 
+                    << "' UP to " << y->getVal() << " for Full Dataset." << std::endl;
+        }
+      }   
 
-       // if(0){
-       // 	 auto& yields = fSetup->Yields();
-       // 	 for(auto yld:static_range_cast<RooRealVar *>(yields)){
-       // 	   yld->setVal(yld->getVal()/tinyFraction);
-       // 	 }
-       // 	 fData=&fitdata; //make sure have full dataset
-       // }
+      // =======================================================
+      // PHASE 2b: Stationary Covariance Mapping (FULL DATA)
+      // =======================================================
+      if (_doND == kTRUE) {
+        std::cout << "\n*** Starting Phase 2b: Covariance Mapping (Full Data) ***" << std::endl;
+        
+        ChangeNIter();
+        SaveStepInfo();
+        SetTag("NDStep");
+        SetupBasicUsage();
+        SetProposalFunction(_propSeq);
+        _propSeq.SetIsSequential(kFALSE);
+        
+        Bool_t made = MakeChain();
+        Int_t retries = 0;
+        while(made == kFALSE && retries < maxRetries) {
+          std::cout << "\n*** BruMcmcCovariance: NDStep Failed! Retrying (" << retries + 1 << "/" << maxRetries << ") ***\n" << std::endl;
+          _propSeq.SetScale(fNorm); 
+          made = MakeChain();
+          retries++;
+        }
+      }
 
-       if(_doCov==kTRUE){
-	 std::cout<<" BruMcmcCovariance::Run "<<_doCov<<std::endl;
-	 std::unique_ptr<TMatrixDSym> covMat; 
-	 covMat.reset(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC,fNumBurnInSteps)));
-	 _propCov.SetCovariance(*covMat.get(),fSetup->NonConstParsAndYields());
-	 _propCov.TuneCovarianceStep(_tuneCovStep);
-	 
-	 SetProposalFunction(_propCov);
-	 auto made = MakeChain();
-	 /* //To Fix to allow tuning of covariance stepsize
-	 while(made==kFALSE&&_tuneCovStep==kTRUE)  {
-	   made = MakeChain(); //if acceptance fails
-	 }
-	 if(made==kFALSE&&_tuneCovStep==kFALSE) //shouldnt happen
-	   std::cerr<< " BruMcmcCovariance::Run : Sorry covariance chain failed, outwith desired stepping without tuning selected. You can try calling TuneCovarianceStep or manually changing the default proposal step size..."<<std::endl;
+      // =======================================================
+      // PHASE 3 & 4: Covariance Matrix Extraction, Tuning, & Official Run
+      // =======================================================
+      if (fTreeMCMC != nullptr && _doCov == kTRUE) {
+         
+        ChangeNIter();
+        std::cout << "\n BruMcmcCovariance::Run Covariance Matrix Calculation" << std::endl;
+         
+        // 1. Build the matrix (kTRUE = decouple off-diagonal Yields for the proposal)
+        std::unique_ptr<TMatrixDSym> covMat(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kTRUE)));
+         
+        // 2. NO YIELD SCALING REQUIRED! The matrix was mapped on the Full Dataset.
+        // We only apply a light 15% shrinkage to kill high-dimensional statistical noise.
+        double shrinkage = 0.15; 
+        for(int i = 0; i < covMat->GetNrows(); i++) {
+          for(int j = 0; j < covMat->GetNcols(); j++) {
+             if (i != j) {
+                 (*covMat)(i, j) *= (1.0 - shrinkage);
+             }
+          }
+        }
+
+        _propCov.SetCovariance(*covMat, fSetup->NonConstParsAndYields());
+         
+        SaveStepInfo();
+        SetTag("");
+        SetupBasicUsage();
+        SetProposalFunction(_propCov);
+
+        // --- TUNING PHASE ---
+        if (fTuneCovStep == kTRUE) {
+          std::cout << "\n*** Starting Covariance Tuning Phase (250 steps) ***" << std::endl;
+             
+          Int_t officialIters = fNumIters;
+          SetNumIters(250); 
+             
+          Bool_t tuned = kFALSE;
+          Int_t retries = 0;
+             
+          auto tuneCovMat = _propCov.GetCovariance();
+
+          while(!tuned && retries < maxRetries) {
+            MakeChain(); 
+                 
+            if (fChainAcceptance > fMinAcc && fChainAcceptance < fMaxAcc) {
+              std::cout << "--> Tuning Successful! Acceptance: " << fChainAcceptance << std::endl;
+              tuned = kTRUE;
+            } else {
+              Double_t currentScale = _propCov.StepSizeFactor();
+              Double_t acc = fChainAcceptance > 0 ? fChainAcceptance : 0.01;
+              currentScale *= (acc) / (fTargetAcc);
+                     
+              std::cout << "--> Tuning Failed should be between " << fMinAcc << "-" << fMaxAcc
+                        << " (Acceptance " << fChainAcceptance << "). Adjusting scale and retrying (" 
+                        << retries + 1 << "/" << maxRetries << ") will try new scale " << currentScale 
+                        << " using correction " << (acc)/(fTargetAcc) << std::endl;
+
+              _propCov.SetScale(currentScale); 
+              _propCov.SetCovariance(tuneCovMat, fSetup->NonConstParsAndYields());
+              retries++;
+            }
+          }
+             
+          SetNumIters(officialIters);
+          _tuneCovStep = kFALSE; 
+          std::cout << "\n*** Tuning Complete. Launching Official Covariance Chain ***\n" << std::endl;
+        }
+
+        // --- OFFICIAL RUN ---
+        Bool_t made = MakeChain();
+         
+        if(made == kFALSE) {
+          std::cerr << " BruMcmcCovariance::Run : Official covariance chain failed." << std::endl;
+        } else if (fTreeMCMC != nullptr) {
+          
+          std::cout << "\n*** Extracting Final Posterior Covariance Matrix ***" << std::endl;
+          
+          // Pass kFALSE to get the pure, fully correlated physical matrix
+          TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE);
+          
+          if (fOutFile) {
+              fOutFile->cd();
+              finalCovMat.Write("PosteriorCovariance");
+              std::cout << "--> Matrix successfully written to file as 'PosteriorCovariance'" << std::endl;
+          }
+        }
+      }
+    }
        
-	 */
-       }
-       
-     }
-     
-  }
-  
-
-   
-  }
-}
-
-
-    
+  }//namespace FIT
+}//namespace HS

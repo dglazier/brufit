@@ -1,5 +1,87 @@
 # BruFit
 ## A RooFit based event based maximum likelihood fitting package 
+## Installation
+
+### 1. Prerequisites
+Before building, ensure your environment is ready:
+* **ROOT:** Sourced via `source /path/to/root/bin/thisroot.sh` (Bash) or `source /path/to/root/bin/thisroot.csh` (tcsh).
+* **Compiler:** A C++17 compatible compiler (GCC 7+, Clang 5+, or Apple Clang).
+* **CMake:** Version 3.16 or higher.
+
+### 2. Standard Build Procedure
+We use an out-of-source build. This keeps your source tree clean of temporary object files and CMake metadata, while installing the final libraries into a dedicated `install` folder.
+
+```bash
+# 1. Clone the repository and enter the directory
+git clone [https://github.com/dglazier/brufit.git](https://github.com/dglazier/brufit.git)
+cd brufit
+
+# 2. Create and enter the build directory
+mkdir build && cd build
+
+# 3. Configure the project
+# -DCMAKE_INSTALL_PREFIX defines where the final files go
+cmake .. -DCMAKE_INSTALL_PREFIX=../install
+
+Note If you have compled your root install to use vectorisations
+it is recommended to also compile brufit for this. Add the cmake option
+-DCMAKE_CXX_FLAGS="-march=native" when configuring.
+Note to install root with SIMD vectorisations you need to configure
+its cmake with
+
+      -DCMAKE_CXX_FLAGS="-march=native" -Dveccore=ON -Dvc=ON
+
+To check if it has been done see if the library loads OK.
+
+      root [0] gSystem->Load("libRooBatchCompute_AVX2")
+      (int) 0
+
+
+# 4. Compile and Install
+# -j$(nproc) uses all CPU cores for a faster build
+cmake --build . -- -j$(nproc)
+cmake --install .
+```
+
+> **Note on the `.pcm` file:** Depending on how the repository's `CMakeLists.txt` is configured, ROOT dictionary (`.pcm`) generation can sometimes lag behind the initial install step. Check if `../install/lib/libbrufit_rdict.pcm` exists. If it does not, simply run the last two commands (`cmake --build .` and `cmake --install .`) a second time.
+
+### 3. Environment Setup & Alias
+To ensure ROOT can find your new library and its dictionaries, and to enable your quick-launch alias, you need to set up your environment variables. Add the relevant block below to your `.bashrc` or `.tcshrc`.
+
+**For Bash / Zsh:**
+```bash
+# Point to the top-level source directory where you cloned the repo
+export BRUFIT=/path/to/brufit 
+
+# Tell the system where the compiled libraries are
+export LD_LIBRARY_PATH=$BRUFIT/install/lib:$LD_LIBRARY_PATH
+export DYLD_LIBRARY_PATH=$BRUFIT/install/lib:$DYLD_LIBRARY_PATH # Required for macOS
+export ROOT_INCLUDE_PATH=$BRUFIT/install/include:$ROOT_INCLUDE_PATH
+
+# Create the alias to run BruFit via the macro
+alias brufit='root $BRUFIT/macros/LoadBru.C'
+```
+
+**For tcsh / csh:**
+```tcsh
+# Point to the top-level source directory where you cloned the repo
+setenv BRUFIT /path/to/brufit 
+
+# Tell the system where the compiled libraries are
+setenv LD_LIBRARY_PATH ${BRUFIT}/install/lib:${BRUFIT}/install/lib64:$LD_LIBRARY_PATH
+setenv DYLD_LIBRARY_PATH ${BRUFIT}/install/lib:$DYLD_LIBRARY_PATH # Required for macOS
+setenv ROOT_INCLUDE_PATH ${BRUFIT}/install/include:$ROOT_INCLUDE_PATH
+
+# Create the alias to run BruFit via the macro
+alias brufit 'root $BRUFIT/macros/LoadBru.C'
+```
+
+### 4. Running BruFit
+Once your environment variables are set and your terminal is refreshed (e.g., by running `source ~/.bashrc` or opening a new terminal), you can run the program exactly as you originally did:
+
+```bash
+brufit
+```
 
 The purpose of this package is to add to the RooFit package to allow
 analysis of hadronic physics scattering reactions.
@@ -36,36 +118,6 @@ implemented and can provide robust (although not optimal) minimisation on
 fits theat minuit may struggle to find a global minimum.
 
 
-## Installation
-
-### Prerequisites
-
-ROOT with RooFit, Proof, Mathmore (if using Legendre polynomials). Currently tested on 6.20, ...6.14 know to fail.
-
-### get and compile code
-
-git clone https://github.com/dglazier/brufit.git
-
-cd brufit
-
-setenv BRUFIT /path/to/here (or setenv BRUFIT $PWD)
-
-mkdir build
-
-cd build
-
-cmake ../
-
-make install
-
-Note to install the pcm file you may have to run the last two steps again.
-You can check if $BRUFIT/lib/libbrufit_rdict.pcm exists.
-
-cmake ../
-
-make install
-
-alias brufit root $BRUFIT/macros/LoadBru.C
 
 ##Data
 

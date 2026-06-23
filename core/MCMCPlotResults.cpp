@@ -138,9 +138,9 @@ namespace HS{
     delete savePars;
 
     cout<<"MCMCPlotResults plot options "<<fPlotOptions<<endl;
-    // if(fPlotOptions.Contains("CORNERFULL"))CornerFullPlot(setup, mcmc, fCanvases.get());
-    // if(fPlotOptions.Contains("CORNERZOOM"))CornerPlot(setup, mcmc, fCanvases.get());
-    // if(fPlotOptions.Contains("AUTOCORR"))AutocorrPlot(setup, mcmc, fCanvases.get());
+    if(fPlotOptions.Contains("CORNERFULL"))CornerFullPlot(setup, mcmc, fCanvases.get());
+    if(fPlotOptions.Contains("CORNERZOOM"))CornerPlot(setup, mcmc, fCanvases.get());
+    if(fPlotOptions.Contains("AUTOCORR"))AutocorrPlot(setup, mcmc, fCanvases.get());
     
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 
@@ -264,10 +264,10 @@ namespace HS{
     setup->ParsAndYields().assignFast(*savePars);
     delete savePars;
 
-    cout<<"MCMCPlotResults plot options "<<fPlotOptions<<endl;
-    if(fPlotOptions.Contains("CORNERFULL"))CornerFullPlot(setup, mcmc, fCanvases.get());
-    if(fPlotOptions.Contains("CORNERZOOM"))CornerPlot(setup, mcmc, fCanvases.get());
-    if(fPlotOptions.Contains("AUTOCORR"))AutocorrPlot(setup, mcmc, fCanvases.get());
+    // cout<<"MCMCPlotResults plot options "<<fPlotOptions<<endl;
+    // if(fPlotOptions.Contains("CORNERFULL"))CornerFullPlot(setup, mcmc, fCanvases.get());
+    // if(fPlotOptions.Contains("CORNERZOOM"))CornerPlot(setup, mcmc, fCanvases.get());
+    // if(fPlotOptions.Contains("AUTOCORR"))AutocorrPlot(setup, mcmc, fCanvases.get());
     
     RooHSEventsPDF::SetIsPlotting(kFALSE);
 

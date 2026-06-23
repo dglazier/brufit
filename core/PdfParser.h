@@ -6,6 +6,7 @@
 ///
 
 #pragma once
+#include <Rtypes.h>
 #include <regex>
 #include <utility>
 #include <utility>
@@ -31,8 +32,9 @@ namespace HS{
       
     public:
     PdfParser(string name):_name(std::move(std::move(name))){};
-      
-      virtual string ConstructPDF(string str)=0;
+    PdfParser() =default;
+
+      virtual string ConstructPDF(string str){ return string();};//=0;
 
       //Deal with Summations
       string ReplaceSummations(string str);
@@ -81,10 +83,11 @@ namespace HS{
       string _name;
       string _pdfString;
       string _varsString;
-      std::vector<std::pair<std::string,std::regex>> _functionTemplates;
+      std::vector<std::pair<std::string,std::regex>> _functionTemplates;//!
 
       
-      
+       ClassDef(HS::FIT::PdfParser,1);
+    
     };//class PdfParser
 
     //struct to configure summation indexes
@@ -115,7 +118,7 @@ namespace HS{
       ConsolidateIndex(const SumIndices indices);
 
       //vector of index labels with current values
-      std::vector<std::pair<string,int>> next();
+      std::vector<std::pair<std::string,int>> next();
       bool getValues(int Nl);
     private :
       SumIndices _indices;
@@ -124,7 +127,7 @@ namespace HS{
       std::vector<int> _tempVals;
       int _entry=0;
     };
-   
+ #pragma link C++ class std::string+;
     ///////////////////////////////////////////////////////////////////////////////
     ///string helper functions
     vector<string> Tokenize(const string& str,const char symbol);

@@ -23,6 +23,7 @@ To perform this analysis you need to :
 2. Generate a data set with amplitudes
 
    	    brufit PhotoTwoSpin0Gen.C
+   	    //brufit PhotoTwoSpin0CircGen.C if you want to include circular polarisation
 
 3. Fit the data partial waves
 
@@ -36,3 +37,39 @@ You may then visualise the results in ROOT by running
 
     	root fitBruAmps/
 	ResultsTreeBru->Process("PlotAmbigs.C")
+
+
+
+## Moments Fits
+-----------------------------------------
+You may also prefer to just fit the moments. These should be
+publishable observables themselves or may even be inverted to
+give values for the amplitudes in this formalism.
+
+3b.) Fit data moments
+
+       	   brufit PhotoTwoSpin0FitMoments.C
+       	   // brufit PhotoTwoSpin0FitCircMoments.C if you want to include circular polarisation
+
+To verify uncertainties bootstrapping algorithm can be applied.
+In brufit this requires to iniate boostrapping with a number of
+samples.
+
+      Fitter.Data().BootStrap(10);
+
+This must be done before the data is loaded!
+IT generally makes sense to initialse the fit with the
+parameters of your true fit to make sure you get the
+same minima and speeden the fit.
+
+4b.) Bootstrap moments fit
+
+       	   brufit PhotoTwoSpin0FitMoments.C
+
+This will produce Results file for each bootstrap fit.
+Currently it is up to the user to decide what to do
+with those.
+
+e.g. hadd boot.root fitBruMomentsBoot/ResultsBoot*.root
+
+Then take the mean and rms of each moments branch.

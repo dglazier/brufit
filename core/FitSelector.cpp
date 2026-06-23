@@ -50,6 +50,7 @@ namespace HS{
 
        
       if(!fInput) fInput=new TList();
+
       auto outdir=dynamic_cast<TNamed*>(fInput->FindObject("HSOUTDIR"));
       if(outdir) {
         // reuse already existing entry for output directory
@@ -59,6 +60,7 @@ namespace HS{
         outdir=new TNamed("HSOUTDIR",fFitManager->SetUp().GetOutDir().Data());
         fInput->Add(outdir);
       }
+
       fFitManager->PreRun();
     }
 
@@ -129,6 +131,10 @@ namespace HS{
       // The Terminate() function is the last function to be called during
       // a query. It always runs on the client, it can be used to present
       // the results graphically or save the results to file.
+
+      auto outdir=dynamic_cast<TNamed*>(fInput->FindObject("HSOUTDIR"));
+      if (outdir)
+        fInput->Remove(outdir);
 
       //HERE we should gather information for slaves if we want to
       //pass to another fit manager, i.e. produce toys in proof
