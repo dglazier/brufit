@@ -4,6 +4,7 @@ build
 hipo4
 lib
 man
+/install
 
 # hipo source
 ##############
