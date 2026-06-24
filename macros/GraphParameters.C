@@ -5,74 +5,90 @@
 #include <RooArgList.h>
 #include <RooRealVar.h>
 #include <TGraphErrors.h>
+#include <iostream>
+#include <memory>
 #include "Bins.h"
 
-//usage brufit
-//.L GraphParameters.C
-//GraphParameters("out/","x") where x is a binned variable
-//                           e.g. RF.Bins().LoadBinVar("x",4,3,4);
-void GraphParameters(TString DirName,TString Var){
-
-  TList * Graphs=new TList();
-
-
-  TFile* file=new TFile(DirName+"DataBinsConfig.root");
-  auto DataBins=(HS::FIT::Bins*)file->Get("HSBins");
-  TString BinName=DataBins->GetBinName(0);
-  // cout<<BinName<<endl;
-
-  Int_t va= DataBins->GetAxisi(Var);
-  TString AxisName=Var;
-
-  // TList * Graphs=new TList();
-  Graphs->SetName("AllGraphs");
-  for(Int_t ib=0;ib<DataBins->GetN();ib++){
-    TString redName=DataBins->GetBinName(ib);
-    //Strip the variable we are plotting from the name
-    //so we can find the relevent graph
-    TString axisBin=redName(redName.Index(AxisName),TString(redName(redName.Index(AxisName)+AxisName.Sizeof()-1,redName.Sizeof())).First("_")+AxisName.Sizeof());
-    redName.Replace(redName.Index(AxisName),TString(redName(redName.Index(AxisName)+AxisName.Sizeof()-1,redName.Sizeof())).First("_")+AxisName.Sizeof(),"");
+// Usage in BruFit:
+// .L GraphParameters.C
+// GraphParameters("out/", "t", "ResultsBruMcmcCovariance.root", "BruMcmcCovariance")
+void GraphParameters(TString DirName, TString Var, TString ResultFileName = "ResultsHSMinuit2.root", TString ResultObjName = "MinuitResult") {
     
- 
-    Int_t iP=DataBins->GetParti(va,axisBin);//index for this bin on this axis
-    // cout<<redName<<" "<<axisBin<<" "<<iP<<" "<<va<<endl;
-    //Open the file with the results
-    //TFile* fileR=new TFile(DirName+TString("Plots")+DataBins->GetBinName(ib)+".root");
-    TFile* fileR=new TFile(DirName+"/"+DataBins->GetBinName(ib)+"/ResultsHSMinuit2.root");
-   if(!fileR->IsOpen()) continue;
-   RooFitResult* result=dynamic_cast<RooFitResult*>(gDirectory->Get("MinuitResult"));
-    file->cd();
-    RooArgList Pars= result->floatParsFinal();
-    //Loop over parameters getting values and error for graph
-    TGraphErrors* graph=0;
-    for(Int_t ipar=0;ipar<Pars.getSize();ipar++){
-      //if graph doesn't exist yet create new one
-      if(!(graph= dynamic_cast<TGraphErrors*>(Graphs->FindObject(redName+Pars[ipar].GetName())))){
-	graph=new TGraphErrors(0);
-	graph->SetNameTitle(redName+Pars[ipar].GetName(),redName+Pars[ipar].GetName());
-	Graphs->Add(graph);
-      }
-      Int_t Npoint=graph->GetN();
-      //cout<<redName<<" "<<DataBins->GetAxis(va).GetBinCenter(iP+1)<<endl;
-      graph->SetPoint(Npoint,DataBins->GetAxis(va).GetBinCenter(iP+1),((RooRealVar*)(&Pars[ipar]))->getVal());
-      graph->SetPointError(Npoint,DataBins->GetAxis(va).GetBinWidth(iP+1)/2,((RooRealVar*)(&Pars[ipar]))->getError());
+    if (!DirName.EndsWith("/")) DirName += "/";
+
+    std::unique_ptr<TFile> file(TFile::Open(DirName + "DataBinsConfig.root", "READ"));
+    if (!file || file->IsZombie()) {
+        std::cerr << "Error: Could not open DataBinsConfig.root" << std::endl;
+        return;
     }
-    
-    delete result;
-    fileR->Close();
-    delete fileR;
-    //TGraphErrors* graph=Graphs->Get(redName);
-  }
 
-  TFile* fileG=new TFile(DirName+"ParGraphs"+Var+".root","recreate");
-  Graphs->Write();
-  fileG->Close();
-  delete fileG;
+    auto DataBins = dynamic_cast<HS::FIT::Bins*>(file->Get("HSBins"));
+    if (!DataBins) {
+        std::cerr << "Error: Could not find HSBins in file" << std::endl;
+        return;
+    }
 
-  file->Close();
-  delete file;
+    Int_t va = DataBins->GetAxisi(Var);
+    TString AxisName = Var;
 
-  return;
+    TList* Graphs = new TList();
+    Graphs->SetName("AllGraphs");
 
+    for (Int_t ib = 0; ib < DataBins->GetN(); ib++) {
+        TString redName = DataBins->GetBinName(ib);
+        
+        // Strip the variable we are plotting from the name so we can group the graphs
+        // E.g., strips "t0.939960_" out of "Egamma8.400000_t0.939960_M2Pi0.712500_"
+        Int_t idx = redName.Index(AxisName);
+        if (idx != kNPOS) {
+            TString remainder = redName(idx + AxisName.Sizeof() - 1, redName.Sizeof());
+            Int_t firstUnderscore = remainder.First("_");
+            TString axisBin = redName(idx, firstUnderscore + AxisName.Sizeof());
+            redName.ReplaceAll(axisBin, ""); 
+        }
 
+        Int_t iP = DataBins->GetParti(va, DataBins->GetBinName(ib)); 
+        
+        // Open the specific minimizer result file
+        TString resultPath = DirName + DataBins->GetBinName(ib) + "/" + ResultFileName;
+        std::unique_ptr<TFile> fileR(TFile::Open(resultPath, "READ"));
+        if (!fileR || fileR->IsZombie()) continue;
+
+        // Fetch the specific minimizer result object
+        RooFitResult* result = dynamic_cast<RooFitResult*>(fileR->Get(ResultObjName));
+        if (!result) continue;
+
+        const RooArgList& Pars = result->floatParsFinal();
+
+        // Loop over parameters safely
+        for (Int_t ipar = 0; ipar < Pars.getSize(); ipar++) {
+            auto* parVar = dynamic_cast<RooRealVar*>(Pars.at(ipar));
+            if (!parVar) continue; // Skip safely if not a RooRealVar
+
+            // The graph name will now be exactly the prefix + parameter name
+            // e.g., "Egamma8.400000_M2Pi0.712500_H_0_2_0"
+            TString graphName = redName + parVar->GetName();
+            TGraphErrors* graph = dynamic_cast<TGraphErrors*>(Graphs->FindObject(graphName));
+            
+            if (!graph) {
+                graph = new TGraphErrors();
+                graph->SetNameTitle(graphName, graphName);
+                Graphs->Add(graph);
+            }
+
+            Int_t Npoint = graph->GetN();
+            Double_t x_val = DataBins->GetAxis(va).GetBinCenter(iP + 1);
+            Double_t x_err = DataBins->GetAxis(va).GetBinWidth(iP + 1) / 2.0;
+            
+            graph->SetPoint(Npoint, x_val, parVar->getVal());
+            graph->SetPointError(Npoint, x_err, parVar->getError());
+        }
+    }
+
+    TFile* fileG = TFile::Open(DirName + "ParGraphs" + Var + ".root", "RECREATE");
+    Graphs->Write();
+    fileG->Close();
+    delete fileG; 
+
+    std::cout << "Successfully extracted parameters to ParGraphs" << Var << ".root" << std::endl;
 }
