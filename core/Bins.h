@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <TAxis.h>
 #include <TObjArray.h>
 #include <TObject.h>
@@ -13,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <iostream>
+#include <map>
 
 namespace HS{
   namespace FIT{
@@ -26,9 +26,16 @@ namespace HS{
     using std::cout;
     using std::endl;
 
+    // Struct to hold absolute kinematic definitions for a specific bin
+    struct BinVolume {
+      Double_t center;
+      Double_t width;
+      Double_t min;
+      Double_t max;
+    };
+
     class Bins : public TNamed{
 
- 
     private :
       void RunBinTree(TTree* tree,Int_t BMin,Int_t BMax);
 
@@ -67,6 +74,10 @@ namespace HS{
 
       void AddAxis(TString name,Int_t nbins,Double_t min,Double_t max);
       void AddAxis(const TString& name,Int_t nbins,Double_t* xbins);
+      
+      // Alias for AddAxis to support existing user macros
+      void LoadBinVar(TString name, Int_t nbins, Double_t min, Double_t max) { AddAxis(name, nbins, min, max); }
+
       void IterateAxis(Int_t iA,const TString& binName);
       VecString_t GetBinNames(){return fBinNames;}
       const VecString_t GetFileNames() const {return fFileNames;}
@@ -76,20 +87,25 @@ namespace HS{
       TString GetBinName(Int_t i){if(i<fNbins) return fBinNames[i];else return "";};
       TString GetPartName(Int_t ia,Int_t ib){return fPartName[ia][ib];}
       Int_t GetParti(Int_t ia,const TString& name){for(Int_t ib=0;ib<fVarAxis[ia].GetNbins();ib++){if(name==fPartName[ia][ib]) return ib;} return 0;} //find the bin index for a binpart name
+      
       void InitialiseBins();
       void Save(const TString& filename);
       void RunBinTree(TTree* tree,TString selection="");
-      // void MakeBinTree(TTree* tree,TString name,TString filename){InitialiseBinTree(name,filename);RunBinTree(tree);Save();}
-      //TTree* GetBinTree(){return fBinTree;}
-      // TTree* GetBinnedTree(TTree* tree,Int_t bin);
+      
       Int_t GetN(){return fNbins;}
+      Int_t GetSize() const { return fNbins; } // Alias for GetN() for user macros
       Int_t GetNAxis(){return fNaxis;}
       void PrintAxis();
+      
       Int_t FindBin(TVectorD vals);
       Int_t FindBin(Double_t v0);
       Int_t FindBin(Double_t v0,Double_t v1);
       Int_t FindBin(Double_t v0,Double_t v1,Double_t v2);
       Int_t FindBin(Double_t v0,Double_t v1,Double_t v2,Double_t v3,Double_t v4=0,Double_t v5=0);
+      
+      // NEW: Returns the absolute physical dimensions for a specific global multidimensional bin
+      std::map<TString, BinVolume> GetBinDimensions(Int_t globalBinIndex);
+
       void MakeDirectories();
     
       void SetMaxEntries(Long64_t ent){fMaxEntries=ent;}
@@ -128,4 +144,3 @@ namespace HS{
 
   }//namespace HS
 }
-

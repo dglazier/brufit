@@ -10,7 +10,6 @@
 #include "TSystem.h"
 #include <algorithm>
 #include <utility>
-//#include "ProcInfo_t.h"
 
 namespace HS{
   namespace FIT{
@@ -48,17 +47,13 @@ namespace HS{
       if(fFile){fFile->Close(); delete fFile;}
     }
     void Bins::AddAxis(TString name,Int_t nbins,Double_t min,Double_t max){
-      //Add a new axis for a given variable, name should be tree name
-      //Want to make an array for use with FindBin(). must call the other contructor
       TArrayD bins(nbins+1);
       Double_t binwidth = (max - min) / Double_t(nbins);
       for(Int_t i=0;i<nbins+1;i++)
 	bins[i]= min + i * binwidth;
       AddAxis(std::move(name),nbins,bins.GetArray());
-  
     }
     void Bins::AddAxis(const TString& name,Int_t nbins,Double_t* xbins){
-      //Add a new axis for a given variable, name should be tree name
       TAxis axis(nbins,xbins);
       axis.SetName(name);
       fVarAxis.push_back(axis);
@@ -66,20 +61,15 @@ namespace HS{
     }
     void Bins::InitialiseBins(){
       if(fNaxis==0) return;
-      //Make bin names for every individual bin
       TString binName;
       fNbins=0;
       fBinNames.clear();
       IterateAxis(0,binName);
-
     }
     void Bins::IterateAxis(Int_t iA,const TString& binName) {
-      //iterate through all bins possible with given axis and constuct
-      //unique names for them
       if (iA >= fNaxis){ //stop clause
 	fBinNames.push_back(binName);
 	fNbins++;
-	//Info("Bins::IterateAxis"," %s",binName.Data());
 	return;
       }
       VecString_t part;
@@ -108,26 +98,21 @@ namespace HS{
 	RunBinTree(tree,fMAXFILES*i,fMAXFILES*(i+1));
       //and remainder
       RunBinTree(tree,fMAXFILES*(Nlots),fMAXFILES*(Nlots)+Nrem);
-  
     }
 
     void Bins::RunBinTree(TTree* tree,Int_t BMin,Int_t BMax){
-      //Create all sub trees
       std::cout<<"Bins::RunBinTree Running bins from "<<BMin<<" to "<<BMax<<std::endl;
-      //create entry lists for tree
       TDirectory *saveDir=gDirectory;
-      //  fFile->cd();
 
       Bool_t GotAnInt=kFALSE;
       TVectorD vVal(fNaxis);//values of variables for given entry
       vector<Int_t> vValI(fNaxis);//int values of variables for given entry
       vector<Int_t> vIntIndex;
       for(Int_t j=0;j<fNaxis;j++){
-	tree->SetBranchStatus(fVarAxis[j].GetName(),"1");//STATUS must be called before ADDRESS!! see Important remarkse in TChain SetBranchStatus!
-	tree->GetLeaf(fVarAxis[j].GetName())->GetTypeName();//this isneeded to check type properly when setting branch address
+	tree->SetBranchStatus(fVarAxis[j].GetName(),"1");
+	tree->GetLeaf(fVarAxis[j].GetName())->GetTypeName();
 	tree->GetBranch(fVarAxis[j].GetName())->SetAutoDelete();
 	if(tree->SetBranchAddress(fVarAxis[j].GetName(),&vVal[j])==-2){
-	  //In case we have Int_t branches
 	  if(tree->SetBranchAddress(fVarAxis[j].GetName(),&vValI[j])==0){
 	    vIntIndex.push_back(j);
 	    GotAnInt=kTRUE;
@@ -137,11 +122,9 @@ namespace HS{
 
       saveDir->cd();
 
-      //prepare the binned trees
       Int_t Nhere=BMax-BMin;
       fTrees.reserve(Nhere);
       fTrees.resize(Nhere);
-      //make output directory if not existing
       gSystem->MakeDirectory(fOutDir+"/");
       fBinnedTreeName=tree->GetName();
       for(Int_t ib=BMin;ib<BMax;ib++){
@@ -154,8 +137,6 @@ namespace HS{
 
       Int_t totalBytes=0;
 
- 
-      //Turn on any branches needed to evaluate selection
       auto leaves=tree->GetListOfLeaves();
       auto branches=tree->GetListOfBranches();
       vector<TString> on_branches;
@@ -164,10 +145,8 @@ namespace HS{
 	  on_branches.emplace_back(branches->At(ib)->GetName());
 	}
       }
-      //turn on all branches so can make formula
       tree->SetBranchStatus("*",true);
   
-      //create selection cut
       if(fSelection==TString()) fSelection="1";
       TTreeFormula treeCut("selection",fSelection,tree);
       vector<TString> cut_branches;
@@ -176,18 +155,17 @@ namespace HS{
 	  cut_branches.emplace_back(treeCut.GetLeaf(jl)->GetBranch()->GetName());
 	}
       }
-      //Now only turn on required branches
       tree->SetBranchStatus("*",false);
       for(const auto& brname: on_branches)
 	tree->SetBranchStatus(brname,true);
       for(const auto& brname: cut_branches)
 	tree->SetBranchStatus(brname,true);
   
-      for(Long64_t i=0;i<tree->GetEntries();i++){//loop over events
+      for(Long64_t i=0;i<tree->GetEntries();i++){
 	tree->GetEntry(i);
 	if(!static_cast<Bool_t>(treeCut.EvalInstance()))
 	  continue;
-	if(GotAnInt){//put the integer value in the double array
+	if(GotAnInt){
 	  for(int iv : vIntIndex){
 	    vVal[iv]=vValI[iv];
 	  }
@@ -196,10 +174,8 @@ namespace HS{
 	  std::cout<<"On event "<<i<<" = "<<100.*i/tree->GetEntries()<<"%"<<std::endl;
 	}
 	fBin=FindBin(vVal);
-	//check if bin in current range
 	if(fBin>=BMax||fBin<BMin) continue;
 	Int_t aBin=fBin-BMin;
-	//Fill the tree associated with this bin
 	Int_t evSize=fTrees[aBin]->ReadEvent();
 	totalBytes+=evSize;
 	if(fTrees[aBin]->GetEntries()==(Long64_t)fMaxEntries/fNbins/evSize) {
@@ -213,7 +189,6 @@ namespace HS{
   
       tree->ResetBranchAddresses();
       saveDir->cd();
-      //cleanup
       for(Int_t ib=BMin;ib<BMax;ib++){
 	Int_t aBin=ib-BMin;
 	delete  fTrees[aBin];
@@ -230,7 +205,6 @@ namespace HS{
 	fFile=nullptr;}
     }
     void Bins::PrintAxis(){
-
       for(Int_t iA=0;iA<fNaxis;iA++)
 	std::cout<<fVarAxis[iA].GetName()<<" "<<fVarAxis[iA].GetNbins()<<" "<<fVarAxis[iA].GetXmin()<<" "<<fVarAxis[iA].GetXmax()<<" "<<std::endl;
     }
@@ -245,6 +219,33 @@ namespace HS{
       for(Int_t ib=0;ib<fNbins;ib++){
 	gSystem->MakeDirectory(fOutDir+"/"+GetBinName(ib));
       }
+    }
+
+    // NEW FUNCTION: Decodes the global bin index into specific limits per axis.
+    // It reverses the multidimensional arithmetic seen in FindBin(TVectorD).
+    std::map<TString, BinVolume> Bins::GetBinDimensions(Int_t globalBinIndex) {
+      std::map<TString, BinVolume> dims;
+      Int_t remainingBin = globalBinIndex;
+
+      for(Int_t i = fNaxis - 1; i >= 0; i--){
+        TAxis a = fVarAxis[i];
+        Int_t nVarBins = a.GetNbins();
+
+        // Extract 0-based index for the current axis
+        Int_t axisBin = remainingBin % nVarBins; 
+        remainingBin /= nVarBins;
+
+        Int_t rootBin = axisBin + 1; // ROOT TAxis operates on 1-based indexing
+
+        BinVolume v;
+        v.min = a.GetBinLowEdge(rootBin);
+        v.max = a.GetBinUpEdge(rootBin);
+        v.width = v.max - v.min;
+        v.center = 0.5 * (v.min + v.max);
+
+        dims[a.GetName()] = v;
+      }
+      return dims;
     }
 
     Int_t Bins::FindBin(Double_t v0){
@@ -264,20 +265,17 @@ namespace HS{
       return FindBin(vals);
     }
     Int_t Bins::FindBin(TVectorD vals){
-      //Loop over each axis and find bin for each
       Bool_t InLimits=kTRUE;
-      for(Int_t iA=0;iA<fNaxis;iA++)//first check var is within variable ranges
+      for(Int_t iA=0;iA<fNaxis;iA++)
 	if(vals[iA]<fVarAxis[iA].GetXmin()||vals[iA]>fVarAxis[iA].GetXmax()) InLimits=kFALSE;
       if(!InLimits) {return -1;}
-      //now find bin for each axis
-      vector<Int_t> vBin(fNaxis); //store for the bin number of each axis
-      for(Int_t iA=0;iA<fNaxis;iA++){//loop over vars/axis
+      vector<Int_t> vBin(fNaxis); 
+      for(Int_t iA=0;iA<fNaxis;iA++){
 	vBin[iA]=1+TMath::BinarySearch(fVarAxis[iA].GetNbins(),fVarAxis[iA].GetXbins()->GetArray(),vals[iA]);
       }
-      //now have the bin for each axis, find single bin
       Int_t theBin=-1;
       for(Int_t iA1=0;iA1<fNaxis-1;iA1++){
-	Int_t tbin=vBin[iA1]-1;//-1 as bin indexing starts at 1 with 0 underflow
+	Int_t tbin=vBin[iA1]-1;
 	for(Int_t iA2=iA1+1;iA2<fNaxis;iA2++)
 	  tbin*=fVarAxis[iA2].GetNbins();
 	theBin+=tbin;
@@ -286,30 +284,25 @@ namespace HS{
       return theBin;
     }
 
-    ////////////////////////////////////////////////////////////////
-    ///BinTree utility class
-    ///Duplicates a tree but keeps its branches/memory etc seperate
-    ///This allows us to make many copies without memory issues
-    ///CloneTree give trouble with memory, when lots of copies
     BinTree::BinTree(Int_t nbins,const TString& name,TTree* tree0,vector<TString> omit){
       std::cout<<"Constructing Bin Tree "<<name<<std::endl;
       fName=name;
       fFile=TFile::Open(fName+".root","recreate");
       vector<TString> turnOn;
-      for( auto& bname : omit ){//turn off omitted branches
+      for( auto& bname : omit ){
 	if(tree0->GetBranchStatus(bname)) turnOn.push_back(bname);
 	tree0->SetBranchStatus(bname,false);
       }
       fTree=tree0->CloneTree(0);	
-      for(auto&  bname : turnOn ){ //turn back on omitted branches now tree is made
+      for(auto&  bname : turnOn ){ 
 	tree0->SetBranchStatus(bname,true);
       }
   
       fTree->SetName(tree0->GetName());
       fTree->SetDirectory(fFile);
-      fTree->SetAutoSave(1E12); //We do our won autosave as this one changes basket size greatly increasing memory when large number of bins
-      fTree->SetBasketSize("*",64000); //cloned trees have the parent basket size which can be very large and use large amount of memeory when we great many bins
-      fTree->SetAutoFlush(1E12); //Don't let root flush or it will make basket sizes
+      fTree->SetAutoSave(1E12); 
+      fTree->SetBasketSize("*",64000); 
+      fTree->SetAutoFlush(1E12); 
     }
     BinTree::~BinTree(){
       if(fTree&&fFile)
@@ -320,19 +313,17 @@ namespace HS{
       std::cout<<"BinTree::Save() "<<fName<<std::endl;
       if(!fTree) return;
       fFile->cd();
-      /// fTree->FlushBaskets();
       fTree->Write();
       fTree->SetDirectory(nullptr);
       fTree->ResetBranchAddresses();
       delete fTree;
-      // fFile->Close();
       delete fFile;fFile=nullptr;
       fTree=nullptr;
     }
     void BinTree::Reset(){
       std::cout<<"reset "<<fName<<std::endl;
       fTree->AutoSave("FlushBaskets");
-      fTree->SetBasketSize("*",16000); //just in case...
+      fTree->SetBasketSize("*",16000); 
       return;
  
     }
