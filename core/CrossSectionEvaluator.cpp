@@ -10,6 +10,18 @@
 #include <ROOT/TProcessExecutor.hxx>
 #include <ROOT/TSeq.hxx>
 #include <iostream>
+#include "CrossSectionEvaluator.h"
+#include "BruEventsPDF.h"
+#include <TFile.h>
+#include <TCanvas.h>
+#include <TGraphErrors.h>
+#include <TDirectory.h>
+#include <RooDataSet.h>
+#include <RooFitResult.h>
+#include <RooMultiVarGaussian.h>
+#include <ROOT/TProcessExecutor.hxx>
+#include <ROOT/TSeq.hxx>
+#include <iostream>
 #include <algorithm>
 
 namespace HS {
@@ -292,20 +304,26 @@ namespace FIT {
         
         // --- 3. Compute Base MC Statistical Variance ---
         Double_t stat_variance = 0.0;
-        Double_t rawGenCount = static_cast<Double_t>(pdf->GetNMCGenEntries());
-        
-        if (rawGenCount > 0) {
-            Double_t rawAcceptance = integralAccepted / (integralGenerated / fGenScale); 
-            Double_t raw_err = 0.0;
+
+        // ONLY calculate raw MC binomial stats if we are NOT sampling the beta-scaled MCMC posterior!
+        if (!fSampleAcceptance) {
+            Double_t rawGenCount = static_cast<Double_t>(pdf->GetNMCGenEntries());
             
-            if (rawAcceptance > 0 && rawAcceptance < 1.0) {
-                raw_err = TMath::Sqrt(rawAcceptance * (1.0 - rawAcceptance) / rawGenCount);
-            } else {
-                raw_err = rawAcceptance / TMath::Sqrt(rawGenCount);
+            if (rawGenCount > 0) {
+                Double_t rawAcceptance = integralAccepted / (integralGenerated / fGenScale); 
+                Double_t raw_err = 0.0;
+                
+                if (rawAcceptance > 0 && rawAcceptance < 1.0) {
+                    raw_err = TMath::Sqrt(rawAcceptance * (1.0 - rawAcceptance) / rawGenCount);
+                } else {
+                    raw_err = rawAcceptance / TMath::Sqrt(rawGenCount);
+                }
+                
+                stat_variance = (raw_err / fGenScale) * (raw_err / fGenScale);
+                std::cout << "    -> Base MC Statistical Variance: " << stat_variance << std::endl;
             }
-            
-            stat_variance = (raw_err / fGenScale) * (raw_err / fGenScale);
-            std::cout << "    -> Base MC Statistical Variance: " << stat_variance << std::endl;
+        } else {
+            std::cout << "    -> Base MC Stat Variance OMITTED (Already encapsulated in beta-scaled MCMC Posterior)" << std::endl;
         }
 
         binData.acceptance_err = TMath::Sqrt(mcmc_variance + stat_variance);
