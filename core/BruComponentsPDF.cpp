@@ -43,9 +43,10 @@ namespace bru {
             }
             _Components.push_back(std::move(vterms));
         }
-      
+
+	
         MakeSets();
-    }
+   }
 
     BruComponentsPDF::BruComponentsPDF(const BruComponentsPDF& other, const char* name) :
       BruEventsPDF(other, name),
@@ -83,7 +84,7 @@ namespace bru {
         _Last = other._Last;
         _LastLength = other._LastLength;
         _CacheCompDepIntegral = other._CacheCompDepIntegral;
-        _CacheCompDepSigmaIntegral = other._CacheCompDepSigmaIntegral;
+        _CacheCompDepIntegral = other._CacheCompDepIntegral;
         _MCAPDepTerm = other._MCAPDepTerm;
 
 	// =======================================================
@@ -317,12 +318,13 @@ namespace bru {
         // Check if we inherited a perfectly good cache from a master PDF clone!
         bool inheritedCache = (_PrevParVals.size() == _NComps);
         
-        if (!inheritedCache) {
-            _PrevParVals.resize(_NComps);
-            _CacheCompDepIntegral.assign(_NComps, 1.0);
-            _CacheCompDepSigmaIntegral.assign(_NComps, 0.0);
+       
+	if (!inheritedCache) {
+	  _PrevParVals.resize(_NComps);
+	  _CacheCompDepIntegral.assign(_NComps, 1.0);
+	  _CacheCompCrossIntegral.assign(_NComps, std::vector<Double_t>(_NComps, 0.0));
         }
-
+ 
         UInt_t icomp = 0;
         bool hasBadFactorization = false; // Track if we should print a summary
 
@@ -684,6 +686,9 @@ namespace bru {
         for (const auto& icomp : _RecalcComponent) {
             _CacheCompDepIntegral[icomp] = _CacheCompDepIntegral[icomp] / accepted;
         }
+
+	        _NUsedForIntegral = accepted;
+
         for (const auto& icomp : _RecalcComponent) {
             for (const auto& term : _DependentTermProxy[icomp]) {
                 auto unconstTerm = const_cast<RooAbsReal*>(&term->arg());
@@ -694,11 +699,16 @@ namespace bru {
     
     void BruComponentsPDF::RecalcComponentIntegralsSampling(Int_t code, const char* rangeName) const {
         if (_RecalcComponent.empty() == kTRUE) return;
-      
+        
         Long64_t ilow, ihigh = 0;
         SetLowHighVals(ilow, ihigh);
-      
-        for (const auto& icomp : _RecalcComponent) {
+
+        // ALWAYS evaluate all components for the cross-matrix!
+        // (Since this is only used for measuring the initial variance, this is mathematically exact)
+        std::vector<UInt_t> activeComps;
+        for (UInt_t i = 0; i < _NComps; ++i) activeComps.push_back(i);
+
+        for (const auto& icomp : activeComps) {
             for (const auto& term : _DependentTermProxy[icomp]) {
                 auto unconstTerm = const_cast<RooAbsReal*>(&term->arg());
                 unconstTerm->recursiveRedirectServers(_IntegrateSet);
@@ -707,8 +717,18 @@ namespace bru {
 
         Long64_t accepted = 0;
         Long64_t all = 0;
-        std::vector<Double_t> sumSquares(_RecalcComponent.size());
+        
+        // Temporary buffer to hold the component values for a single event
+        std::vector<Double_t> tempVals(_NComps, 0.0);
       
+        // Reset integrals for the active components
+        for (const auto& icomp : activeComps) {
+            _CacheCompDepIntegral[icomp] = 0;
+            for (UInt_t jcomp = 0; jcomp < _NComps; jcomp++) {
+                _CacheCompCrossIntegral[icomp][jcomp] = 0;
+            }
+        }
+
         for (Long64_t ie = ilow; ie < ihigh; ie++) {
             _TreeEntry = ie;
             if (!CheckRange(rangeName)) { ++all; continue; }
@@ -718,28 +738,40 @@ namespace bru {
             for (Int_t ii = 0; ii < _Ncats; ii++)
                 _IntegrateCats[ii]->setIndex(_DataCache->_vecCat[_TreeEntry * _Ncats + ii]);
           
-            for (const auto& icomp : _RecalcComponent) {
+            // 1. Evaluate all components for this event
+            for (const auto& icomp : activeComps) {
                 Double_t product = 1;
                 for (const auto& term : _DependentTermProxy[icomp]) {
                     product *= *term;
                 }
-                product *= GetIntegralWeight(ie);
-          
-                _CacheCompDepIntegral[icomp] += product;
-                sumSquares[icomp] += product * product;
+                tempVals[icomp] = product * GetIntegralWeight(ie);
+                _CacheCompDepIntegral[icomp] += tempVals[icomp];
             }
+
+            // 2. Build the cross-matrix (C_ij = sum(P_i * P_j))
+            for (const auto& icomp : activeComps) {
+                for (UInt_t jcomp = 0; jcomp < _NComps; jcomp++) {
+                    _CacheCompCrossIntegral[icomp][jcomp] += tempVals[icomp] * tempVals[jcomp];
+                }
+            }
+            
             ++accepted;
             ++all;
         }
       
-        for (const auto& icomp : _RecalcComponent) {
-            _CacheCompDepIntegral[icomp] = _CacheCompDepIntegral[icomp] / (accepted - 1);
-            _CacheCompDepSigmaIntegral[icomp] = sumSquares[icomp] / accepted;
+        // 3. Normalize by the number of accepted events
+        if (accepted > 0) {
+            for (const auto& icomp : activeComps) {
+                _CacheCompDepIntegral[icomp] /= accepted;
+                for (UInt_t jcomp = 0; jcomp < _NComps; jcomp++) {
+                    _CacheCompCrossIntegral[icomp][jcomp] /= accepted;
+                }
+            }
         }
         
         _NUsedForIntegral = accepted;
       
-        for (const auto& icomp : _RecalcComponent) {
+        for (const auto& icomp : activeComps) {
             for (const auto& term : _DependentTermProxy[icomp]) {
                 auto unconstTerm = const_cast<RooAbsReal*>(&term->arg());
                 unconstTerm->recursiveRedirectServers(_ActualObs);
@@ -747,6 +779,88 @@ namespace bru {
         }
     }
 
+    // Backward compatibility for isolated component checks (The diagonal is the self-variance)
+    Double_t BruComponentsPDF::componentVariance(Int_t icomp) const {
+        Double_t product = 1;
+        product *= _CacheCompCrossIntegral[icomp][icomp]; 
+        for (auto& term : _IndependentTermProxy[icomp]) {
+            product *= (*term) * (*term);
+        }
+        return product; 
+    }
+  // Double_t BruComponentsPDF::GetRelativeVariance() const {
+  //     if (_NUsedForIntegral <= 1) return 1E-12;
+        
+  //       // Pure Monte Carlo counting statistics: 1 / sqrt(N)
+  //       Double_t relError = 1.0 / std::sqrt((Double_t)_NUsedForIntegral);
+        
+  //       return (std::isnan(relError) || std::isinf(relError)) ? 1E-12 : relError;
+  //   }
+  // Double_t BruComponentsPDF::GetRelativeVariance() const {
+  //       if (_NUsedForIntegral <= 1) return 1E-12;
+
+  //       Double_t meanF = _WeightedBaseLine;
+  //       Double_t variance = 0;
+
+  //       for (UInt_t c = 0; c < _NComps; c++) {
+  //           Double_t product = 1.0;
+  //           for (auto& term : _IndependentTermProxy[c]) product *= *term;
+            
+  //           meanF += product * _CacheCompDepIntegral[c];
+            
+  //           // Diagonal approximation using your existing 1D cache
+  //           Double_t varProduct = product * product;
+  //           variance += varProduct * _CacheCompDepIntegral[c];
+  //       }
+
+  //       if (std::abs(meanF) < 1E-15 || variance <= 0 || std::isnan(variance)) return 1E-12;
+
+  //       Double_t relError = std::sqrt(variance / (_NUsedForIntegral - 1)) / std::abs(meanF);
+  //       return (std::isnan(relError) || std::isinf(relError) || relError <= 1E-9) ? 1E-12 : relError;
+  //   }
+  // Calculates the rigorous variance of the coherent sum using the pre-cached cross-matrix
+  Double_t BruComponentsPDF::GetRelativeVariance() const {
+    if (!_UseSamplingIntegral || _NUsedForIntegral <= 1) return 1E-12;
+    if (_CacheCompDepIntegral.size() != _NComps || _CacheCompCrossIntegral.size() != _NComps) return 1E-12; 
+
+    Double_t meanF = _WeightedBaseLine;
+    std::vector<Double_t> Tc(_NComps, 1.0);
+    Double_t sum_Tc_Ic = 0.0;
+
+    // 1. Calculate the independent parameter multipliers (Tc) and the mean
+    for (UInt_t c = 0; c < _NComps; c++) {
+      for (auto& term : _IndependentTermProxy[c]) {
+	Tc[c] *= *term;
+      }
+      Double_t term_mean = Tc[c] * _CacheCompDepIntegral[c];
+      meanF += term_mean;
+      sum_Tc_Ic += term_mean; 
+    }
+
+    if (std::abs(meanF) < 1E-15) return 1E-12; 
+
+    // 2. Analytically construct E[F^2] using the cached cross-matrix
+    Double_t meanF2 = _WeightedBaseLine * _WeightedBaseLine;
+    meanF2 += 2.0 * _WeightedBaseLine * sum_Tc_Ic;
+
+    for (UInt_t c = 0; c < _NComps; c++) {
+      for (UInt_t d = 0; d < _NComps; d++) {
+	meanF2 += Tc[c] * Tc[d] * _CacheCompCrossIntegral[c][d];
+      }
+    }
+
+    // 3. V(F) = E[F^2] - (E[F])^2
+    Double_t variance = meanF2 - (meanF * meanF);
+    
+    if (variance <= 0 || std::isnan(variance)) return 1E-12;
+
+    Double_t relError = std::sqrt(variance / (_NUsedForIntegral - 1)) / std::abs(meanF);
+    
+    if (std::isnan(relError) || std::isinf(relError) || relError <= 1E-9) return 1E-12;
+    
+    return relError;
+  }
+  
     Double_t BruComponentsPDF::componentIntegral(Int_t icomp) const {
         Double_t product = 1;
         product *= _CacheCompDepIntegral[icomp];
@@ -756,14 +870,14 @@ namespace bru {
         return product; 
     }
 
-    Double_t BruComponentsPDF::componentVariance(Int_t icomp) const {
-        Double_t product = 1;
-        product *= _CacheCompDepSigmaIntegral[icomp];
-        for (auto& term : _IndependentTermProxy[icomp]) {
-            product *= (*term) * (*term);
-        }
-        return product; 
-    }
+    // Double_t BruComponentsPDF::componentVariance(Int_t icomp) const {
+    //     Double_t product = 1;
+    //     product *= _CacheCompDepSigmaIntegral[icomp];
+    //     for (auto& term : _IndependentTermProxy[icomp]) {
+    //         product *= (*term) * (*term);
+    //     }
+    //     return product; 
+    // }
     
     Bool_t BruComponentsPDF::CheckChange() const {
         Bool_t hasChanged = false;

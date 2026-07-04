@@ -193,17 +193,24 @@ namespace bru {
         void SetHistIntegrals(std::vector<TH1F> &hists) { _HistIntegrals = hists; }
         void ResetHistIntegrals() { _HistIntegrals.clear(); }
 
-      virtual Double_t GetRelativeVariance() const { return _RelativeVariance; }
+      virtual Double_t GetRelativeVariance() const;
         
-        // Setting this forces the integration loops to track sum-of-squares
-        void TrackMCVariance(Bool_t track = kTRUE) { 
-            _TrackMCVariance = track; 
-            if (track) _UseSamplingIntegral = kTRUE; // Trigger sub-classes
-        }
-
+      // Setting this forces the integration loops to track sum-of-squares
+      // and triggers the cross-matrix sampling engine in sub-classes
+      void TrackMCVariance(Bool_t track = kTRUE) { 
+	_TrackMCVariance = track; 
+	if (track) {
+	  _UseSamplingIntegral = kTRUE; 
+	} else {
+	  _UseSamplingIntegral = kFALSE; 
+	}
+      }
+      
     protected:
-        Bool_t _TrackMCVariance = kFALSE;
-        mutable Double_t _RelativeVariance = 1E-6;
+      Bool_t _TrackMCVariance = kFALSE;
+      mutable Double_t _SumSquares = 0;         // NEW: Tracks E[F^2]
+      mutable Long64_t _NUsedForIntegral = 0;   // NEW: Tracks N
+      
         ClassDefOverride(bru::BruEventsPDF, 1);
     };
 

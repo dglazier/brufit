@@ -75,7 +75,8 @@ namespace bru {
         void RecalcComponentIntegralsSampling(Int_t code, const char* rangeName) const;
         Double_t componentVariance(Int_t icomp) const;
         void DoFirstIntegrations(const char* rangeName = "") const;
-
+      Double_t GetRelativeVariance() const override;
+      
         Bool_t CheckChange() const override;
       
     private:
@@ -99,8 +100,8 @@ namespace bru {
         RooArgSet _IntegrateSet;
         RooArgSet _Parameters; 
    
-        mutable std::vector<Double_t> _CacheCompDepIntegral;
-        mutable std::vector<Double_t> _CacheCompDepSigmaIntegral;
+      mutable std::vector<Double_t> _CacheCompDepIntegral;
+      mutable std::vector<std::vector<Double_t>> _CacheCompCrossIntegral; // Exact Interference Matrix
         mutable std::vector<std::vector<Double_t>> _PrevParVals;
         mutable std::vector<UInt_t> _RecalcComponent;
 

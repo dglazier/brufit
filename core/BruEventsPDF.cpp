@@ -273,47 +273,111 @@ namespace bru {
 
       return sampleIntegral(_Last[0],_SigmaIntegral);
     }
-
-    Double_t BruEventsPDF::analyticalIntegral(Int_t code, const char* rangeName) const {
-        if(code==1&&_ForceConstInt&&!_DataCache) {_Last[0]=1;return _Last[0];}
-        Long64_t NEv=0;
-        Double_t integral=0.;
-       
-        if(code==1)
-            if(!CheckChange()) return _Last[0];
-        
-        if(code==1){
-            auto check= AssertPositivePDF();
-            if(check==kFALSE) return _Last[0]=0;
-
-            Long64_t accepted=0;
-            Long64_t ilow=0;
-            Long64_t ihigh=0;
-
-            SetLowHighVals(ilow,ihigh); 
-            for(Long64_t ie=ilow;ie<ihigh;ie++){
-                _TreeEntry=ie;
-                if(!CheckRange(rangeName)) continue;
-                accepted++;
-                integral+=evaluateMC(&_DataCache->_vecReal,&_DataCache->_vecCat)*GetIntegralWeight(ie);
+Double_t BruEventsPDF::analyticalIntegral(Int_t code, const char* rangeName) const {
+        if (code == 1) {
+            // Fast bailout for forced constant integrals
+            if (_ForceConstInt) {
+                _Last[0] = 1.0; 
+                return _Last[0];
             }
-        
-            if (accepted > 0) integral/=accepted;
-            else integral = 0;
-        }
+
+            if (!CheckChange()) return _Last[0];
+            if (!_DataCache) Fatal("BruEventsPDF::analyticalIntegral", "Attempted MC Integration but _DataCache is null!");
+            
+            auto check = AssertPositivePDF();
+            if (check == kFALSE) return _Last[0] = 0;
+
+            Long64_t accepted = 0;
+            Long64_t ilow = 0;
+            Long64_t ihigh = 0;
+            SetLowHighVals(ilow, ihigh); 
+            
+            Double_t integral = 0.;
+            Double_t sumSq = 0.; // Tracks E[F^2] for variance scaling
+
+            bool hasRange = (rangeName != nullptr && strlen(rangeName) > 0);
+
+            for (Long64_t ie = ilow; ie < ihigh; ie++) {
+                _TreeEntry = ie;
+                if (hasRange && !CheckRange(rangeName)) continue; 
+                
+                accepted++;
+                
+                // Evaluate PDF and multiply by the generation weight
+                Double_t val = evaluateMC(&_DataCache->_vecReal, &_DataCache->_vecCat) * GetIntegralWeight(ie);
+                integral += val;
+                
+                if (_TrackMCVariance) {
+                    sumSq += val * val;
+                }
+            }
+
+            if (accepted > 0) {
+                integral /= accepted;
+                if (_TrackMCVariance) {
+                    _SumSquares = sumSq / accepted;
+                    _NUsedForIntegral = accepted;
+                }
+            } else {
+                integral = 0;
+            }
+            
+            _Last[0] = integral;
+            return _Last[0];
+        } 
         else {
-            if(_HistIntegrals.size()==0)
-                HistIntegrals(rangeName);
-        
-            Int_t vindex=code-2;
-            Double_t vval=*(_ProxSet[vindex]);
-            integral=_HistIntegrals[vindex].Interpolate(vval);
-            if(integral<0) integral=0;
+            // 1D Projections (Plotting)
+            if (_HistIntegrals.empty()) HistIntegrals(rangeName);
+            
+            Int_t vindex = code - 2;
+            if (vindex < 0 || vindex >= (Int_t)_ProxSet.size()) Fatal("BruEventsPDF::analyticalIntegral", "Invalid integration code");
+            
+            Double_t vval = *(_ProxSet[vindex]);
+            Double_t integral = _HistIntegrals[vindex].Interpolate(vval);
+            if (integral < 0) integral = 0;
             return integral;
         }
-        _Last[0]=integral;
-        return _Last[0];
     }
+    // Double_t BruEventsPDF::analyticalIntegral(Int_t code, const char* rangeName) const {
+    //     if(code==1&&_ForceConstInt&&!_DataCache) {_Last[0]=1;return _Last[0];}
+    //     Long64_t NEv=0;
+    //     Double_t integral=0.;
+       
+    //     if(code==1)
+    //         if(!CheckChange()) return _Last[0];
+        
+    //     if(code==1){
+    //         auto check= AssertPositivePDF();
+    //         if(check==kFALSE) return _Last[0]=0;
+
+    //         Long64_t accepted=0;
+    //         Long64_t ilow=0;
+    //         Long64_t ihigh=0;
+
+    //         SetLowHighVals(ilow,ihigh); 
+    //         for(Long64_t ie=ilow;ie<ihigh;ie++){
+    //             _TreeEntry=ie;
+    //             if(!CheckRange(rangeName)) continue;
+    //             accepted++;
+    //             integral+=evaluateMC(&_DataCache->_vecReal,&_DataCache->_vecCat)*GetIntegralWeight(ie);
+    //         }
+        
+    //         if (accepted > 0) integral/=accepted;
+    //         else integral = 0;
+    //     }
+    //     else {
+    //         if(_HistIntegrals.size()==0)
+    //             HistIntegrals(rangeName);
+        
+    //         Int_t vindex=code-2;
+    //         Double_t vval=*(_ProxSet[vindex]);
+    //         integral=_HistIntegrals[vindex].Interpolate(vval);
+    //         if(integral<0) integral=0;
+    //         return integral;
+    //     }
+    //     _Last[0]=integral;
+    //     return _Last[0];
+    // }
 
     Double_t BruEventsPDF::unnormalisedIntegral(Int_t code, const char* rangeName) const {
       Double_t integral=0;
@@ -368,7 +432,23 @@ namespace bru {
   
       _Parent->SetHistIntegrals(_HistIntegrals);
     }
-
+  Double_t BruEventsPDF::GetRelativeVariance() const {
+    if (!_TrackMCVariance || _NUsedForIntegral <= 1 || _Last[0] <= 0) return 1E-12;
+    
+    Double_t meanF = _Last[0];
+    Double_t meanF2 = _SumSquares;
+    
+    // V(F) = E[F^2] - (E[F])^2
+    Double_t variance = meanF2 - (meanF * meanF);
+    if (variance <= 0 || std::isnan(variance)) return 1E-12;
+    
+    // Relative Standard Error of the Mean
+    Double_t relError = std::sqrt(variance / (_NUsedForIntegral - 1)) / meanF;
+    if (std::isnan(relError) || std::isinf(relError) || relError <= 1E-9) return 1E-12;
+    
+    return relError;
+  }
+  
     void BruEventsPDF::SetLowHighVals(Long64_t& ilow, Long64_t& ihigh) const {
         ilow = 0; ihigh = 0;
         if (_Parent) {

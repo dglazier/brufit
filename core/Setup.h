@@ -211,7 +211,12 @@ namespace FIT {
 
         RooAbsPdf* ComponentsPDF(TString opt);
         ///@}
-      
+
+        // --- MC Variance Scaling Toggle ---
+        void ApplyMCVariance(Bool_t use) { fApplyMCVariance = use; }
+        Bool_t ApplyMCVariance() const { return fApplyMCVariance; }
+      // Safe garbage collection for external NLL components
+        void AddToDelete(TObject* obj) { fNeedToDeleteThis.Add(obj); }
     protected:
         void LoadParameterOnTheFly(const TString& opt);
 
@@ -262,7 +267,8 @@ namespace FIT {
 
         Bool_t fErrorsSumW2 = kTRUE; 
         Bool_t fErrorsAsym = kFALSE;
-
+        Bool_t fApplyMCVariance = kFALSE;
+      
         std::map<TString, Bool_t> fConstPars; 
         std::map<TString, Bool_t> fConstPDFPars; 
 

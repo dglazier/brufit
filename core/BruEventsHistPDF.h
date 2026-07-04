@@ -37,6 +37,9 @@ namespace bru {
         // Custom MC Batch Evaluation
         virtual void evaluateMCBatch(const std::vector<Double_t>& mcx_array, std::vector<Double_t>& output) const;
 
+      // Statistically exact template variance based on MC generation weights
+      Double_t GetRelativeVariance() const override;
+      
     protected:
         Double_t _MCx{};
 

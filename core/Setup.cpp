@@ -28,21 +28,33 @@ namespace FIT {
     Setup::Setup(const TString& name) : TNamed(name, name) {
         fNeedToDeleteThis.SetOwner(kTRUE);
     }
-    
     Setup::Setup(const Setup& other) : TNamed(other.fName, other.fName) {
         gErrorIgnoreLevel = kFatal;
         auto level = RooMsgService::instance().globalKillBelow();
         RooMsgService::instance().setGlobalKillBelow(RooFit::INFO);
 
         fNeedToDeleteThis.SetOwner(kTRUE);
-        fFitOptions = other.fFitOptions;
+        
+        // --- THE DEEP COPY FIX ---
+        // Prevents shallow copies of RooFit options crashing on batched slices
+        fFitOptions.Clear();
+        for (Int_t i = 0; i < other.fFitOptions.GetSize(); ++i) {
+            if (other.fFitOptions.At(i)) {
+                TObject* clonedOpt = other.fFitOptions.At(i)->Clone();
+                fFitOptions.Add(clonedOpt);
+                fNeedToDeleteThis.Add(clonedOpt); // Safe memory management!
+            }
+        }
+        // -------------------------
+
         fConstraints = other.fConstraints;   
         fAddCut = other.fAddCut;
         fVarCut = ""; 
         fDataOnlyCut = other.fDataOnlyCut;
         fIDBranchName = other.fIDBranchName;
         fOutDir = other.fOutDir;
-
+        fApplyMCVariance = other.fApplyMCVariance;
+        
         // --- THE STRING REPLAY MECHANISM ---
         // Copying RooWorkspaces directly across threads is dangerous and often crashes 
         // due to deeply nested, shared pointers inside RooFit. 
@@ -75,8 +87,53 @@ namespace FIT {
         gErrorIgnoreLevel = kInfo;
         RooMsgService::instance().setGlobalKillBelow(level);
     }
+    // Setup::Setup(const Setup& other) : TNamed(other.fName, other.fName) {
+    //     gErrorIgnoreLevel = kFatal;
+    //     auto level = RooMsgService::instance().globalKillBelow();
+    //     RooMsgService::instance().setGlobalKillBelow(RooFit::INFO);
 
-    Setup& Setup::operator=(const Setup& other) {
+    //     fNeedToDeleteThis.SetOwner(kTRUE);
+    //     fFitOptions = other.fFitOptions;
+    //     fConstraints = other.fConstraints;   
+    //     fAddCut = other.fAddCut;
+    //     fVarCut = ""; 
+    //     fDataOnlyCut = other.fDataOnlyCut;
+    //     fIDBranchName = other.fIDBranchName;
+    //     fOutDir = other.fOutDir;
+    // 	fApplyMCVariance = other.fApplyMCVariance;
+    //     // --- THE STRING REPLAY MECHANISM ---
+    //     // Copying RooWorkspaces directly across threads is dangerous and often crashes 
+    //     // due to deeply nested, shared pointers inside RooFit. 
+    //     // Instead, we replay the cached configuration strings to rebuild a pristine, 
+    //     // thread-local Workspace from scratch.
+    //     for (auto& conStr : other.fConstString) LoadConstant(conStr);
+    //     for (auto& parStr : other.fParString) LoadParameter(parStr);
+    //     for (auto& varStr : other.fVarString) LoadVariable(varStr);
+    //     for (auto& catStr : other.fCatString) LoadCategory(catStr);
+    //     for (auto& varStr : other.fAuxVarString) LoadAuxVar(varStr);
+    //     for (auto& formStr : other.fFormString) LoadFormula(formStr);
+    //     for (auto& funcStr : other.fFuncVarString) LoadFunctionVar(funcStr);
+
+    //     if (other.fParserPDFString.Length() > 0) {
+    //         ParserPDF(other.fParserPDFString, *(other.fParserPDFparser));
+    //     }
+        
+    //     for (auto& pdfStr : other.fPDFString) FactoryPDF(pdfStr);
+    //     for (auto& specStr : other.fSpecString) LoadSpeciesPDF(specStr.first, specStr.second);
+
+    //     // Re-apply constant parameter flags
+    //     for (const auto& pdf : other.fConstPDFPars) SetConstPDFPars(pdf.first, pdf.second);
+    //     for (const auto& par : other.fConstPars) SetConstPar(par.first, par.second);
+
+    //     CopyRealProperties(DataVars(), other.fVars);
+
+    //     fErrorsSumW2 = other.fErrorsSumW2;
+    //     fErrorsAsym = other.fErrorsAsym;
+
+    //     gErrorIgnoreLevel = kInfo;
+    //     RooMsgService::instance().setGlobalKillBelow(level);
+    // }
+Setup& Setup::operator=(const Setup& other) {
         // 1. Prevent self-assignment corruption
         if (this == &other) return *this;
 
@@ -99,15 +156,28 @@ namespace FIT {
         fFormString.clear(); fAuxVarString.clear(); fPDFString.clear(); fFuncVarString.clear();
         fSpecString.clear();
       
-        fFitOptions = other.fFitOptions;
+        // --- THE DEEP COPY FIX ---
+        // Prevents shallow copies of RooFit options crashing on batched slices
+        fFitOptions.Clear();
+        for (Int_t i = 0; i < other.fFitOptions.GetSize(); ++i) {
+            if (other.fFitOptions.At(i)) {
+                TObject* clonedOpt = other.fFitOptions.At(i)->Clone();
+                fFitOptions.Add(clonedOpt);
+                fNeedToDeleteThis.Add(clonedOpt); // Safe memory management!
+            }
+        }
+        // -------------------------
+
         fConstraints = other.fConstraints;
         fAddCut = other.fAddCut;
         fVarCut = ""; 
+        fDataOnlyCut = other.fDataOnlyCut;
         fIDBranchName = other.fIDBranchName;
         fOutDir = other.fOutDir;
         fErrorsSumW2 = other.fErrorsSumW2;
         fErrorsAsym = other.fErrorsAsym;
- 
+        fApplyMCVariance = other.fApplyMCVariance;
+        
         // 3. Replay strings to reconstruct RooFit objects on this thread
         for (auto& conStr : other.fConstString) LoadConstant(conStr);
         for (auto& parStr : other.fParString) LoadParameter(parStr);
@@ -133,6 +203,63 @@ namespace FIT {
  
         return *this;
     }
+    // Setup& Setup::operator=(const Setup& other) {
+    //     // 1. Prevent self-assignment corruption
+    //     if (this == &other) return *this;
+
+    //     gErrorIgnoreLevel = kFatal;
+    //     auto level = RooMsgService::instance().globalKillBelow();
+    //     RooMsgService::instance().setGlobalKillBelow(RooFit::INFO);
+
+    //     // 2. Clear old state completely before rebuilding
+    //     if (fModel) { delete fModel; fModel = nullptr; }
+    //     fNeedToDeleteThis.Clear(); 
+    //     fNeedToDeleteThis.SetOwner(kTRUE);
+    //     fWS.Delete(); 
+    //     fFitVars.clear(); fAuxVars.clear(); fFitCats.clear();
+    //     fVars.removeAll(); fCats.removeAll(); fPars.removeAll(); fFuncVars.removeAll();
+    //     fFormulas.removeAll(); fParameterFormulas.removeAll(); fVarsAndCats.removeAll();
+    //     fParsAndYields.removeAll(); fNCParsAndYields.removeAll();
+    //     fYields.removeAll(); fPDFs.removeAll(); fParameters.removeAll(); fConstants.removeAll();
+    //     fConstraints.removeAll();
+    //     fVarString.clear(); fCatString.clear(); fParString.clear(); fConstString.clear();
+    //     fFormString.clear(); fAuxVarString.clear(); fPDFString.clear(); fFuncVarString.clear();
+    //     fSpecString.clear();
+      
+    //     fFitOptions = other.fFitOptions;
+    //     fConstraints = other.fConstraints;
+    //     fAddCut = other.fAddCut;
+    //     fVarCut = ""; 
+    //     fIDBranchName = other.fIDBranchName;
+    //     fOutDir = other.fOutDir;
+    //     fErrorsSumW2 = other.fErrorsSumW2;
+    //     fErrorsAsym = other.fErrorsAsym;
+    // 	fApplyMCVariance = other.fApplyMCVariance;
+    //     // 3. Replay strings to reconstruct RooFit objects on this thread
+    //     for (auto& conStr : other.fConstString) LoadConstant(conStr);
+    //     for (auto& parStr : other.fParString) LoadParameter(parStr);
+    //     for (auto& varStr : other.fVarString) LoadVariable(varStr);
+    //     for (auto& catStr : other.fCatString) LoadCategory(catStr);
+    //     for (auto& varStr : other.fAuxVarString) LoadAuxVar(varStr);
+    //     for (auto& formStr : other.fFormString) LoadFormula(formStr);
+    //     for (auto& funcStr : other.fFuncVarString) LoadFunctionVar(funcStr);
+      
+    //     if (other.fParserPDFString.Length() > 0) {
+    //         ParserPDF(other.fParserPDFString, *(other.fParserPDFparser));
+    //     }
+    //     for (auto& pdfStr : other.fPDFString) FactoryPDF(pdfStr);
+    //     for (auto& specStr : other.fSpecString) LoadSpeciesPDF(specStr.first, specStr.second);
+      
+    //     for (const auto& pdf : other.fConstPDFPars) SetConstPDFPars(pdf.first, pdf.second);
+    //     for (const auto& par : other.fConstPars) SetConstPar(par.first, par.second);
+
+    //     CopyRealProperties(DataVars(), other.fVars);
+
+    //     gErrorIgnoreLevel = kInfo;
+    //     RooMsgService::instance().setGlobalKillBelow(level);
+ 
+    //     return *this;
+    // }
  
     // ========================================================================
     // Workspace Population Methods

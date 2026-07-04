@@ -408,5 +408,25 @@ namespace bru {
     Int_t BruEventsHistPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const {
         return BruEventsPDF::getAnalyticalIntegral(allVars, analVars, rangeName);
     }
+  Double_t BruEventsHistPDF::GetRelativeVariance() const {
+        if (!_TrackMCVariance || !_DataCache || _DataCache->_NTreeEntries <= 1) return 1E-12;
+        
+        Double_t sumW = 0;
+        Double_t sumW2 = 0;
+        
+        for (Long64_t ie = 0; ie < _DataCache->_NTreeEntries; ie++) {
+            Double_t w = GetIntegralWeight(ie);
+            sumW += w;
+            sumW2 += w * w;
+        }
+        
+        if (sumW <= 0 || sumW2 <= 0) return 1E-12;
+        
+        Double_t nEff = (sumW * sumW) / sumW2;
+        
+        // Relative Standard Error of the generated template
+        Double_t relError = std::sqrt(1.0 / nEff);
+        return relError > 0 ? relError : 1E-12;
+    }
 
 } // namespace bru
