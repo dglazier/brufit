@@ -788,36 +788,7 @@ namespace bru {
         }
         return product; 
     }
-  // Double_t BruComponentsPDF::GetRelativeVariance() const {
-  //     if (_NUsedForIntegral <= 1) return 1E-12;
-        
-  //       // Pure Monte Carlo counting statistics: 1 / sqrt(N)
-  //       Double_t relError = 1.0 / std::sqrt((Double_t)_NUsedForIntegral);
-        
-  //       return (std::isnan(relError) || std::isinf(relError)) ? 1E-12 : relError;
-  //   }
-  // Double_t BruComponentsPDF::GetRelativeVariance() const {
-  //       if (_NUsedForIntegral <= 1) return 1E-12;
 
-  //       Double_t meanF = _WeightedBaseLine;
-  //       Double_t variance = 0;
-
-  //       for (UInt_t c = 0; c < _NComps; c++) {
-  //           Double_t product = 1.0;
-  //           for (auto& term : _IndependentTermProxy[c]) product *= *term;
-            
-  //           meanF += product * _CacheCompDepIntegral[c];
-            
-  //           // Diagonal approximation using your existing 1D cache
-  //           Double_t varProduct = product * product;
-  //           variance += varProduct * _CacheCompDepIntegral[c];
-  //       }
-
-  //       if (std::abs(meanF) < 1E-15 || variance <= 0 || std::isnan(variance)) return 1E-12;
-
-  //       Double_t relError = std::sqrt(variance / (_NUsedForIntegral - 1)) / std::abs(meanF);
-  //       return (std::isnan(relError) || std::isinf(relError) || relError <= 1E-9) ? 1E-12 : relError;
-  //   }
   // Calculates the rigorous variance of the coherent sum using the pre-cached cross-matrix
   Double_t BruComponentsPDF::GetRelativeVariance() const {
     if (!_UseSamplingIntegral || _NUsedForIntegral <= 1) return 1E-12;
@@ -830,7 +801,7 @@ namespace bru {
     // 1. Calculate the independent parameter multipliers (Tc) and the mean
     for (UInt_t c = 0; c < _NComps; c++) {
       for (auto& term : _IndependentTermProxy[c]) {
-	Tc[c] *= *term;
+        Tc[c] *= *term;
       }
       Double_t term_mean = Tc[c] * _CacheCompDepIntegral[c];
       meanF += term_mean;
@@ -845,7 +816,7 @@ namespace bru {
 
     for (UInt_t c = 0; c < _NComps; c++) {
       for (UInt_t d = 0; d < _NComps; d++) {
-	meanF2 += Tc[c] * Tc[d] * _CacheCompCrossIntegral[c][d];
+        meanF2 += Tc[c] * Tc[d] * _CacheCompCrossIntegral[c][d];
       }
     }
 
@@ -858,9 +829,21 @@ namespace bru {
     
     if (std::isnan(relError) || std::isinf(relError) || relError <= 1E-9) return 1E-12;
     
+    // ==========================================================
+    // --- AUDIT TRAIL: Exact Coherent Variance Evaluation ---
+    // ==========================================================
+    std::cout << "\n  --- Exact Coherent Variance Audit ---" << std::endl;
+    std::cout << "  PDF Name          : " << GetName() << std::endl;
+    std::cout << "  N MC Events       : " << _NUsedForIntegral << std::endl;
+    std::cout << "  Mean Intensity <F>: " << meanF << std::endl;
+    std::cout << "  Mean Squared <F^2>: " << meanF2 << std::endl;
+    std::cout << "  Variance V(F)     : " << variance << std::endl;
+    std::cout << "  Relative Error    : " << relError * 100.0 << " %" << std::endl;
+    std::cout << "  -------------------------------------" << std::endl;
+    
     return relError;
   }
-  
+ 
     Double_t BruComponentsPDF::componentIntegral(Int_t icomp) const {
         Double_t product = 1;
         product *= _CacheCompDepIntegral[icomp];

@@ -28,6 +28,13 @@ namespace FIT {
         Double_t acceptance = 0.;
         Double_t acceptance_err = 0.;
         std::map<TString, BinVolume> kinematics;
+      
+      // HELPER: Safely computes the base statistical relative error
+        Double_t GetStatRelError() const {
+            Double_t ry = (yield > 0) ? yield_err / yield : 0.0;
+            Double_t ra = (acceptance > 0) ? acceptance_err / acceptance : 0.0;
+            return std::sqrt(ry * ry + ra * ra);
+        }
     };
 
     enum class AcceptanceMode {

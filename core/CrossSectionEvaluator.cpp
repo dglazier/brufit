@@ -1,17 +1,6 @@
 #include "CrossSectionEvaluator.h"
 #include "BruEventsPDF.h"
-#include <TFile.h>
-#include <TCanvas.h>
-#include <TGraphErrors.h>
-#include <TDirectory.h>
-#include <RooDataSet.h>
-#include <RooFitResult.h>
-#include <RooMultiVarGaussian.h>
-#include <ROOT/TProcessExecutor.hxx>
-#include <ROOT/TSeq.hxx>
-#include <iostream>
-#include "CrossSectionEvaluator.h"
-#include "BruEventsPDF.h"
+#include "BruComponentsPDF.h"
 #include <TFile.h>
 #include <TCanvas.h>
 #include <TGraphErrors.h>
@@ -148,26 +137,115 @@ namespace FIT {
     }
 
     void CrossSectionEvaluator::CalcYield(Int_t globalBinIndex, CSData& binData) {
-        if (!fCurrDataSet) return;
-
-        if (!fCurrDataSet->isWeighted()) {
-            binData.yield = fCurrDataSet->numEntries();
-            binData.yield_err = TMath::Sqrt(binData.yield);
-        } else {
-            Double_t sumofweightsData = fCurrDataSet->sumEntries();
-            Double_t sumofweights2Data(0), carry(0);
+        RooArgList yields = fCurrSetup->Yields();
+        
+        if (yields.getSize() > 0) {
+            Double_t totalYield = 0.0;
+            Double_t totalYieldErr2 = 0.0;
             
-            Int_t numentries = fCurrDataSet->numEntries();
-            for (Int_t i = 0 ; i < numentries ; i++) {
-                fCurrDataSet->get(i);
-                Double_t w = fCurrDataSet->weight();
-                Double_t y = (w * w) - carry;
-                Double_t t = sumofweights2Data + y;
-                carry = (t - sumofweights2Data) - y;
-                sumofweights2Data = t;
+            std::cout << "    -> Extracting fitted yield(s) directly from MCMCTree:" << std::endl;
+            
+            TString resultFile = fResultDir + Bins().BinName(globalBinIndex) + "/" + fResultFileName;
+            std::unique_ptr<TFile> fitFile(TFile::Open(resultFile));
+            
+            TTree* mcmcTree = nullptr;
+            if (fitFile && !fitFile->IsZombie()) {
+                mcmcTree = dynamic_cast<TTree*>(fitFile->Get("MCMCTree"));
             }
-            binData.yield = sumofweightsData;
-            binData.yield_err = TMath::Sqrt(sumofweights2Data);
+
+            if (mcmcTree) {
+                Long64_t nEntries = mcmcTree->GetEntries();
+                
+                // Discard first 10% of MCMC to guarantee stationary burn-in 
+                Long64_t burnIn = nEntries * 0.10; 
+                
+                for (Int_t i = 0; i < yields.getSize(); ++i) {
+                    auto* y = dynamic_cast<RooRealVar*>(&yields[i]);
+                    if (y) {
+                        TString yName = y->GetName();
+                        
+                        if (mcmcTree->GetBranch(yName)) {
+                            Double_t yVal = 0;
+                            Double_t weight = 1.0;
+                            
+                            mcmcTree->SetBranchAddress(yName, &yVal);
+                            if (mcmcTree->GetBranch("weight")) {
+                                mcmcTree->SetBranchAddress("weight", &weight);
+                            }
+                            
+                            Double_t sumW = 0.0;
+                            Double_t sumWX = 0.0;
+                            
+                            // Pass 1: Mean
+                            for (Long64_t iev = burnIn; iev < nEntries; ++iev) {
+                                mcmcTree->GetEntry(iev);
+                                sumW += weight;
+                                sumWX += weight * yVal;
+                            }
+                            
+                            Double_t mean = (sumW > 0) ? (sumWX / sumW) : 0.0;
+                            Double_t sumVar = 0.0;
+                            
+                            // Pass 2: Variance
+                            for (Long64_t iev = burnIn; iev < nEntries; ++iev) {
+                                mcmcTree->GetEntry(iev);
+                                sumVar += weight * (yVal - mean) * (yVal - mean);
+                            }
+                            
+                            Double_t sigma = (sumW > 0) ? TMath::Sqrt(sumVar / sumW) : 0.0;
+                            
+                            totalYield += mean;
+                            totalYieldErr2 += sigma * sigma;
+                            
+                            std::cout << "       * " << yName << " = " << mean << " +/- " << sigma << std::endl;
+                            
+                            // Sync the parameter back for downstream use
+                            y->setVal(mean);
+                            y->setError(sigma);
+                        } else {
+                            totalYield += y->getVal();
+                            std::cout << "       * " << yName << " = " << y->getVal() << " (Branch missing, error = 0)" << std::endl;
+                        }
+                    }
+                }
+                
+                mcmcTree->ResetBranchAddresses();
+                binData.yield = totalYield;
+                binData.yield_err = TMath::Sqrt(totalYieldErr2);
+                
+            } else {
+                std::cerr << "    -> ERROR: MCMCTree not found in " << resultFile << ". Yield errors will be 0!" << std::endl;
+                for (Int_t i = 0; i < yields.getSize(); ++i) {
+                    auto* y = dynamic_cast<RooRealVar*>(&yields[i]);
+                    if (y) totalYield += y->getVal();
+                }
+                binData.yield = totalYield;
+                binData.yield_err = 0.0;
+            }
+        } else {
+            // Fallback: Only use raw sum-of-weights if no fit model is present
+            std::cerr << "    -> WARNING: No fitted Yield parameters found! Falling back to raw dataset sum-of-weights." << std::endl;
+            if (!fCurrDataSet) return;
+
+            if (!fCurrDataSet->isWeighted()) {
+                binData.yield = fCurrDataSet->numEntries();
+                binData.yield_err = TMath::Sqrt(binData.yield);
+            } else {
+                Double_t sumofweightsData = fCurrDataSet->sumEntries();
+                Double_t sumofweights2Data(0), carry(0);
+                
+                Int_t numentries = fCurrDataSet->numEntries();
+                for (Int_t i = 0 ; i < numentries ; i++) {
+                    fCurrDataSet->get(i);
+                    Double_t w = fCurrDataSet->weight();
+                    Double_t y = (w * w) - carry;
+                    Double_t t = sumofweights2Data + y;
+                    carry = (t - sumofweights2Data) - y;
+                    sumofweights2Data = t;
+                }
+                binData.yield = sumofweightsData;
+                binData.yield_err = TMath::Sqrt(sumofweights2Data);
+            }
         }
     }
 
@@ -180,7 +258,13 @@ namespace FIT {
         }
         if (!pdf) return;
 
+        // Route the PDF formulas to listen to the MC Event Tree
+        auto compPdf = dynamic_cast<bru::BruComponentsPDF*>(pdf);
+        if (compPdf) compPdf->RedirectServersToPdf();
+        
+        // ==========================================================
         // --- 1. Compute Central Values ---
+        // ==========================================================
         Double_t integralAccepted = pdf->unnormalisedIntegral(1, ""); 
         Double_t integralGenerated = 0;
 
@@ -191,6 +275,9 @@ namespace FIT {
             integralGenerated = genYield * fGenScale;
         }
 
+        // Route them back to safety
+        if (compPdf) compPdf->RedirectServersToData();
+
         if (integralGenerated > 0) {
             binData.acceptance = integralAccepted / integralGenerated;
             std::cout << " -> Computed Central Acceptance: " << binData.acceptance 
@@ -200,7 +287,9 @@ namespace FIT {
             return;
         }
 
+        // ==========================================================
         // --- 2. Compute MCMC/Minuit Parameter Shape Variance ---
+        // ==========================================================
         Double_t mcmc_variance = 0.0;
         
         if (fSampleAcceptance) {
@@ -237,8 +326,6 @@ namespace FIT {
                         nSamplesToProcess = std::min(nTotal, fNSamplesMinuit);
                         Int_t step = std::max(1, nTotal / nSamplesToProcess);
                         
-                        std::cout << "    -> Spacing extraction for " << nSamplesToProcess << " samples (step size: " << step << ")." << std::endl;
-
                         const RooArgSet* firstRow = sampleDS->get(0);
                         for (auto* arg : *firstRow) {
                             if (arg) {
@@ -264,8 +351,6 @@ namespace FIT {
             
             // Execute ROOT::TProcessExecutor Multiprocessing Pool
             if (nSamplesToProcess > 0) {
-                std::cout << "    -> Parallelizing " << nSamplesToProcess << " acceptance integrals using ROOT::TProcessExecutor..." << std::endl;
-                
                 RooArgSet* originalPars = (RooArgSet*)newPars.snapshot();
                 ROOT::TProcessExecutor pool(fNThreads);
                 
@@ -276,10 +361,16 @@ namespace FIT {
                     }
                     pdf->getVal(); // Flush RooFit caches
                     
+                    // Route servers for the child process evaluation
+                    auto localCompPdf = dynamic_cast<bru::BruComponentsPDF*>(pdf);
+                    if (localCompPdf) localCompPdf->RedirectServersToPdf();
+                    
                     Double_t tmpAcc = pdf->unnormalisedIntegral(1, "");
                     Double_t tmpGen = (fAccMode == AcceptanceMode::kFullPDF) 
                                       ? pdf->unnormalisedIntegral(2, "") * fGenScale
                                       : integralGenerated; 
+                    
+                    if (localCompPdf) localCompPdf->RedirectServersToData();
                     
                     if (tmpGen > 0) return tmpAcc / tmpGen;
                     return 0.0;
@@ -302,11 +393,15 @@ namespace FIT {
             } 
         } 
         
+        // ==========================================================
         // --- 3. Compute Base MC Statistical Variance ---
+        // ==========================================================
         Double_t stat_variance = 0.0;
 
-        // ONLY calculate raw MC binomial stats if we are NOT sampling the beta-scaled MCMC posterior!
-        if (!fSampleAcceptance) {
+        // ONLY calculate raw MC binomial stats if we are NOT using a beta-scaled posterior!
+        Bool_t isBetaScaledPosterior = (fCurrSetup->ApplyMCVariance() && fSampleAcceptance);
+
+        if (!isBetaScaledPosterior) {
             Double_t rawGenCount = static_cast<Double_t>(pdf->GetNMCGenEntries());
             
             if (rawGenCount > 0) {
@@ -323,14 +418,13 @@ namespace FIT {
                 std::cout << "    -> Base MC Statistical Variance: " << stat_variance << std::endl;
             }
         } else {
-            std::cout << "    -> Base MC Stat Variance OMITTED (Already encapsulated in beta-scaled MCMC Posterior)" << std::endl;
+            std::cout << "    -> Base MC Stat Variance OMITTED (Already encapsulated in beta-scaled MCMC Yield & Shape)" << std::endl;
         }
 
         binData.acceptance_err = TMath::Sqrt(mcmc_variance + stat_variance);
     }
 
     void CrossSectionEvaluator::SaveResults() {
-        // Correctly resolving the private field error by utilizing the Setup() public accessor
         TString fileName = Form("%s%s/ResultsCrossSection.root", SetUp().GetOutDir().Data(), GetCurrName().Data());
         std::cout << "--- Saving bin result to " << fileName << " ---" << std::endl;
         
