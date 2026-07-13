@@ -242,12 +242,13 @@ namespace HS{
      void TuneCovarianceStep(){_tuneCovStep=kTRUE;}
      // Configuration methods for the dual-mode tuning
      void SetTuningMode(McmcTuneMode mode) { _tuneMode = mode; }
-     void SetRhatTuningParameters(Int_t initialWindow = 2000, Double_t targetRhat = 1.05, Int_t maxRetries = 5) {
-       _rhatWindowSize = initialWindow;
-       _rhatTarget = targetRhat;
-       _rhatMaxRetries = maxRetries;
-     }
-     
+    
+     void SetDiagnosticTuningParameters(Int_t initialWindow = 2000, Double_t targetRhat = 1.05, Double_t essFraction = 0.10, Int_t maxRetries = 5) {
+            _rhatWindowSize = initialWindow;
+            _rhatTarget = targetRhat;
+            _essFraction = essFraction; 
+            _rhatMaxRetries = maxRetries;
+        }
      void ChangeNIter(){
        if(_iNIter==_fNumItersVec.size()) return;
         SetNumIters(_fNumItersVec[_iNIter]);
@@ -269,6 +270,8 @@ namespace HS{
      Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 5);
         virtual Bool_t ExecutePhase4_Official();
      std::vector<RooArgList> BuildDiagnosticGroups(const RooArgSet& activePars);
+
+     
         // Made protected so derived classes can access and configure them
         BruSequentialProposal _propSeq;
         BruCovarianceProposal _propCov;
@@ -280,7 +283,8 @@ namespace HS{
         Bool_t _doND = kTRUE;
         Bool_t _doCov = kTRUE;
         Bool_t _tuneCovStep = kFALSE;
-   
+     Double_t _essFraction = 0.10; 
+
      
       ClassDefOverride(HS::FIT::BruMcmcCovariance,1);
    };
