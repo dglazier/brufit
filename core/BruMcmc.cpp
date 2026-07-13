@@ -808,7 +808,7 @@ namespace HS{
             }
 
             Double_t acc = fChainAcceptance;
-            Double_t targetESS = tuneWindow * 0.05; 
+            Double_t targetESS = tuneWindow * 0.1; 
 
             std::cout << " -> Step " << retries + 1 << "/" << maxRetries 
                       << "\n    | Acc: " << Form("%.1f%%", acc * 100.0) 
