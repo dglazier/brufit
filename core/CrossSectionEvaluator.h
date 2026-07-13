@@ -76,9 +76,10 @@ namespace FIT {
         void SetResultDir(TString name) { fResultDir = std::move(name); }
         void SetResultFileName(TString name) { fResultFileName = std::move(name); }
 
+      Bool_t LoadDefaultBins();
+
     private:
 
-        Bool_t LoadDefaultBins();
         Bool_t LoadFitResult(Int_t globalBinIndex);
         void CalcYield(Int_t globalBinIndex, CSData& binData);
         void CalcAcceptance(Int_t globalBinIndex, CSData& binData);

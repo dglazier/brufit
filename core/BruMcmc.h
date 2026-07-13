@@ -20,6 +20,11 @@
 
 namespace HS{
   namespace FIT{
+    // Define an enum to switch between tuning modes globally
+    enum class McmcTuneMode {
+        kAcceptance,
+        kMappedRhat
+    };
     
     struct NLLCache {
       std::unique_ptr<RooAbsReal> baseNll;
@@ -165,6 +170,12 @@ namespace HS{
       Bool_t _isCovarianceMode=kFALSE;
       Bool_t _isTuningMode=kFALSE;
       Bool_t _isResultMode=kFALSE;
+
+      // Tuning State Variables
+      McmcTuneMode _tuneMode = McmcTuneMode::kAcceptance; // Default to legacy
+      Int_t _rhatWindowSize = 2500;
+      Double_t _rhatTarget = 1.05;
+      Int_t _rhatMaxRetries = 5;
       
       ClassDefOverride(HS::FIT::BruMcmc,1);
       
@@ -211,15 +222,17 @@ namespace HS{
         _propCov{norm,target,accmin,accmax}
      {
        SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
+       SetDesiredAcceptance(accmin,accmax,target);
      }
      BruMcmcCovariance(std::vector<Int_t> Niters,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.16,float accmax=0.3):
         BruMcmc(Niters[0],Nburn,norm),
         _propSeq{norm,target,accmin,accmax},
         _propCov{norm,target,accmin,accmax},
         _fNumItersVec{Niters}
-     {
+    {
        SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
-     }
+       SetDesiredAcceptance(accmin,accmax,target);
+    }
   
       void Run(Setup &setup,RooAbsData &fitdata) override;
 
@@ -227,7 +240,14 @@ namespace HS{
      void TurnOffNDStep(){_doND=kFALSE;}
      void TurnOffCovariance(){_doCov=kFALSE;}
      void TuneCovarianceStep(){_tuneCovStep=kTRUE;}
-
+     // Configuration methods for the dual-mode tuning
+     void SetTuningMode(McmcTuneMode mode) { _tuneMode = mode; }
+     void SetRhatTuningParameters(Int_t initialWindow = 2000, Double_t targetRhat = 1.05, Int_t maxRetries = 5) {
+       _rhatWindowSize = initialWindow;
+       _rhatTarget = targetRhat;
+       _rhatMaxRetries = maxRetries;
+     }
+     
      void ChangeNIter(){
        if(_iNIter==_fNumItersVec.size()) return;
         SetNumIters(_fNumItersVec[_iNIter]);
@@ -235,19 +255,32 @@ namespace HS{
        _iNIter++;
     }
      void ResetNIter() { _iNIter = 0; }
-     
-    private:
 
-     BruSequentialProposal _propSeq;
-     BruCovarianceProposal _propCov;
+   protected:
+     // =======================================================
+        // Reusable Execution Phases
+        // =======================================================
+        virtual Bool_t ExecutePhase1_BurnIn(Int_t maxRetries, Int_t numBatches);
+        virtual Bool_t ExecutePhase2_Mapping(Int_t maxRetries);
+     // Refactored Phase 3 Dispatcher and implementations
+     Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries = 10);
+     //        virtual Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries);
+     Bool_t ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries = 10);
+     Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 5);
+        virtual Bool_t ExecutePhase4_Official();
+     std::vector<RooArgList> BuildDiagnosticGroups(const RooArgSet& activePars);
+        // Made protected so derived classes can access and configure them
+        BruSequentialProposal _propSeq;
+        BruCovarianceProposal _propCov;
 
-     std::vector<Int_t>_fNumItersVec;
-     UInt_t _iNIter=0;
-     
-     Bool_t _doSeq=kTRUE;
-     Bool_t _doND=kTRUE;
-     Bool_t _doCov=kTRUE;
-     Bool_t _tuneCovStep=kFALSE;
+        std::vector<Int_t> _fNumItersVec;
+        UInt_t _iNIter = 0;
+        
+        Bool_t _doSeq = kTRUE;
+        Bool_t _doND = kTRUE;
+        Bool_t _doCov = kTRUE;
+        Bool_t _tuneCovStep = kFALSE;
+   
      
       ClassDefOverride(HS::FIT::BruMcmcCovariance,1);
    };

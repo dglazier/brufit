@@ -16,7 +16,7 @@
 namespace HS {
 namespace FIT {
 
-    Bool_t CrossSectionEvaluator::LoadDefaultBins() {
+Bool_t CrossSectionEvaluator::LoadDefaultBins() {
         if (Bins().GetBins().GetNAxis() > 0) return kTRUE; 
 
         TString binFile = fResultDir + "/DataBinsConfig.root";
@@ -30,11 +30,12 @@ namespace FIT {
             TObject* obj = f->Get(key->GetName());
             if (auto b = dynamic_cast<HS::FIT::Bins*>(obj)) {
                 Bins().GetBins() = *b; 
+                std::cout << " -> Successfully loaded bin scheme [" << b->GetName() << "] from " << binFile << std::endl;
                 return kTRUE;
             }
         }
         return kFALSE;
-    }
+    }  
 
     void CrossSectionEvaluator::InitTree() {
         if (fOutTree) { delete fOutTree; fOutTree = nullptr; }

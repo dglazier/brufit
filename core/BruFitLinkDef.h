@@ -84,6 +84,9 @@
 #pragma link C++ class HS::FIT::BruMcmcSeq+;
 #pragma link C++ class HS::FIT::BruMcmcSeqHelper+;
 #pragma link C++ class HS::FIT::BruMcmcCovariance+;
+#pragma link C++ class HS::FIT::BruMcmcFixedCovariance+;
+#pragma link C++ class HS::FIT::BruCovarianceReader+;
+#pragma link C++ class HS::FIT::BruMappedRHat+;
 #pragma link C++ class HS::FIT::CrossSectionEvaluator+;
 
 #pragma link C++ defined_in "PredefinedParsers.h";

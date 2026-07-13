@@ -15,7 +15,8 @@ set(DICTIONARY_HEADERS
     CornerFullPlot.h Minimiser.h FitManager.h sPlot.h 
     ToyManager.h CrossSection.h RooMcmc.h AmpMinuit2.h 
     AmpMcmc.h BruSequentialProposal.h BruCovarianceProposal.h 
-    BruMetropolisHastings.h BruMcmc.h HSMetropolisHastings.h 
+    BruMetropolisHastings.h BruMcmc.h HSMetropolisHastings.h
+    BruFixedCovariance.h BruMappedRhat.h
     Process.h FitSelector.h PhotoTwoSpin0Amps.h 
     PhotoSpin1Spin0Amps.h Utilities.h
     MCEventCache.h BruEventsPDF.h BruComponentsPDF.h BruEventsHistPDF.h
@@ -35,7 +36,8 @@ add_library(${BRUFIT_LIB} SHARED
     AutocorrPlot.cpp CornerPlot.cpp CornerFullPlot.cpp Minimiser.cpp 
     FitManager.cpp sPlot.cpp ToyManager.cpp CrossSection.cpp 
     RooMcmc.cpp AmpMinuit2.cpp AmpMcmc.cpp BruSequentialProposal.cpp 
-    BruCovarianceProposal.cpp BruMetropolisHastings.cpp BruMcmc.cpp 
+    BruCovarianceProposal.cpp BruMetropolisHastings.cpp BruMcmc.cpp
+    BruFixedCovariance.cpp BruMappedRhat.cpp 
     HSMetropolisHastings.cpp Process.cpp FitSelector.cpp 
     PhotoTwoSpin0Amps.cpp PhotoSpin1Spin0Amps.cpp
     MCEventCache.cpp BruEventsPDF.cpp BruComponentsPDF.cpp BruEventsHistPDF.cpp
@@ -52,7 +54,7 @@ target_include_directories(${BRUFIT_LIB}
 )
 
 # Link against ROOT targets
-target_link_libraries(${BRUFIT_LIB} PUBLIC ROOT::RooFit ROOT::RooFitCore ROOT::RooStats ROOT::MathMore ROOT::Minuit2 ROOT::Tree ROOT::TreePlayer ROOT::Matrix ROOT::Physics)
+target_link_libraries(${BRUFIT_LIB} PUBLIC ROOT::RooFit ROOT::RooFitCore ROOT::RooStats ROOT::MathMore ROOT::Minuit2 ROOT::Tree ROOT::TreePlayer ROOT::Matrix ROOT::Physics ROOT::ROOTDataFrame ROOT::ROOTVecOps)
 
 # --- 4. Installation ---
 install(TARGETS ${BRUFIT_LIB}
