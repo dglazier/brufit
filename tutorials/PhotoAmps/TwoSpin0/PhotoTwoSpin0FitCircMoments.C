@@ -83,9 +83,8 @@
  
   //********************************************
   //Perform "fit" with an MCMC sampler with multiple chains
-  //Nsamples,burnin,step size,NChains
-  //  auto mcmc=new AmpMcmc(&config,{5000,10000,5000},100,10);
-  //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
+//std::vector<Int_t> Niters,Int nchains,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.15,float accmax=0.35)
+  //  auto mcmc=new AmpMcmc(&config,{10000,100000,10000},7, 100,1,0.15,0.1,0.2); //mcmc->TurnOffCovariance();//BruMcmcCovariance only, do not proceed with covariance based sampling, just perform basic stepping
   //Fitter.SetMinimiser(mcmc);
   //Here::Go(&Fitter);
 
