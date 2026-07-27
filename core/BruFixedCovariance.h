@@ -17,6 +17,7 @@ namespace FIT {
     // ========================================================================
     class BruCovarianceReader {
     public:
+      
         BruCovarianceReader() = default;
         ~BruCovarianceReader() = default;
 
@@ -45,6 +46,7 @@ namespace FIT {
       BruMcmcFixedCovariance(const TString& covFilePath, const TString& matrixName, 
 			     std::vector<Int_t> Niters = {1000, 10000}, Int_t Nburn = 10, Float_t norm = 0.01, 
 			     float target = 0.234, float accmin = 0.15, float accmax = 0.35);
+      BruMcmcFixedCovariance() : BruMcmcCovariance() {};
       
         ~BruMcmcFixedCovariance() override = default;
 

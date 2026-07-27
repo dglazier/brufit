@@ -74,6 +74,16 @@ namespace HS{
  
       std::vector<Double_t> fMeans;
       std::vector<Double_t> fSigmas;
+
+    private:
+      Int_t fBailoutThreshold = 3000;
+      Double_t fBailoutAcceptance = 0.01;
+      
+    public:
+      void SetBailoutParameters(Int_t threshold, Double_t minAcc) {
+          fBailoutThreshold = threshold;
+          fBailoutAcceptance = minAcc;
+      }
       ClassDefOverride(HS::FIT::BruMetropolisHastings,1);
      };
     

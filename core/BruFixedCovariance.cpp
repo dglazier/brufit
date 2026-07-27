@@ -151,8 +151,7 @@ namespace FIT {
     {
         SetNameTitle("BruMcmcFixedCovariance", "BruMcmcFixedCovariance minimiser");
     }
-
- void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
+void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
         fData = &fitdata;
         fSetup = &setup;
         
@@ -162,6 +161,9 @@ namespace FIT {
         _propCov.SetCyclicParameters(fCyclicPars);
         _propSeq.SetScale(fNorm);
         _propCov.SetScale(fNorm);
+        
+        // CRITICAL: Ensure the yield mask is configured before any matrix tuning operations
+        _propCov.SetYields(fSetup->Yields());
 
         auto activePars = fSetup->NonConstParsAndYields();
 
@@ -198,17 +200,24 @@ namespace FIT {
         ChangeNIter(); 
 
         // 4. Tune & Run
+        // _tuneCovStep acts as your DoTune() flag.
         if (_tuneCovStep) {
-            // Tuning temporarily overrides Niter to 250, then restores Niters[1]
-            ExecutePhase3_Tuning(activePars, 10);
+            if (_tuneMode == McmcTuneMode::kMappedRhat) {
+                std::cout << "--> Executing Diagnostic Tuning (R-hat + ESS)..." << std::endl;
+                ExecuteTuning_MappedRhat(activePars, 10);
+            } else {
+                std::cout << "--> Executing Standard Acceptance Tuning..." << std::endl;
+                ExecuteTuning_Acceptance(activePars, 10);
+            }
         }
         
-	//  Official Run (Automatically merges tuning trees!)
+        // Official Run (Automatically merges tuning trees!)
         if (ExecutePhase4_Official() && fTreeMCMC != nullptr) {
             std::cout << "\n*** Extracting Final Posterior Covariance Matrix ***" << std::endl;
             
-            // Extract the refined empirical matrix from the accepted steps
-            TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE);
+            // Extract the refined empirical matrix from the accepted steps.
+            // Explicitly pass 0.0 for shrinkage/floor so the final saved matrix is pure.
+            TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE, 0.0, 0.0);
             
             if (fOutFile) {
                 fOutFile->cd();
@@ -216,7 +225,7 @@ namespace FIT {
                 std::cout << "--> Matrix successfully written to file as 'PosteriorCovariance'" << std::endl;
             }
         }
-	
-    } 
+    }
+  
 } // namespace FIT
 } // namespace HS

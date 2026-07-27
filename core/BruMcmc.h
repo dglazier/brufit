@@ -53,7 +53,7 @@ namespace HS{
       
       Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
-      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree,size_t burnin, Bool_t decoupleYields = kFALSE);
+      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree, size_t burnin, Bool_t decoupleYields = kFALSE, Double_t shrinkageAlpha = 0.25, Double_t minRelCov = 0.25);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -107,6 +107,19 @@ namespace HS{
 
       void AddEntryBranch();
       void CleanMakeChain(){};
+
+      // Modular Covariance Matrix Helpers
+      std::vector<double> ExtractChainMeans(TTree* tree, size_t burnin, Int_t Nentries, Int_t Npars, 
+                                            std::vector<Double_t>& params, const std::vector<bool>& isCyclic, 
+                                            const std::vector<double>& minVal, const std::vector<double>& maxVal);
+                                            
+      TMatrixDSym CalculateEmpiricalCovariance(TTree* tree, size_t burnin, Int_t Nentries, Int_t Npars, 
+                                               std::vector<Double_t>& params, const std::vector<double>& means, 
+                                               const std::vector<bool>& isCyclic, const std::vector<double>& minVal, 
+                                               const std::vector<double>& maxVal);
+                                               
+      void ApplyLinearShrinkage(TMatrixDSym& covMat, const std::vector<bool>& isYield, Double_t alpha, Double_t minRelCov);
+      void DecoupleYields(TMatrixDSym& covMat, const std::vector<bool>& isYield);
       
       std::unique_ptr<RooStats::MarkovChain> fChain; //!
       std::unique_ptr<RooDataSet> fChainData;        //!
@@ -265,7 +278,6 @@ namespace HS{
         virtual Bool_t ExecutePhase2_Mapping(Int_t maxRetries);
      // Refactored Phase 3 Dispatcher and implementations
      Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries = 10);
-     //        virtual Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries);
      Bool_t ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries = 10);
      Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 5);
         virtual Bool_t ExecutePhase4_Official();

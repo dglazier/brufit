@@ -102,15 +102,12 @@ namespace HS{
         hadEvalError = false;
 
 	// ==========================================================
-	// --- FAST-FAIL BAILOUT ---
-	// If we are grinding infinitely without accepts, abort the 
-	// chain early to allow the TuneCovarianceStep to rescue the scale.
-	// ==========================================================
-
+        // --- FAST-FAIL BAILOUT ---
+        // ==========================================================
         if (totalProposals % 1000 == 0) {
             double currentAcc = (double)icount / totalProposals;
             
-            if (totalProposals >= 3000 && currentAcc < 0.01) {
+            if (totalProposals >= fBailoutThreshold && currentAcc < fBailoutAcceptance) {
                 std::cout << "\nBruMetropolisHastings: WARNING - Fast Bailout Triggered! "
                           << "Acceptance is critically low (" << currentAcc * 100 << "%) after " 
                           << totalProposals << " proposals. Aborting chain to allow immediate retuning." << std::endl;
