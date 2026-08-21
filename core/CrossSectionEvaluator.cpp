@@ -274,6 +274,8 @@ Bool_t CrossSectionEvaluator::LoadDefaultBins() {
         } else if (fAccMode == AcceptanceMode::kPhaseSpaceScale) {
             Double_t genYield = static_cast<Double_t>(pdf->GetNMCGenEntries());
             integralGenerated = genYield * fGenScale;
+	    
+	    integralAccepted /= binData.yield;
         }
 
         // Route them back to safety
