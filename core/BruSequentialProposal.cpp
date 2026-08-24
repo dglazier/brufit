@@ -39,8 +39,8 @@ namespace HS{
       int endIdx = n;
       
       if (!force1D && _gibbsBlockSize > 0) {
-          // Select a random block of size _gibbsBlockSize to update
-          startIdx = RooRandom::integer(n / _gibbsBlockSize + 1) * _gibbsBlockSize;
+          int numBlocks = (n + _gibbsBlockSize - 1) / _gibbsBlockSize;
+          startIdx = RooRandom::integer(numBlocks) * _gibbsBlockSize;
           endIdx = std::min(startIdx + _gibbsBlockSize, n);
       }
 
@@ -68,11 +68,14 @@ namespace HS{
               double center = min + (len / 2.0);
               var->setVal(center + std::remainder(val + step - center, len));
           } else {
-              // --- STANDARD BOUNCE ---
-              while ((val + step > max) || (val + step < min)) {
-                  step = RooRandom::gaussian() * len * fScale;
+              // --- TRUE BILLIARD REFLECTION (CPU FIX) ---
+              // Replaces the infinite re-roll 'while' loop with a deterministic mathematical bounce
+              double newVal = val + step;
+              while (newVal > max || newVal < min) {
+                  if (newVal > max) newVal = 2.0 * max - newVal; 
+                  if (newVal < min) newVal = 2.0 * min - newVal; 
               }
-              var->setVal(val + step);
+              var->setVal(newVal);
           }
         }
       }
@@ -85,6 +88,13 @@ namespace HS{
         Double_t acc = acceptance > 0 ? acceptance : 0.01;
         fScale *= (acc)/(fTargetAcc);
         
+        // --- MAXIMUM SCALE CLAMP (ASYMPTOTE FIX) ---
+        // If the proposal spans the entire boundary volume, shrinking it further is impossible.
+        // Cap the multiplier at 3.0 to prevent numbers exploding to 300+.
+        if (fScale > 3.0) {
+            fScale = 3.0; 
+        }
+
         if(fScale < fMinScale){
           fScale = fMinScale; 
           fNminScale++;

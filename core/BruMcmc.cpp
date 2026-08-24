@@ -983,9 +983,20 @@ namespace HS{
         return made;
     }
 
-    // =======================================================
-    // MAIN RUN (With Global Weighted-Average Refinement)
-    // =======================================================
+    // ==============================================================================================
+    // MAIN RUN: MULTI-TIERED ESCALATION & BAILOUT ARCHITECTURE
+    // ----------------------------------------------------------------------------------------------
+    // This routine executes the 4-phase covariance mapping with a 3-tier safety net to guarantee
+    // a valid posterior distribution, even against severe positivity boundaries:
+    //
+    // 1. Self-Healing Mappers (Phases 1 & 2): If the global mapping chains are aborted early by the 
+    //    Fast Bailout kill-switch, they retry automatically using the newly adapted, shrunken scale.
+    // 2. Gibbs Fallback (Phase 3): If global Covariance tuning exhausts its retries (crashing into 
+    //    boundary walls in N-dimensions), it automatically reverts to block-wise (Gibbs) Covariance jumps.
+    // 3. Ultimate Rescue (Phase 4): If the final official Covariance chain catastrophically fails, 
+    //    the matrix is abandoned. The posterior is rescued by extracting the latter 50% of the 
+    //    successful Phase 2 mapping events.
+    // ==============================================================================================
     void BruMcmcCovariance::Run(Setup &setup, RooAbsData &fitdata) {
         fData = &fitdata;
         fSetup = &setup;

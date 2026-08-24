@@ -49,7 +49,7 @@ namespace HS{
       void SetIsSequential(Bool_t isit){_isNotSequential= (!isit);}
 
       // --------------------------------------------------------
-      // NEW: Gibbs Block Configuration
+      // Gibbs Block Configuration
       // --------------------------------------------------------
       void SetGibbsBlockSize(Int_t size) { _gibbsBlockSize = size; }
 
@@ -82,7 +82,7 @@ namespace HS{
       std::vector<RooRealVar*> _varCache; 
       
       // --------------------------------------------------------
-      // NEW: State variable to track Gibbs sizes
+      // State variable to track Gibbs sizes
       // --------------------------------------------------------
       Int_t _gibbsBlockSize = 0; // 0 = Full Global Jumps
  
