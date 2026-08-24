@@ -40,13 +40,18 @@ namespace HS{
         fMinAcc=min;
         fMaxAcc=max;
       }
-      void SetTargetAccept(Float_t target){fTargetAcc=target;};
-      void SetMinScale(Float_t ms){fMinScale=ms;};
+      void SetTargetAccept(Float_t target){fTargetAcc=target;}
+      void SetMinScale(Float_t ms){fMinScale=ms;}
       void SetScale(Float_t scale) { fScale = scale; }
       virtual Bool_t CheckStepSize(Float_t acceptance);
 
       Float_t StepSizeFactor() const {return fScale;}
       void SetIsSequential(Bool_t isit){_isNotSequential= (!isit);}
+
+      // --------------------------------------------------------
+      // NEW: Gibbs Block Configuration
+      // --------------------------------------------------------
+      void SetGibbsBlockSize(Int_t size) { _gibbsBlockSize = size; }
 
       virtual void ResetCounter(){
         fNminScale = 0;
@@ -58,7 +63,7 @@ namespace HS{
       void SetCyclicParameters(const RooArgList& cyclics) { 
           fCyclicPars.removeAll(); 
           fCyclicPars.add(cyclics);
-	  std::cout<< "BruSequentialProposal  SetCyclicParameters :"<<std::endl;cyclics.Print();
+          std::cout<< "BruSequentialProposal  SetCyclicParameters :"<<std::endl;cyclics.Print();
       }
     protected:
      RooArgList fCyclicPars; // List of parameters that should wrap around boundaries
@@ -76,6 +81,10 @@ namespace HS{
       Bool_t _inValley = kFALSE; 
       std::vector<RooRealVar*> _varCache; 
       
+      // --------------------------------------------------------
+      // NEW: State variable to track Gibbs sizes
+      // --------------------------------------------------------
+      Int_t _gibbsBlockSize = 0; // 0 = Full Global Jumps
  
       ClassDefOverride(BruSequentialProposal,1) 
 

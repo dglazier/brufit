@@ -29,10 +29,10 @@ namespace HS{
     struct NLLCache {
       std::unique_ptr<RooAbsReal> baseNll;
       std::unique_ptr<RooRealVar> alphaVar;
-      std::unique_ptr<RooProduct> correctedNll;  // Reused: Holds (Scale * Data_NLL)
-      std::unique_ptr<RooAbsReal> constraintNll; // Holds the unscaled prior penalty
-      std::unique_ptr<RooAddition> totalNll;     // NEW: Holds the final addition
-      RooAbsReal* finalNll = nullptr;            // The raw pointer handed to the MCMC
+      std::unique_ptr<RooProduct> correctedNll;  
+      std::unique_ptr<RooAbsReal> constraintNll; 
+      std::unique_ptr<RooAddition> totalNll;     
+      RooAbsReal* finalNll = nullptr;            
     };
     
     class BruMcmc  : public Minimiser {
@@ -84,14 +84,20 @@ namespace HS{
 
       virtual Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
 
+      // --- NEW: User Setter for Absolute Minimum Acceptance ---
+      void SetAbsoluteMinAcceptance(Double_t acc) { fAbsoluteMinAcc = acc; }
+
       void SetDesiredAcceptance(Double_t min,Double_t max,Double_t target=0){
-        fMinAcc=min;
-        fMaxAcc=max;
+        // --- SAFEGUARD: Prevent minimum bounds from hitting zero or going negative ---
+        fMinAcc = (min < fAbsoluteMinAcc) ? fAbsoluteMinAcc : min;
+        fMaxAcc = max;
+        
         if(target)
           fTargetAcc=target;
         else
-          fTargetAcc = (max-min)/2;
+          fTargetAcc = (fMaxAcc-fMinAcc)/2;
       }
+      
       void SetUncorrelateYields(Int_t un){fUncorrelateYields=un;}
       void SetParVals(RooArgSet* toThesePars);
  
@@ -129,52 +135,56 @@ namespace HS{
       void ClearBatches();
       void SetStochasticSwapping(int freq) { fBatchSwapFreq = freq; }
 
-      std::vector<std::unique_ptr<RooAbsData>> fBatchedData;
-      std::vector<std::unique_ptr<NLLCache>> fBatchedNLLCache;
-      std::vector<RooAbsReal*> fBatchedNLLPointers;
+      std::vector<std::unique_ptr<RooAbsData>> fBatchedData;   //!
+      std::vector<std::unique_ptr<NLLCache>> fBatchedNLLCache; //!
+      std::vector<RooAbsReal*> fBatchedNLLPointers;            //!
       int fBatchSwapFreq = 0;
 
       RooAbsReal* BuildNLL(RooAbsData* data,
-			   std::unique_ptr<RooAbsReal>& baseNll,
-			   std::unique_ptr<RooRealVar>& alphaVar,
-			   std::unique_ptr<RooProduct>& correctedNll,
-			   std::unique_ptr<RooAbsReal>& constraintNll,
-			   std::unique_ptr<RooAddition>& totalNll);
+               std::unique_ptr<RooAbsReal>& baseNll,
+               std::unique_ptr<RooRealVar>& alphaVar,
+               std::unique_ptr<RooProduct>& correctedNll,
+               std::unique_ptr<RooAbsReal>& constraintNll,
+               std::unique_ptr<RooAddition>& totalNll);
      
-      TTree* fTreeMCMC=nullptr;//! ROOT manages this, DO NOT use unique_ptr
+      TTree* fTreeMCMC=nullptr; //!
       Bool_t fCorrectForWeights=kTRUE;
       
-      std::shared_ptr<TFile> fTempFile;//!
-      file_uptr fOutFile;//!
+      std::shared_ptr<TFile> fTempFile; //!
+      file_uptr fOutFile;               //!
       TString fFileTag;
       
-      Bool_t fKeepStart=kFALSE; //randomise starting values
-      Bool_t fMCMCHelp=kFALSE;//automate acceptance etc.
+      Bool_t fKeepStart=kFALSE; 
+      Bool_t fMCMCHelp=kFALSE;
       Bool_t fTuneCovStep=kTRUE;
       
-      RooArgSet   fPOI;        //! parameters of interest for interval
-      RooArgSet   fNuisParams; //! nuisance parameters for interval (not really used)
-      RooArgSet   fChainParams; //! parameters to store in the chain (if not specified they are all of them )
-      RooArgSet   fConditionalObs; //! conditional observables
-      RooArgSet   fGlobalObs;     //! global observables
-      RooStats::ProposalFunction* fPropFunc{}; //! Proposal function for MCMC integration
-      RooAbsPdf * fPdf=nullptr;        //! pointer to common PDF (owned by the workspace)
-      RooAbsPdf * fPriorPdf=nullptr;   //! pointer to prior  PDF (owned by the workspace)
-      Int_t fNumIters; // number of iterations to run metropolis algorithm
-      Int_t fNumBurnInSteps; // number of iterations to discard as burn-in, starting from the first
+      RooArgSet   fPOI;        
+      RooArgSet   fNuisParams; 
+      RooArgSet   fChainParams; 
+      RooArgSet   fConditionalObs; 
+      RooArgSet   fGlobalObs;     
+      RooStats::ProposalFunction* fPropFunc{}; //!
+      RooAbsPdf * fPdf=nullptr;                //!
+      RooAbsPdf * fPriorPdf=nullptr;           //!
+      Int_t fNumIters; 
+      Int_t fNumBurnInSteps; 
 
-      Int_t fNumBins{}; // set the number of bins to create for each
-      Int_t fWarmup{}; //ignore these events
+      Int_t fNumBins{}; 
+      Int_t fWarmup{}; 
       Float_t fNorm=1;
-      Int_t fNumBurnInStepsCov; //Number of steps to remove from chain to make covariance matrix for proposal function
+      Int_t fNumBurnInStepsCov; 
 
-      std::vector<Double_t> _formVals;
-      std::vector<TBranch*> _formBranches;
+      std::vector<Double_t> _formVals;      //!
+      std::vector<TBranch*> _formBranches;  //!
 
-      Double_t fChainAcceptance=0;//!
+      Double_t fChainAcceptance=0; //!
       Double_t fMinAcc=0.15;
       Double_t fMaxAcc=0.3;
       Double_t fTargetAcc=0.234;
+      
+      // --- NEW: Default safeguard absolute minimum ---
+      Double_t fAbsoluteMinAcc=0.001; 
+      
       Int_t  fUncorrelateYields=0;
 
       RooArgList fCyclicPars;
@@ -185,7 +195,7 @@ namespace HS{
       Bool_t _isResultMode=kFALSE;
 
       // Tuning State Variables
-      McmcTuneMode _tuneMode = McmcTuneMode::kAcceptance; // Default to legacy
+      McmcTuneMode _tuneMode = McmcTuneMode::kAcceptance; 
       Int_t _rhatWindowSize = 2500;
       Double_t _rhatTarget = 1.05;
       Int_t _rhatMaxRetries = 5;
@@ -247,14 +257,19 @@ namespace HS{
        SetDesiredAcceptance(accmin,accmax,target);
     }
   
-      void Run(Setup &setup,RooAbsData &fitdata) override;
+     void Run(Setup &setup,RooAbsData &fitdata) override;
 
      void TurnOffSequential(){_doSeq=kFALSE;}
      void TurnOffNDStep(){_doND=kFALSE;}
      void TurnOffCovariance(){_doCov=kFALSE;}
      void TuneCovarianceStep(){_tuneCovStep=kTRUE;}
-     // Configuration methods for the dual-mode tuning
+     
+     // --------------------------------------------------------
+     // Robust Configuration Setters
+     // --------------------------------------------------------
      void SetTuningMode(McmcTuneMode mode) { _tuneMode = mode; }
+     void SetGibbsBlockSize(Int_t size) { _NGibbs = size; }
+     void SetColdWarmUpAcceptance(Double_t acc) { _coldTargetAcc = acc; }
     
      void SetDiagnosticTuningParameters(Int_t initialWindow = 2000, Double_t targetRhat = 1.05, Double_t essFraction = 0.10, Int_t maxRetries = 5) {
             _rhatWindowSize = initialWindow;
@@ -262,6 +277,7 @@ namespace HS{
             _essFraction = essFraction; 
             _rhatMaxRetries = maxRetries;
         }
+        
      void ChangeNIter(){
        if(_iNIter==_fNumItersVec.size()) return;
         SetNumIters(_fNumItersVec[_iNIter]);
@@ -271,20 +287,14 @@ namespace HS{
      void ResetNIter() { _iNIter = 0; }
 
    protected:
-     // =======================================================
-        // Reusable Execution Phases
-        // =======================================================
         virtual Bool_t ExecutePhase1_BurnIn(Int_t maxRetries, Int_t numBatches);
         virtual Bool_t ExecutePhase2_Mapping(Int_t maxRetries);
-     // Refactored Phase 3 Dispatcher and implementations
-     Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries = 10);
-     Bool_t ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries = 10);
-     Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 5);
+        Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries = 10);
+        Bool_t ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries = 10);
+        Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 5);
         virtual Bool_t ExecutePhase4_Official();
-     std::vector<RooArgList> BuildDiagnosticGroups(const RooArgSet& activePars);
+        std::vector<RooArgList> BuildDiagnosticGroups(const RooArgSet& activePars);
 
-     
-        // Made protected so derived classes can access and configure them
         BruSequentialProposal _propSeq;
         BruCovarianceProposal _propCov;
 
@@ -295,9 +305,14 @@ namespace HS{
         Bool_t _doND = kTRUE;
         Bool_t _doCov = kTRUE;
         Bool_t _tuneCovStep = kFALSE;
-     Double_t _essFraction = 0.10; 
+        Double_t _essFraction = 0.10; 
+        
+        // --------------------------------------------------------
+        // Gibbs and Warm-Up State Variables
+        // --------------------------------------------------------
+        Int_t _NGibbs = 0;               
+        Double_t _coldTargetAcc = 0.15;  
 
-     
       ClassDefOverride(HS::FIT::BruMcmcCovariance,1);
    };
 
