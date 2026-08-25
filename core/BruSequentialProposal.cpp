@@ -68,14 +68,12 @@ namespace HS{
               double center = min + (len / 2.0);
               var->setVal(center + std::remainder(val + step - center, len));
           } else {
-              // --- TRUE BILLIARD REFLECTION (CPU FIX) ---
-              // Replaces the infinite re-roll 'while' loop with a deterministic mathematical bounce
-              double newVal = val + step;
-              while (newVal > max || newVal < min) {
-                  if (newVal > max) newVal = 2.0 * max - newVal; 
-                  if (newVal < min) newVal = 2.0 * min - newVal; 
+              // --- LEGACY STICKY BOUNDARY (RE-DRAW) ---
+              // Restored legacy logic to prevent the chain from ricocheting out of local minima
+              while ((val + step > max) || (val + step < min)) {
+                  step = RooRandom::gaussian() * len * fScale;
               }
-              var->setVal(newVal);
+              var->setVal(val + step);
           }
         }
       }
@@ -89,11 +87,10 @@ namespace HS{
         fScale *= (acc)/(fTargetAcc);
         
         // --- MAXIMUM SCALE CLAMP (ASYMPTOTE FIX) ---
-        // If the proposal spans the entire boundary volume, shrinking it further is impossible.
-        // Cap the multiplier at 3.0 to prevent numbers exploding to 300+.
-        if (fScale > 3.0) {
-            fScale = 3.0; 
-        }
+        // Prevents the legacy redraw loop from causing an infinite CPU freeze
+        // if (fScale > 3.0) {
+        //     fScale = 3.0; 
+        // }
 
         if(fScale < fMinScale){
           fScale = fMinScale; 
