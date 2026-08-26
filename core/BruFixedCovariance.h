@@ -12,7 +12,16 @@
 namespace HS {
 namespace FIT {
 
-// ========================================================================
+    // ========================================================================
+    // NEW: Enum to specify how the covariance matrix should be resolved
+    // ========================================================================
+    enum class CovLoadMode {
+        kStaticFile,      // Mode 1: Use a single, static file for all bins
+        kBinDirectory,    // Mode 2: Use a base directory and load a specific file per bin
+        kPreviousResult   // Mode 3: Extract from a previous fit result directory per bin
+    };
+
+    // ========================================================================
     // Helper Class: Validates, aligns, and loads external Covariance Matrices
     // ========================================================================
     class BruCovarianceReader {
@@ -22,7 +31,8 @@ namespace FIT {
         ~BruCovarianceReader() = default;
 
         // Loads the matrix and its associated parameter names from the file
-        Bool_t Load(const TString& filePath, const TString& matrixName, const TString& listName);
+        // NEW: listName defaults to an empty string to allow reading raw matrices from previous results
+        Bool_t Load(const TString& filePath, const TString& matrixName, const TString& listName = "");
 
         // Validates dimensions and physically reorders the matrix to match the target RooFit order
         Bool_t AlignAndValidate(const RooArgSet& currentPars);
@@ -43,10 +53,19 @@ namespace FIT {
     // ========================================================================
     class BruMcmcFixedCovariance : public BruMcmcCovariance {
     public:
-      BruMcmcFixedCovariance(const TString& covFilePath, const TString& matrixName, 
+        // Constructor Mode 1 (Original): Static file for all bins
+        BruMcmcFixedCovariance(const TString& covFilePath, const TString& matrixName, 
 			     std::vector<Int_t> Niters = {1000, 10000}, Int_t Nburn = 10, Float_t norm = 0.01, 
 			     float target = 0.234, float accmin = 0.15, float accmax = 0.35);
-      BruMcmcFixedCovariance() : BruMcmcCovariance() {};
+
+        // Constructor Mode 2 & 3 (NEW): Dynamic loading per bin
+        // - If mode == kBinDirectory: pathStr1 = baseDir, pathStr2 = fileName
+        // - If mode == kPreviousResult: pathStr1 = prevResultDir, pathStr2 = prevMinimizer
+        BruMcmcFixedCovariance(CovLoadMode mode, const TString& pathStr1, const TString& pathStr2, const TString& matrixName, 
+                             std::vector<Int_t> Niters = {1000, 10000}, Int_t Nburn = 10, Float_t norm = 0.01, 
+                             float target = 0.234, float accmin = 0.15, float accmax = 0.35);
+
+        BruMcmcFixedCovariance() : BruMcmcCovariance() {};
       
         ~BruMcmcFixedCovariance() override = default;
 
@@ -57,8 +76,11 @@ namespace FIT {
 
     private:
         BruCovarianceReader _covReader;
+        CovLoadMode _loadMode = CovLoadMode::kStaticFile;
 
-        TString fCovFilePath;
+        // Generic path holders to support the 3 different loading modes
+        TString fPathStr1;       // Stores covFilePath, baseDir, or prevResultDir
+        TString fPathStr2;       // Stores covFileName, or prevMinimizer
         TString fMatrixName;
         TString fListName;       
 

@@ -1,6 +1,8 @@
 #include "BruFixedCovariance.h"
+#include "BruMappedRhat.h" // NEW: Required for the diagnostic calculations
 #include <TFile.h>
 #include <TObjString.h>
+#include <TTree.h>
 #include <RooRealVar.h>
 #include <iostream>
 #include <memory>
@@ -54,16 +56,20 @@ namespace FIT {
         fMatrix.ResizeTo(*rawMatrix);
         fMatrix = *rawMatrix; 
 
-        auto* rawList = dynamic_cast<TList*>(file->Get(listName));
-        if (!rawList) {
-            std::cerr << "BruCovarianceReader::Load - ERROR: Cannot find TList of names " << listName << std::endl;
-            return kFALSE;
-        }
+        // Only attempt to load the parameter list if a listName is provided.
+        // Matrices saved directly via FitManager (Mode 3) do not have this list attached.
+        if (listName != "") {
+            auto* rawList = dynamic_cast<TList*>(file->Get(listName));
+            if (!rawList) {
+                std::cerr << "BruCovarianceReader::Load - ERROR: Cannot find TList of names " << listName << std::endl;
+                return kFALSE;
+            }
 
-        for (int i = 0; i < rawList->GetSize(); ++i) {
-            auto* objStr = dynamic_cast<TObjString*>(rawList->At(i));
-            if (objStr) {
-                fSavedNames.push_back(objStr->GetString().Data());
+            for (int i = 0; i < rawList->GetSize(); ++i) {
+                auto* objStr = dynamic_cast<TObjString*>(rawList->At(i));
+                if (objStr) {
+                    fSavedNames.push_back(objStr->GetString().Data());
+                }
             }
         }
         
@@ -79,6 +85,13 @@ namespace FIT {
             std::cerr << " -> Loaded Matrix : " << fMatrix.GetNrows() << "x" << fMatrix.GetNcols() << std::endl;
             std::cerr << " -> Model Expected: " << nPars << " non-constant parameters." << std::endl;
             return kFALSE;
+        }
+
+        // If no names were loaded (e.g. reading from a direct previous result), 
+        // we assume the matrix ordering inherently matches the current model perfectly (1-to-1).
+        if (fSavedNames.empty()) {
+            std::cout << "BruCovarianceReader::AlignAndValidate - No parameter list provided. Assuming 1-to-1 direct mapping." << std::endl;
+            return kTRUE;
         }
 
         // 2. Extract Target Names
@@ -141,17 +154,41 @@ namespace FIT {
     // ========================================================================
     // BruMcmcFixedCovariance Implementation
     // ========================================================================
-   BruMcmcFixedCovariance::BruMcmcFixedCovariance(const TString& covFilePath, const TString& matrixName, 
+    
+    // Mode 1 Constructor: Static file mapping
+    BruMcmcFixedCovariance::BruMcmcFixedCovariance(const TString& covFilePath, const TString& matrixName, 
                                                    std::vector<Int_t> Niters, Int_t Nburn, Float_t norm, 
                                                    float target, float accmin, float accmax)
         : BruMcmcCovariance(Niters, Nburn, norm, target, accmin, accmax),
-          fCovFilePath(covFilePath),
+          _loadMode(CovLoadMode::kStaticFile),
+          fPathStr1(covFilePath),
           fMatrixName(matrixName),
           fListName(matrixName + "_Names") 
     {
         SetNameTitle("BruMcmcFixedCovariance", "BruMcmcFixedCovariance minimiser");
     }
-void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
+
+    // Mode 2 & 3 Constructor: Dynamic file mapping per bin
+    BruMcmcFixedCovariance::BruMcmcFixedCovariance(CovLoadMode mode, const TString& pathStr1, const TString& pathStr2, const TString& matrixName, 
+                                                   std::vector<Int_t> Niters, Int_t Nburn, Float_t norm, 
+                                                   float target, float accmin, float accmax)
+        : BruMcmcCovariance(Niters, Nburn, norm, target, accmin, accmax),
+          _loadMode(mode),
+          fPathStr1(pathStr1),
+          fPathStr2(pathStr2),
+          fMatrixName(matrixName)
+    {
+        SetNameTitle("BruMcmcFixedCovariance", "BruMcmcFixedCovariance minimiser");
+        
+        // For Mode 3 (Previous Result), the matrix is saved natively by FitManager without a custom name list.
+        if (_loadMode == CovLoadMode::kPreviousResult) {
+            fListName = ""; 
+        } else {
+            fListName = matrixName + "_Names";
+        }
+    }
+
+    void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
         fData = &fitdata;
         fSetup = &setup;
         
@@ -168,15 +205,30 @@ void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
         auto activePars = fSetup->NonConstParsAndYields();
 
         // 1. Run Burn-in 
-        // ExecutePhase1_BurnIn internally calls ChangeNIter(), grabbing Niters[0]
         if (!ExecutePhase1_BurnIn(10, 1)) {
             std::cerr << "BruMcmcFixedCovariance::Run - FATAL: Phase 1 Burn-in failed." << std::endl;
             return;
         }
 
+        // Resolve the actual covariance file path based on the selected mode
+        TString actualCovPath;
+        if (_loadMode == CovLoadMode::kStaticFile) {
+            actualCovPath = fPathStr1;
+        } else if (_loadMode == CovLoadMode::kBinDirectory) {
+            actualCovPath = fPathStr1 + "/" + setup.GetName() + "/" + fPathStr2;
+        } else if (_loadMode == CovLoadMode::kPreviousResult) {
+            actualCovPath = fPathStr1 + "/" + setup.GetName() + "/Results" + fPathStr2 + ".root";
+        }
+
         // 2. Load and Align Matrix
         std::cout << "\n*** Phase 2: Loading & Aligning External Covariance Matrix ***" << std::endl;
-        if (!_covReader.Load(fCovFilePath, fMatrixName, fListName)) return; 
+        std::cout << "--> Looking for Matrix in: " << actualCovPath << std::endl;
+        
+        if (!_covReader.Load(actualCovPath, fMatrixName, fListName)) {
+            std::cerr << "BruMcmcFixedCovariance::Run - FATAL: Could not load covariance matrix from " << actualCovPath << std::endl;
+            return; 
+        }
+        
         if (!_covReader.AlignAndValidate(activePars)) return; 
 
         TMatrixDSym covMat = _covReader.GetMatrix();
@@ -195,12 +247,9 @@ void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
         SetupBasicUsage();
         SetProposalFunction(_propCov);
 
-        // Advance the internal iteration counter to Niters[1]
-        // before launching the tuning and official covariance chains.
         ChangeNIter(); 
 
         // 4. Tune & Run
-        // _tuneCovStep acts as your DoTune() flag.
         if (_tuneCovStep) {
             if (_tuneMode == McmcTuneMode::kMappedRhat) {
                 std::cout << "--> Executing Diagnostic Tuning (R-hat + ESS)..." << std::endl;
@@ -216,13 +265,58 @@ void BruMcmcFixedCovariance::Run(Setup& setup, RooAbsData& fitdata) {
             std::cout << "\n*** Extracting Final Posterior Covariance Matrix ***" << std::endl;
             
             // Extract the refined empirical matrix from the accepted steps.
-            // Explicitly pass 0.0 for shrinkage/floor so the final saved matrix is pure.
             TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE, 0.0, 0.0);
             
+            // --- NEW: Calculate Diagnostics and Save to File ---
+            std::cout << "\n*** Calculating Sub-Set Diagnostics (R-hat & ESS) ***" << std::endl;
+            BruMappedRhat diagHelper;
+            std::vector<RooArgList> paramGroups = BuildDiagnosticGroups(activePars);
+            
+            Double_t finalAcc = fChainAcceptance;
+            Double_t maxRhat = 0.0;
+            Double_t minESS = 1e9;
+            
+            std::vector<Double_t> rhatVals(paramGroups.size());
+            std::vector<Double_t> essVals(paramGroups.size());
+
+            for (size_t i = 0; i < paramGroups.size(); ++i) {
+                std::pair<Double_t, Double_t> res = diagHelper.CalculateDiagnostics(fTreeMCMC, paramGroups[i]);
+                rhatVals[i] = res.first;
+                essVals[i] = res.second;
+                
+                if (res.first > maxRhat) maxRhat = res.first;
+                if (res.second < minESS) minESS = res.second;
+                
+                TString groupName = (i == 0 && fSetup->Yields().getSize() > 0) ? "Yields" : Form("Physics_Block_%zu", i);
+                std::cout << " -> " << groupName << " [" << paramGroups[i].getSize() << " pars]" 
+                          << " | R-hat: " << Form("%.4f", rhatVals[i]) 
+                          << " | ESS: " << Form("%.1f", essVals[i]) << std::endl;
+            }
+
+            if (maxRhat != BruMappedRhat::kConvergenceFailure && maxRhat <= _rhatTarget) {
+                std::cout << "--> [SUCCESS] Official chain converged perfectly!" << std::endl;
+            } else {
+                std::cout << "--> [WARNING] Official chain finished with sub-optimal convergence (Worst R-hat: " << maxRhat << ")." << std::endl;
+            }
+
             if (fOutFile) {
                 fOutFile->cd();
                 finalCovMat.Write("PosteriorCovariance");
                 std::cout << "--> Matrix successfully written to file as 'PosteriorCovariance'" << std::endl;
+                
+                // Write the diagnostics tree
+                TTree* diagTree = new TTree("MCDiagnostics", "MCMC Convergence Diagnostics");
+                diagTree->Branch("Acceptance", &finalAcc, "Acceptance/D");
+                for (size_t i = 0; i < paramGroups.size(); ++i) {
+                    TString groupName = (i == 0 && fSetup->Yields().getSize() > 0) ? "Yields" : Form("Physics_Block_%zu", i);
+                    diagTree->Branch(groupName + "_Rhat", &rhatVals[i], groupName + "_Rhat/D");
+                    diagTree->Branch(groupName + "_ESS", &essVals[i], groupName + "_ESS/D");
+                }
+                diagTree->Fill(); 
+                diagTree->Write(); 
+                delete diagTree; 
+                
+                std::cout << "--> Diagnostics successfully written to 'MCDiagnostics' tree.\n" << std::endl;
             }
         }
     }
