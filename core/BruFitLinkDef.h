@@ -33,6 +33,7 @@
 #pragma link C++ class HS::FIT::Minuit2+;
 #pragma link C++ class HS::FIT::AmpMinuit2+;
 #pragma link C++ class HS::FIT::AmpMcmc+;
+#pragma link C++ class HS::FIT::AmpMcmcFixedCovariance+;
 #pragma link C++ class HS::FIT::PdfParser+;
 #pragma link C++ class HS::FIT::PlotResults+;
 #pragma link C++ class HS::FIT::MCMCPlotResults+;

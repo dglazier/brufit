@@ -16,7 +16,7 @@ set(DICTIONARY_HEADERS
     ToyManager.h CrossSection.h RooMcmc.h AmpMinuit2.h 
     AmpMcmc.h BruSequentialProposal.h BruCovarianceProposal.h 
     BruMetropolisHastings.h BruMcmc.h HSMetropolisHastings.h
-    BruFixedCovariance.h BruMappedRhat.h
+    BruFixedCovariance.h BruMappedRhat.h AmpMcmcFixedCovariance.h
     Process.h FitSelector.h PhotoTwoSpin0Amps.h 
     PhotoSpin1Spin0Amps.h Utilities.h
     MCEventCache.h BruEventsPDF.h BruComponentsPDF.h BruEventsHistPDF.h
@@ -37,7 +37,7 @@ add_library(${BRUFIT_LIB} SHARED
     FitManager.cpp sPlot.cpp ToyManager.cpp CrossSection.cpp 
     RooMcmc.cpp AmpMinuit2.cpp AmpMcmc.cpp BruSequentialProposal.cpp 
     BruCovarianceProposal.cpp BruMetropolisHastings.cpp BruMcmc.cpp
-    BruFixedCovariance.cpp BruMappedRhat.cpp 
+    BruFixedCovariance.cpp BruMappedRhat.cpp AmpMcmcFixedCovariance.cpp
     HSMetropolisHastings.cpp Process.cpp FitSelector.cpp 
     PhotoTwoSpin0Amps.cpp PhotoSpin1Spin0Amps.cpp
     MCEventCache.cpp BruEventsPDF.cpp BruComponentsPDF.cpp BruEventsHistPDF.cpp
