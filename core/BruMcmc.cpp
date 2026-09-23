@@ -216,7 +216,8 @@ namespace HS{
 
         fChain.reset(mh.ConstructChain()); 
         fChainAcceptance = mh.GetAcceptance();
-
+	fLastEvalErrorCount = mh.GetEvalErrorCount();
+	
         if(fChain == nullptr){
             if(fTreeMCMC){ delete fTreeMCMC; fTreeMCMC=nullptr; }
             return false;
@@ -892,8 +893,11 @@ namespace HS{
 
         while (!tuned && retries < maxRetries) {
             SetNumIters(tuneWindow);
-            MakeChain(); 
-            
+            MakeChain();
+	    Double_t acc = fChainAcceptance;
+ 	    Double_t totalProposals = (acc > 0.0) ? (tuneWindow / acc) : tuneWindow;
+	    Double_t errorFraction = (Double_t)fLastEvalErrorCount / totalProposals;
+	    std::cout << "    [DIAGNOSTIC] there were " <<errorFraction<<" fraction of likelihood error evaluations" << std::endl;
             Double_t maxRhat = 0.0;
             Double_t minESS = 1e9;
             
@@ -909,7 +913,6 @@ namespace HS{
                 }
             }
 
-            Double_t acc = fChainAcceptance;
             Double_t targetESS = tuneWindow * _essFraction;
 
             std::cout << " -> Step " << retries + 1 << "/" << maxRetries 

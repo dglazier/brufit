@@ -62,6 +62,8 @@ namespace HS{
       int havePrinted = 0;
       Long64_t totalProposals = 0;
       
+      fEvalErrorCount= 0;
+
       auto bseqprop = dynamic_cast<BruSequentialProposal*>(fPropFunc);
       if(bseqprop == nullptr){
         std::cerr<<"ERROR BruMetropolisHastings need a BruSequentialProposal "<<std::endl;
@@ -147,8 +149,9 @@ namespace HS{
         xPrimeL = fFunction->getVal();
         
         if (wasEvalErrors()) {
-          xPrimeL = RooNumber::infinity();
-          hadEvalError = true;
+	  xPrimeL = RooNumber::infinity();
+	  hadEvalError = true;
+	  fEvalErrorCount++;
         }
 
         a = xPrimeL - xL;

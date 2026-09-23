@@ -178,6 +178,7 @@ namespace HS{
       std::vector<TBranch*> _formBranches;  //!
 
       Double_t fChainAcceptance=0; //!
+      Int_t fLastEvalErrorCount=0;//!
       Double_t fMinAcc=0.15;
       Double_t fMaxAcc=0.3;
       Double_t fTargetAcc=0.234;

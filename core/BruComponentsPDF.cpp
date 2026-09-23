@@ -175,17 +175,29 @@ namespace bru {
 	output[i] += compBuffer[i];
       }
     }
-
     // --- SAFETY CLAMP ---
-    // Clean up any stray NaNs or perfect zeros to prevent log(-inf) crashes
-    for (size_t i = 0; i < nEvents; ++i) {
-      if (std::isnan(output[i]) || output[i] < 1e-15) {
-	output[i] = 1e-15;
-      }
+    if (_allowNegativePDF) {
+        // Algebraic soft floor for MCMC navigation (prevents exact 0.0 underflow)
+        const double epsilon = 1e-4; // Slightly larger epsilon for algebraic stability
+        for (size_t i = 0; i < nEvents; ++i) {
+            if (std::isnan(output[i])) {
+                output[i] = epsilon;
+            } else if (output[i] < epsilon) {
+                output[i] = (epsilon * epsilon) / (2.0 * epsilon - output[i]);
+            }
+        }
+    } else {
+        // Original strict hard clamp
+        for (size_t i = 0; i < nEvents; ++i) {
+            if (std::isnan(output[i]) || output[i] < 1e-15) {
+                output[i] = 1e-15;
+            }
+        }
     }
+   
+    
   }
-  
-    Double_t BruComponentsPDF::evaluateData() const {
+  Double_t BruComponentsPDF::evaluateData() const {
         Double_t val = _BaseLine;
         for (auto& comp: _Components) {
             Double_t product = 1;
@@ -194,8 +206,18 @@ namespace bru {
             }
             val += product; 
         }
+
+	if (_allowNegativePDF) {
+            const double epsilon = 1e-4;
+            if (val < epsilon) {
+                return (epsilon * epsilon) / (2.0 * epsilon - val);
+            }
+        }
+        
         return val;
+       
     }
+    
     
     void BruComponentsPDF::RedirectServersToPdf() const {
         for (UInt_t icomp = 0; icomp < _NComps; icomp++) {
@@ -278,6 +300,14 @@ namespace bru {
             val += product; 
             ++icomp;
         }
+
+	if (_allowNegativePDF) {
+            const double epsilon = 1e-4;
+            if (val < epsilon) {
+                return (epsilon * epsilon) / (2.0 * epsilon - val);
+            }
+        }
+        
         return val;
     }
     

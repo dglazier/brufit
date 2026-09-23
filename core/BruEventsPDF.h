@@ -206,12 +206,16 @@ namespace bru {
 	}
       }
       
+      void SetAllowNegativePDF(Bool_t allow = kTRUE) { _allowNegativePDF = allow; }
+      Bool_t GetAllowNegativePDF() const { return _allowNegativePDF; }
     protected:
       Bool_t _TrackMCVariance = kFALSE;
       mutable Double_t _SumSquares = 0;         // NEW: Tracks E[F^2]
       mutable Long64_t _NUsedForIntegral = 0;   // NEW: Tracks N
-      
-        ClassDefOverride(bru::BruEventsPDF, 1);
+
+      Bool_t _allowNegativePDF = kFALSE; // Default to strict mathematical behavior
+
+      ClassDefOverride(bru::BruEventsPDF, 1);
     };
 
 } // namespace bru

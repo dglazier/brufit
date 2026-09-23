@@ -37,7 +37,8 @@ namespace bru {
         _Parent = const_cast<BruEventsPDF*>(&other);
 
         _DataCache = other._DataCache; 
-        
+
+	_allowNegativePDF = other._allowNegativePDF;
         _AssertPosDataReal = other._AssertPosDataReal;
         _AssertPosDataCats = other._AssertPosDataCats;
         _Napd = other._Napd;
@@ -654,8 +655,10 @@ Double_t BruEventsPDF::analyticalIntegral(Int_t code, const char* rangeName) con
         }
         _TreeEntry = saveTreeEntry;
     }
-   
-    Bool_t BruEventsPDF::AssertPositivePDF() const {
+   Bool_t BruEventsPDF::AssertPositivePDF() const {
+       
+        if (_allowNegativePDF) return kTRUE;
+        
         InitAssertPositiveCheck();
         auto saveTreeEntry = _TreeEntry;
         _TreeEntry = 0;
@@ -673,7 +676,7 @@ Double_t BruEventsPDF::analyticalIntegral(Int_t code, const char* rangeName) con
         FinishAssertPositiveCheck();
         return kTRUE;
     }
-
+   
 } // namespace bru
 // /**
 //  * @file BruEventsPDF.cpp

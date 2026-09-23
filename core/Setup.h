@@ -217,8 +217,14 @@ namespace FIT {
         Bool_t ApplyMCVariance() const { return fApplyMCVariance; }
       // Safe garbage collection for external NLL components
         void AddToDelete(TObject* obj) { fNeedToDeleteThis.Add(obj); }
+
+      void SetAllowNegativePDF(Bool_t allow) { fAllowNegativePDF = allow; }
+      Bool_t GetAllowNegativePDF() const { return fAllowNegativePDF; }
+      
     protected:
-        void LoadParameterOnTheFly(const TString& opt);
+      void LoadParameterOnTheFly(const TString& opt);
+      
+      Bool_t fAllowNegativePDF = kFALSE; 
 
     private:
         realvars_t fFitVars; 

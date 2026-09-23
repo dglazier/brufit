@@ -46,7 +46,7 @@ namespace FIT {
             }
         }
         // -------------------------
-
+	fAllowNegativePDF = other.fAllowNegativePDF;
         fConstraints = other.fConstraints;   
         fAddCut = other.fAddCut;
         fVarCut = ""; 
@@ -167,7 +167,7 @@ Setup& Setup::operator=(const Setup& other) {
             }
         }
         // -------------------------
-
+	fAllowNegativePDF = other.fAllowNegativePDF;
         fConstraints = other.fConstraints;
         fAddCut = other.fAddCut;
         fVarCut = ""; 
@@ -416,8 +416,13 @@ Setup& Setup::operator=(const Setup& other) {
                 cout << "WARNING Setup::FactoryPDF trying to give weights to non BruEventsPDF " << opt << " " << wopt << endl;
             }	
         } else {
-            if (opt.Contains("BruComponentsPDF")) ComponentsPDF(opt);
-            else fWS.factory(opt);
+	  RooAbsArg* pdf = nullptr;
+            if (opt.Contains("BruComponentsPDF")) pdf = ComponentsPDF(opt);
+            else {
+                pdf = fWS.factory(opt);
+                // Catch factory PDFs
+                if (auto *evPdf = dynamic_cast<BruEventsPDF*>(pdf)) evPdf->SetAllowNegativePDF(fAllowNegativePDF);
+            }
         }
     }
 
@@ -536,7 +541,7 @@ Setup& Setup::operator=(const Setup& other) {
         delete compStrings;
 
         auto pdf = new BruComponentsPDF(pdfName, pdfName, baseLine, obsList, compsLists);
-        
+        pdf->SetAllowNegativePDF(fAllowNegativePDF);
         // Ownership passed to Workspace upon import; legacy list catches any edges cases
         fNeedToDeleteThis.Add(pdf); 
         fWS.import(*pdf, RooFit::Silence(), RooFit::RecycleConflictNodes());

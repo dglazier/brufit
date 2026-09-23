@@ -47,8 +47,10 @@ namespace HS{
         fBatchedNLLs = nlls;
         fSwapFreq = swapFreq;
       }
+    Int_t GetEvalErrorCount() const { return fEvalErrorCount; }
+    void ResetEvalErrorCount() { fEvalErrorCount = 0; }
 
-    protected:
+     protected:
       Bool_t wasEvalErrors();
     private:
       RooAbsPdf* fBalancePDF=nullptr;
@@ -78,7 +80,8 @@ namespace HS{
     private:
       Int_t fBailoutThreshold = 3000;
       Double_t fBailoutAcceptance = 0.01;
-      
+      Int_t fEvalErrorCount = 0;
+ 
     public:
       void SetBailoutParameters(Int_t threshold, Double_t minAcc) {
           fBailoutThreshold = threshold;
