@@ -37,14 +37,17 @@ namespace FIT {
         
         // --- THE DEEP COPY FIX ---
         // Prevents shallow copies of RooFit options crashing on batched slices
-        fFitOptions.Clear();
-        for (Int_t i = 0; i < other.fFitOptions.GetSize(); ++i) {
-            if (other.fFitOptions.At(i)) {
-                TObject* clonedOpt = other.fFitOptions.At(i)->Clone();
-                fFitOptions.Add(clonedOpt);
-                fNeedToDeleteThis.Add(clonedOpt); // Safe memory management!
-            }
-        }
+	fFitOptions.Clear();
+	for (Int_t i = 0; i < other.fFitOptions.GetSize(); ++i) {
+	  auto* cmd = dynamic_cast<RooCmdArg*>(other.fFitOptions.At(i));
+	  if (cmd) {
+	    // Use C++ copy constructor, NOT TObject::Clone()
+	    auto* clonedOpt = new RooCmdArg(*cmd);
+	    fFitOptions.Add(clonedOpt);
+	    fNeedToDeleteThis.Add(clonedOpt);
+	  }
+	}
+       
         // -------------------------
 	fAllowNegativePDF = other.fAllowNegativePDF;
         fConstraints = other.fConstraints;   
@@ -158,14 +161,17 @@ Setup& Setup::operator=(const Setup& other) {
       
         // --- THE DEEP COPY FIX ---
         // Prevents shallow copies of RooFit options crashing on batched slices
-        fFitOptions.Clear();
-        for (Int_t i = 0; i < other.fFitOptions.GetSize(); ++i) {
-            if (other.fFitOptions.At(i)) {
-                TObject* clonedOpt = other.fFitOptions.At(i)->Clone();
-                fFitOptions.Add(clonedOpt);
-                fNeedToDeleteThis.Add(clonedOpt); // Safe memory management!
-            }
-        }
+	fFitOptions.Clear();
+	for (Int_t i = 0; i < other.fFitOptions.GetSize(); ++i) {
+	  auto* cmd = dynamic_cast<RooCmdArg*>(other.fFitOptions.At(i));
+	  if (cmd) {
+	    // Use C++ copy constructor, NOT TObject::Clone()
+	    auto* clonedOpt = new RooCmdArg(*cmd);
+	    fFitOptions.Add(clonedOpt);
+	    fNeedToDeleteThis.Add(clonedOpt);
+	  }
+	}
+        
         // -------------------------
 	fAllowNegativePDF = other.fAllowNegativePDF;
         fConstraints = other.fConstraints;
