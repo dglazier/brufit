@@ -96,7 +96,7 @@ namespace FIT {
         fSetup.RequiredFitOptions();
         std::cout << " FitManager::Run()  "<<fFiti<<std::endl;
         CreateCurrSetup();
-    
+	fCurrSetup->RequiredFitOptions();
         // Get dataset for the current bin (fFiti)
         fCurrDataSet = std::move(Data().Get(fFiti));
         std::cout << " FitManager::Run()  "<< fCurrDataSet.get() <<std::endl;

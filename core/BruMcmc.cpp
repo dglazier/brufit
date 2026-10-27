@@ -818,6 +818,7 @@ namespace HS{
     // =======================================================
     // PHASE 3A: Pure Acceptance Tuning (Clamped Failsafe)
     // =======================================================
+    
     Bool_t BruMcmcCovariance::ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries) {
         std::cout << "\n*** Phase 3A: Adaptive Acceptance Tuning ***" << std::endl;
         _isTuningMode = kTRUE;
@@ -861,8 +862,7 @@ namespace HS{
                 Double_t currentScale = _propCov.StepSizeFactor();
                 Double_t newScale = currentScale * scaleFactor;
                 
-                // --- AIRTIGHT CLAMP (FIXED: artificial floor removed) ---
-                if (newScale > 3.0) newScale = 3.0;
+                if (newScale > 10.0) newScale = 10.0;
                 if (newScale < 1E-6) newScale = 1E-6;
                 
                 _propCov.SetScale(newScale);
@@ -878,6 +878,12 @@ namespace HS{
     // =======================================================
     // PHASE 3B: Grouped Diagnostic Tuning (R-hat + ESS)
     // =======================================================
+    // =======================================================
+    // PHASE 3B: Grouped Diagnostic Tuning (R-hat + ESS)
+    // =======================================================
+    // =======================================================
+    // PHASE 3B: Grouped Diagnostic Tuning (R-hat + ESS)
+    // =======================================================
     Bool_t BruMcmcCovariance::ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries) {
         std::cout << "\n*** Phase 3B: Grouped Diagnostic Verification (R-hat + ESS) ***" << std::endl;
         _isTuningMode = kTRUE;
@@ -888,16 +894,25 @@ namespace HS{
         Int_t retries = 0;
         Bool_t usedGibbsFallback = kFALSE;
         
+        // --- THE BULLETPROOF SCALE OVERRIDE ---
+        // BruFit internally forces the step scale down at the end of every 1000-step chain.
+        // To defeat this, we maintain our own absolute scale locally and overwrite BruFit 
+        // before every step.
+        Double_t overrideScale = _propCov.StepSizeFactor();
+        
         BruMappedRhat diagHelper;
         std::vector<RooArgList> groups = BuildDiagnosticGroups(activePars);
 
         while (!tuned && retries < maxRetries) {
+            // Force our scale, destroying whatever BruFit's auto-tuner did in the last step
+            _propCov.SetScale(overrideScale);
+
             SetNumIters(tuneWindow);
             MakeChain();
-	    Double_t acc = fChainAcceptance;
- 	    Double_t totalProposals = (acc > 0.0) ? (tuneWindow / acc) : tuneWindow;
-	    Double_t errorFraction = (Double_t)fLastEvalErrorCount / totalProposals;
-	    std::cout << "    [DIAGNOSTIC] there were " <<errorFraction<<" fraction of likelihood error evaluations" << std::endl;
+            Double_t acc = fChainAcceptance;
+            Double_t totalProposals = (acc > 0.0) ? (tuneWindow / acc) : tuneWindow;
+            Double_t errorFraction = (Double_t)fLastEvalErrorCount / totalProposals;
+            std::cout << "    [DIAGNOSTIC] there were " <<errorFraction<<" fraction of likelihood error evaluations" << std::endl;
             Double_t maxRhat = 0.0;
             Double_t minESS = 1e9;
             
@@ -926,46 +941,29 @@ namespace HS{
             } else {
                 retries++;
                 
-                // --- THE GIBBS FALLBACK TRIGGER ---
                 if (retries == maxRetries && !usedGibbsFallback) {
                     std::cout << "\n--> [ACTION] Global jump tuning exhausted." << std::endl;
                     std::cout << "--> Reverting to Block-Wise (Gibbs) Covariance Jumps to navigate boundaries.\n" << std::endl;
                     
                     Int_t fallbackSize = (_NGibbs > 0 && _NGibbs < activePars.getSize()) ? _NGibbs : 5;
                     _propCov.SetGibbsBlockSize(fallbackSize);
-                    _propCov.SetScale(fNorm);
                     usedGibbsFallback = kTRUE;
                     retries = 0; 
+                    overrideScale = fNorm; // Reset scale for Gibbs
                 } else if (retries >= maxRetries) {
                     std::cout << "\n===========================================================" << std::endl;
                     std::cout << " [WARNING] Diagnostic tuning completely exhausted." << std::endl;
-                    std::cout << "           R-hat/ESS targets were not perfectly met." << std::endl;
                     std::cout << "           Proceeding to Phase 4 with best-effort step scale." << std::endl;
                     std::cout << "===========================================================\n" << std::endl;
                     break;
+                } else {
+                    // --- ACTIVE ESS TUNING: INCREMENT ISOLATED STEP SIZE ---
+                    overrideScale *= 1.5; 
+                    if (overrideScale > 10.0) overrideScale = 10.0; // Hard ceiling to prevent matrix collapse
+                    
+                    std::cout << "    [DIAGNOSTIC] Poor ESS/R-hat. Forcing step scale to " << overrideScale << " for broader mixing." << std::endl;
                 }
 
-                Double_t scaleModifier = 1.0;
-                if (acc < 0.02 || maxRhat == BruMappedRhat::kConvergenceFailure) {
-                    std::cout << "    [DIAGNOSTIC] Boundary trap or failure. Shrinking step scale." << std::endl;
-                    scaleModifier = 0.5;
-                } else if (acc > 0.40) {
-                    std::cout << "    [DIAGNOSTIC] Crawling. Expanding step scale." << std::endl;
-                    scaleModifier = 1.5;
-                } else {
-                    std::cout << "    [DIAGNOSTIC] Poor ESS/R-hat. Tweaking step scale to shift mixing." << std::endl;
-                    scaleModifier = 1.2;
-                }
-                
-                Double_t currentScale = _propCov.StepSizeFactor();
-                Double_t newScale = currentScale * scaleModifier;
-                
-                // --- AIRTIGHT CLAMP (FIXED: artificial floor removed) ---
-                if (newScale > 3.0) newScale = 3.0;
-                if (newScale < 1E-6) newScale = 1E-6;
-                
-                _propCov.SetScale(newScale);
-                
                 if (fTreeMCMC) { delete fTreeMCMC; fTreeMCMC = nullptr; }
             }
         }
@@ -974,6 +972,8 @@ namespace HS{
         _isTuningMode = kFALSE;
         return tuned;
     }
+   
+    
     // =======================================================
     // PHASE 4: Official Run
     // =======================================================
@@ -1010,7 +1010,8 @@ namespace HS{
         _propSeq.SetScale(fNorm);
         _propCov.SetScale(fNorm);
         _propCov.SetYields(fSetup->Yields()); 
-        
+	 _propCov.TuneCovarianceStep(fTuneCovStep);
+	
         _propSeq.SetGibbsBlockSize(_NGibbs);
         _propCov.SetGibbsBlockSize(_NGibbs);
 
@@ -1046,7 +1047,9 @@ namespace HS{
 
             ChangeNIter();
             
-            std::unique_ptr<TMatrixDSym> covMat(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kTRUE, 0.25, 0.25)));
+            // ONLY EXTRACT CONVERGED TAIL OF PHASE 2 FOR MATRIX CALCULATION
+            size_t actualBurnIn = fTreeMCMC->GetEntries() / 2;
+            std::unique_ptr<TMatrixDSym> covMat(new TMatrixDSym(MakeMcmcCovarianceMatrix(fTreeMCMC, actualBurnIn, kTRUE, 0.0, 0.0)));
 
             auto allPars = fSetup->NonConstParsAndYields();
             _propCov.SetCovariance(*covMat, allPars);
@@ -1058,9 +1061,12 @@ namespace HS{
             SetupBasicUsage();
             
             _propCov.SetGibbsBlockSize(0);
+            _propCov.TuneCovarianceStep(fTuneCovStep);
+            _propCov.SetScale(0.25); // Start with conservative scale
+
             SetProposalFunction(_propCov);
 
-            Int_t maxGlobalRetries = 3; 
+            Int_t maxGlobalRetries = 1; 
             Int_t globalRetryCount = 0;
             Bool_t globalConvergence = kFALSE;
 
@@ -1072,14 +1078,14 @@ namespace HS{
                     std::cout << "=======================================================\n" << std::endl;
                 }
 
-                if (_tuneCovStep) {
-                    if (_tuneMode == McmcTuneMode::kMappedRhat) {
-                        ExecuteTuning_MappedRhat(allPars, _rhatMaxRetries);
-                    } else {
-                        ExecuteTuning_Acceptance(allPars, 10);
-                    }
+                // STRICTLY DECOUPLED TUNING PIPELINE
+                if (fTuneCovStep) {
+		  ExecuteTuning_Acceptance(allPars, 10);
                 }
-                
+		if (_tuneMode == McmcTuneMode::kMappedRhat) {
+		  ExecuteTuning_MappedRhat(allPars, _rhatMaxRetries);
+		} 
+		
                 Bool_t phase4Success = ExecutePhase4_Official();
                 
                 // --- THE ULTIMATE CRITICAL RESCUE ---
@@ -1110,7 +1116,6 @@ namespace HS{
                 }
                 
                 if (fTreeMCMC != nullptr) {
-                    TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE, 0.0, 0.0);
                     
                     std::cout << "\n*** Calculating Sub-Set Diagnostics (R-hat & ESS) ***" << std::endl;
                     BruMappedRhat diagHelper;
@@ -1146,8 +1151,8 @@ namespace HS{
                         if (globalRetryCount < maxGlobalRetries - 1) {
                             std::cout << "--> [WARNING] Chain failed global convergence (Worst R-hat: " << maxRhat << ")." << std::endl;
                             
-                            std::cout << "--> Rebuilding covariance matrix from scratch using hard rescue..." << std::endl;
-                            TMatrixDSym rescuedMat = MakeMcmcCovarianceMatrix(fTreeMCMC, 50, kTRUE, 0.25, 0.25);
+                            std::cout << "--> Rebuilding covariance matrix from recent sampling to improve proposal..." << std::endl;
+                            TMatrixDSym rescuedMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE, 0.0, 0.0);
                             _propCov.SetCovariance(rescuedMat, allPars);
                             
                             if (fTreeMCMC) { delete fTreeMCMC; fTreeMCMC = nullptr; }
@@ -1157,6 +1162,7 @@ namespace HS{
                     }
 
                     if (globalConvergence || globalRetryCount == maxGlobalRetries - 1) {
+                        TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kFALSE, 0.0, 0.0);
                         if (fOutFile) {
                             fOutFile->cd();
                             finalCovMat.Write("PosteriorCovariance");

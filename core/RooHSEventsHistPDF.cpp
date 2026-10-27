@@ -65,13 +65,15 @@ namespace FIT{
 
       Construct2DHist(TAxis(NbinX, rMin, rMax), TAxis(fNAlphaBins, ra->getMin(), ra->getMax()), ra->isConstant());
       fRHist->SetDirectory(nullptr);
-
+      std::cout << "RooHSEventsHistPDF::RooHSEventsHistPDF "<<fRHist<<std::endl;
       fx_off = new RooRealVar(TString("off") + _x.GetName(), "Vx_off", mid, rMin, rMax);
       falpha = new RooRealVar("Valpha", "Valpha", 0, alpha.min(), alpha.max());
+      std::cout << "RooHSEventsHistPDF::RooHSEventsHistPDF "<<fx_off<<" "<<falpha<<std::endl;
 
       if (not ra->isConstant()) fAlphaConstr = new RooGaussian(TString("AlphaConstr") + GetName(), "AlphaConstr", _alpha, RooFit::RooConst(ra->getVal()), RooFit::RooConst(ra->getMax() / 5));
       if (not ro->isConstant()) fOffConstr = new RooGaussian(TString("OffConstr") + GetName(), "OffConstr", _offset, RooFit::RooConst(ro->getVal()), RooFit::RooConst((ro->getMax() - ro->getMin()) / 5 / 2));
       if (not rs->isConstant()) fScaleConstr = new RooGaussian(TString("ScConstr") + GetName(), "ScConstr", _scale, RooFit::RooConst(rs->getVal()), RooFit::RooConst((rs->getMax() - rs->getMin()) / 5 / 2));
+      std::cout << "RooHSEventsHistPDF::RooHSEventsHistPDF done"<<std::endl;
     } 
 
     void RooHSEventsHistPDF::Construct2DHist(TAxis xaxis, TAxis AlphAxis, Bool_t isAlphaConst) {

@@ -76,6 +76,12 @@ namespace HS{
       for (size_t i = 0; i < nVars; ++i) curVars[i]->setVal(masterVars[i]->getVal());
       xL = fFunction->getVal();
 
+      std::cout<<"INITIAL STATUS "<<std::endl;
+      for (size_t i = 0; i < nVars; ++i) {
+	std::cout<< masterVars[i]->GetName()<<" "<<masterVars[i]->getVal()<<std::endl;
+      }
+      std::cout<< xL<<std::endl;
+
       // --- THE BARE-METAL MCMC LOOP ---
       while (icount < fNumIters) {
 
@@ -113,6 +119,10 @@ namespace HS{
                 std::cout << "\nBruMetropolisHastings: WARNING - Fast Bailout Triggered! "
                           << "Acceptance is critically low (" << currentAcc * 100 << "%) after " 
                           << totalProposals << " proposals. Aborting chain to allow immediate retuning." << std::endl;
+		for (size_t i = 0; i < nVars; ++i) {
+		  std::cout<< masterVars[i]->GetName()<<" "<<masterVars[i]->getVal()<<std::endl;
+		}
+		std::cout<< xL<<" " << xPrimeL<<std::endl;
                 break;
             }
         }
@@ -150,6 +160,7 @@ namespace HS{
         
         if (wasEvalErrors()) {
 	  xPrimeL = RooNumber::infinity();
+	  //xPrimeL = 0;
 	  hadEvalError = true;
 	  fEvalErrorCount++;
         }

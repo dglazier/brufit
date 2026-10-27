@@ -79,7 +79,7 @@ namespace HS{
 
     private:
       Int_t fBailoutThreshold = 3000;
-      Double_t fBailoutAcceptance = 0.01;
+      Double_t fBailoutAcceptance = 0.001;
       Int_t fEvalErrorCount = 0;
  
     public:

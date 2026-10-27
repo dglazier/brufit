@@ -44,17 +44,12 @@ namespace HS{
       _covMatrix.ResizeTo(_baseMatrix.GetNrows(), _baseMatrix.GetNcols());
       
       // 1. Apply the global MCMC tuning scale to the entire matrix
-      _covMatrix = _baseMatrix * static_cast<Double_t>(StepSizeFactor() * gelmanScale);
+      double scale = static_cast<Double_t>(StepSizeFactor() * gelmanScale);
+      _covMatrix = _baseMatrix * scale;
       
       // 2. THE YIELD MASK: Force yields to ignore the global scale and off-diagonals
-      // A pure 1D Gelman jump is strictly (2.382^2) / 1.0 = 5.673924
-      double yieldGelmanScale = 5.673924;
-      
       for (size_t i = 0; i < _varCache.size(); ++i) {
           if (_yieldPars.contains(*_varCache[i])) {
-              // Restore the raw diagonal variance and apply the 1D scale
-              _covMatrix(i, i) = _baseMatrix(i, i) * yieldGelmanScale;
-              
               // Zero out any residual off-diagonal correlations just to be absolutely safe
               for (size_t j = 0; j < _varCache.size(); ++j) {
                   if (i != j) {
@@ -66,12 +61,7 @@ namespace HS{
       }
       
       // 3. Adaptive Jitter for numerical stability during Cholesky
-      double maxDiag = 1e-12;
-      for (int i = 0; i < _covMatrix.GetNrows(); ++i) {
-          if (_covMatrix(i, i) > maxDiag) maxDiag = _covMatrix(i, i);
-      }
-      double jitter = maxDiag * 1e-8; 
-      
+      double relJitter = 1e-6; 
       bool decomposed = false;
       
       int oldLevel = gErrorIgnoreLevel;
@@ -86,10 +76,11 @@ namespace HS{
               decomposed = true;
               break; 
           } else {
+              // Apply proportional diagonal jitter to each parameter individually
               for (int i = 0; i < _covMatrix.GetNrows(); ++i) {
-                  _covMatrix(i, i) += jitter;
+                  _covMatrix(i, i) += std::abs(_covMatrix(i, i)) * relJitter + 1e-12;
               }
-              jitter *= 10.0; 
+              relJitter *= 10.0; 
           }
       }
       

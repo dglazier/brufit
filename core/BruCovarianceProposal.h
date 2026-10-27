@@ -46,7 +46,12 @@ namespace HS{
       // Cleanly updates the scale and rebuilds the matrix without losing base covariance
       void ApplyNewScale(Float_t newScale) {
           SetScale(newScale);
-          UpdateCholesky();
+      }
+
+      // Overridden to guarantee Cholesky is rebuilt when BruMcmc adjusts scale
+      void SetScale(Float_t scale)  {
+          BruSequentialProposal::SetScale(scale);
+          UpdateCholesky(); 
       }
 
       Bool_t CheckStepSize(Float_t acceptance) override {

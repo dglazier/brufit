@@ -14,28 +14,33 @@ namespace HS{
     void Minuit::Run(Setup &setup,RooAbsData &fitdata){
       fSetup=&setup;
       fData=&fitdata;
-      
+      std::cout<<"DEBUG 1"<<fSetup<<" "<<fData<<std::endl;
       //original fit using intial parameters
       FitTo();
+      std::cout<<"DEBUG "<<"2 "<<fNRefits<<" "<<fResult<<std::endl;
       if(!fNRefits){ //One fit is enough...
 	fResult->Print();
 	
 	return;
       }
       AppendFitToTree();
-      
+      std::cout<<"DEBUG 3"<<fResult<<std::endl;
+    
       //Perform many fits with differnt initial parameters
       UInt_t nrefit = 0;
       fSetup->SaveSnapShot(Form("Refit_%d",nrefit)); //original
+      std::cout<<"DEBUG "<<"4"<<std::endl;
 
       fLikelies.clear();
       using result_uptr=std::unique_ptr<RooFitResult>;
+      std::cout<<"DEBUG "<<"5"<<std::endl;
 	
       vector<result_uptr> results;
 
       //save original likelihood and results
       StoreLikelihood(fLikelies);
       results.push_back(result_uptr{dynamic_cast<RooFitResult*>(fResult->clone())});
+      std::cout<<"DEBUG "<<"6"<<std::endl;
 
       //loop over refits
       while(nrefit++<fNRefits){
@@ -52,7 +57,8 @@ namespace HS{
 	
 	results.push_back(result_uptr{dynamic_cast<RooFitResult*>(fResult->clone())});
       }
-	
+	      std::cout<<"DEBUG "<<"7"<<std::endl;
+
       //Find the best fit result and save it
       Int_t best=std::distance(fLikelies.begin(), std::min_element(fLikelies.begin(), fLikelies.end()));
 	
@@ -174,7 +180,7 @@ namespace HS{
 
     void Minuit::AppendFitToTree(){
       
-
+      std::cout<<" Minuit::AppendFitToTree() "<<std::endl;
 	RooArgSet isaveArgs(fSetup->Parameters());
 	isaveArgs.add(fSetup->Yields());
      
@@ -192,7 +198,8 @@ namespace HS{
 	if(_treeDSbru) list.Add(_treeDSbru);
 	list.Add(treeDSbru.get());
 	_treeDSbru= TTree::MergeTrees(&list);
-    }
+      std::cout<<" Minuit::AppendFitToTree() done"<<std::endl;
+   }
     
     //////////////////////////////////////////////////////////////
   Minuit2::Minuit2(UInt_t nrefits,Bool_t nozeroinit) : Minuit(nrefits,nozeroinit) {

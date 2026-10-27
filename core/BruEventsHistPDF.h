@@ -109,12 +109,23 @@ namespace bru {
 
         TH2* GetRootHist() { return _RHist; }
 
-        std::vector<Double_t> GetBinVector(const TAxis& ax) {
-            std::vector<Double_t> xedges(ax.GetNbins());
-            ax.GetLowEdge(xedges.data());
-            xedges.push_back(ax.GetXmax());
+      std::vector<Double_t> GetBinVector(const TAxis& ax) {
+            Int_t nBins = ax.GetNbins();
+            std::vector<Double_t> xedges(nBins + 1);
+            
+            // Explicitly grab each bin edge. 100% memory safe for all ROOT versions.
+            for (Int_t i = 1; i <= nBins; ++i) {
+                xedges[i - 1] = ax.GetBinLowEdge(i);
+            }
+            xedges[nBins] = ax.GetBinUpEdge(nBins); // Set the final upper edge
+            
             return xedges;
-        }
+        }    //    std::vector<Double_t> GetBinVector(const TAxis& ax) {
+        //     std::vector<Double_t> xedges(ax.GetNbins()+1);
+        //     ax.GetLowEdge(xedges.data());
+        //     xedges.push_back(ax.GetXmax());
+        //     return xedges;
+        // }
       
         ClassDefOverride(bru::BruEventsHistPDF, 1);
     };

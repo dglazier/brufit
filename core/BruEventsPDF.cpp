@@ -211,7 +211,6 @@ namespace bru {
         Fatal("BruEventsPDF::generateEvent", "Ran out of events at %lld", _Geni);
     }
 
-    // ORIGINAL LOGIC EXACTLY PRESERVED
     Int_t BruEventsPDF::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const {
         if (_ForceNumInt) return 0;
         if (!_DataCache && !_ForceConstInt) return 0;
