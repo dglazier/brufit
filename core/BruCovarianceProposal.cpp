@@ -5,6 +5,7 @@
 #include <TDecompChol.h>
 #include <TError.h>
 #include <cmath>
+#include <algorithm>
 
 namespace HS{
   namespace FIT{
@@ -38,7 +39,8 @@ namespace HS{
     void BruCovarianceProposal::UpdateCholesky() {
       if (_baseMatrix.GetNrows() == 0) return;
 
-      int d = _baseMatrix.GetNrows();
+      int d = (_gibbsBlockSize > 0 && _gibbsBlockSize < _baseMatrix.GetNrows()) 
+              ? _gibbsBlockSize : _baseMatrix.GetNrows();
       double gelmanScale = (2.382 * 2.382) / (double)d; 
  
       _covMatrix.ResizeTo(_baseMatrix.GetNrows(), _baseMatrix.GetNcols());
@@ -47,20 +49,21 @@ namespace HS{
       double scale = static_cast<Double_t>(StepSizeFactor() * gelmanScale);
       _covMatrix = _baseMatrix * scale;
       
-      // 2. THE YIELD MASK: Force yields to ignore the global scale and off-diagonals
+      // 2. THE YIELD MASK: Lock yields to gelmanScale (ignoring StepSizeFactor) and zero off-diagonals
       for (size_t i = 0; i < _varCache.size(); ++i) {
           if (_yieldPars.contains(*_varCache[i])) {
-              // Zero out any residual off-diagonal correlations just to be absolutely safe
               for (size_t j = 0; j < _varCache.size(); ++j) {
                   if (i != j) {
                       _covMatrix(i, j) = 0.0;
                       _covMatrix(j, i) = 0.0;
+                  } else {
+                      _covMatrix(i, i) = _baseMatrix(i, i) * gelmanScale;
                   }
               }
           }
       }
       
-      // 3. Adaptive Jitter for numerical stability during Cholesky
+      // 3. Adaptive Jitter for numerical stability
       double relJitter = 1e-6; 
       bool decomposed = false;
       
@@ -76,7 +79,6 @@ namespace HS{
               decomposed = true;
               break; 
           } else {
-              // Apply proportional diagonal jitter to each parameter individually
               for (int i = 0; i < _covMatrix.GetNrows(); ++i) {
                   _covMatrix(i, i) += std::abs(_covMatrix(i, i)) * relJitter + 1e-12;
               }
@@ -93,13 +95,9 @@ namespace HS{
 
     void BruCovarianceProposal::Propose(RooArgSet& xPrime, RooArgSet& x )
     {
-      RooStats::SetParameters(&x, &xPrime); // Start at current location
+      RooStats::SetParameters(&x, &xPrime); 
       int n = _varCache.size();
 
-      // --- OPTIMIZATION: Smart Pointer Cache ---
-      // We do a single, ultra-fast validation check on the first parameter.
-      // If the memory address doesn't match, we know MakeChain() launched 
-      // a new sequence with fresh variables, and we rebuild the cache safely.
       bool rebuildCache = _primeCache.empty();
       if (!rebuildCache && n > 0) {
           if (_primeCache[0] != xPrime.find(_varCache[0]->GetName())) {
@@ -121,12 +119,25 @@ namespace HS{
           z[i] = RooRandom::gaussian();
       }
 
-      // 2. Instantly correlate them via Cholesky decomposition (L * z)
+      // 2. Correlate them via Cholesky decomposition (L * z)
       TVectorD step = _lMatrix * z;
 
-      // 3. Apply steps to parameters safely
+      // 3. Determine active Gibbs block if _gibbsBlockSize > 0
+      int startIdx = 0;
+      int endIdx = n;
+      if (_gibbsBlockSize > 0 && _gibbsBlockSize < n) {
+          int numBlocks = (n + _gibbsBlockSize - 1) / _gibbsBlockSize;
+          startIdx = RooRandom::integer(numBlocks) * _gibbsBlockSize;
+          endIdx = std::min(startIdx + _gibbsBlockSize, n);
+      }
+
+      // 4. Apply steps only to the active block (plus yields)
       for (int i = 0; i < n; ++i) {
-          RooRealVar* primeVar = _primeCache[i]; // Completely bypasses string lookup!
+          bool isYieldPar = _yieldPars.contains(*_varCache[i]);
+          bool inActiveBlock = (i >= startIdx && i < endIdx) || isYieldPar;
+          if (!inActiveBlock) continue;
+
+          RooRealVar* primeVar = _primeCache[i];
           if (!primeVar) continue;
 
           double val = primeVar->getVal();
@@ -136,11 +147,9 @@ namespace HS{
           double s = step[i];
 
           if (fCyclicPars.contains(*primeVar)) {
-              // --- CYCLIC WRAP AROUND ---
               double center = min + (len / 2.0);
               primeVar->setVal(center + std::remainder(val + s - center, len));
           } else {
-              // --- HARD BOUNDARY REFLECTION ---
               while ((val + s > max) || (val + s < min)) {
                   if (val + s > max) s = 2 * (max - val) - s;
                   if (val + s < min) s = 2 * (min - val) - s;

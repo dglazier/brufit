@@ -53,7 +53,7 @@ namespace HS{
       
       Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
-      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree, size_t burnin, Bool_t decoupleYields = kFALSE, Double_t shrinkageAlpha = 0.25, Double_t minRelCov = 0.25);
+      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree, size_t burnin, Bool_t decoupleYields = kTRUE, Double_t shrinkageAlpha = 0.15, Double_t minRelCov = 0.05);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -80,15 +80,13 @@ namespace HS{
 
       void SetupBasicUsage();
       void SetKeepStart(Bool_t keep=kTRUE){fKeepStart=keep;}
-      void SetTuneCovariance(Bool_t keep=kTRUE){fTuneCovStep=keep;}
+      virtual void SetTuneCovariance(Bool_t keep=kTRUE){fTuneCovStep=keep;}
 
       virtual Int_t GetNumBurnInSteps()const {return fNumBurnInSteps;}
 
-      // --- NEW: User Setter for Absolute Minimum Acceptance ---
       void SetAbsoluteMinAcceptance(Double_t acc) { fAbsoluteMinAcc = acc; }
 
       void SetDesiredAcceptance(Double_t min,Double_t max,Double_t target=0){
-        // --- SAFEGUARD: Prevent minimum bounds from hitting zero or going negative ---
         fMinAcc = (min < fAbsoluteMinAcc) ? fAbsoluteMinAcc : min;
         fMaxAcc = max;
         
@@ -183,7 +181,6 @@ namespace HS{
       Double_t fMaxAcc=0.3;
       Double_t fTargetAcc=0.234;
       
-      // --- NEW: Default safeguard absolute minimum ---
       Double_t fAbsoluteMinAcc=0.001; 
       
       Int_t  fUncorrelateYields=0;
@@ -197,7 +194,7 @@ namespace HS{
 
       // Tuning State Variables
       McmcTuneMode _tuneMode = McmcTuneMode::kAcceptance; 
-      Int_t _rhatWindowSize = 2500;
+      Int_t _rhatWindowSize = 1000;
       Double_t _rhatTarget = 1.05;
       Int_t _rhatMaxRetries = 5;
       
@@ -263,7 +260,8 @@ namespace HS{
      void TurnOffSequential(){_doSeq=kFALSE;}
      void TurnOffNDStep(){_doND=kFALSE;}
      void TurnOffCovariance(){_doCov=kFALSE;}
-     void TuneCovarianceStep(){_tuneCovStep=kTRUE;}
+     void TuneCovarianceStep(Bool_t tune=kTRUE){ _tuneCovStep=tune; fTuneCovStep=tune; }
+     void SetTuneCovariance(Bool_t keep=kTRUE) override { _tuneCovStep=keep; fTuneCovStep=keep; }
      
      // --------------------------------------------------------
      // Robust Configuration Setters
@@ -272,7 +270,7 @@ namespace HS{
      void SetGibbsBlockSize(Int_t size) { _NGibbs = size; }
      void SetColdWarmUpAcceptance(Double_t acc) { _coldTargetAcc = acc; }
     
-     void SetDiagnosticTuningParameters(Int_t initialWindow = 2000, Double_t targetRhat = 1.05, Double_t essFraction = 0.10, Int_t maxRetries = 5) {
+     void SetDiagnosticTuningParameters(Int_t initialWindow = 1000, Double_t targetRhat = 1.05, Double_t essFraction = 0.10, Int_t maxRetries = 5) {
             _rhatWindowSize = initialWindow;
             _rhatTarget = targetRhat;
             _essFraction = essFraction; 

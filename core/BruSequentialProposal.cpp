@@ -2,6 +2,7 @@
 #include <RooStats/RooStatsUtils.h>
 #include <RooRandom.h>
 #include <cmath>
+#include <algorithm>
 #include <iostream>
 
 namespace HS{
@@ -69,10 +70,13 @@ namespace HS{
               var->setVal(center + std::remainder(val + step - center, len));
           } else {
               // --- LEGACY STICKY BOUNDARY (RE-DRAW) ---
-              // Restored legacy logic to prevent the chain from ricocheting out of local minima
-              while ((val + step > max) || (val + step < min)) {
+              int redraws = 0;
+              while (((val + step > max) || (val + step < min)) && redraws < 100) {
                   step = RooRandom::gaussian() * len * fScale;
+                  redraws++;
               }
+              if (val + step > max) step = max - val;
+              if (val + step < min) step = min - val;
               var->setVal(val + step);
           }
         }
@@ -83,14 +87,18 @@ namespace HS{
       if(acceptance < fMinAcc || acceptance > fMaxAcc){
         Double_t oldScale = fScale; 
         
-        Double_t acc = acceptance > 0 ? acceptance : 0.01;
-        fScale *= (acc)/(fTargetAcc);
+        // Damped scaling prevents 40D acceptance ping-ponging (e.g. 45% <-> 5%) during Phase 2
+        if (acceptance <= 0.005f) {
+            fScale *= 0.2f;
+        } else {
+            Double_t ratio = std::sqrt(static_cast<Double_t>(acceptance) / static_cast<Double_t>(fTargetAcc));
+            ratio = std::clamp(ratio, 0.4, 2.0);
+            fScale *= static_cast<Float_t>(ratio);
+        }
         
-        // --- MAXIMUM SCALE CLAMP (ASYMPTOTE FIX) ---
-        // Prevents the legacy redraw loop from causing an infinite CPU freeze
-        // if (fScale > 3.0) {
-        //     fScale = 3.0; 
-        // }
+        if (fScale > 3.0f) {
+            fScale = 3.0f; 
+        }
 
         if(fScale < fMinScale){
           fScale = fMinScale; 

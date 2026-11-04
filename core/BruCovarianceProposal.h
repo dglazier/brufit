@@ -1,8 +1,3 @@
-////////////////////////////////////////////////////////////////
-///
-///Class:           BruCovarianceProposal    
-///Description:  Fast Multivariate Gaussian proposal using Cholesky Decomposition
-///           
 #pragma once
 
 #include "BruSequentialProposal.h"
@@ -34,7 +29,7 @@ namespace HS{
         _lMatrix.Clear(); _lMatrix.ResizeTo(0,0);
         _xVec.clear();
         _varCache.clear();
-        _primeCache.clear(); // Clear the fast pointer cache
+        _primeCache.clear(); 
       }
 
       void SetCovariance(const TMatrixDSym& mat, const RooArgSet& vars);
@@ -43,15 +38,18 @@ namespace HS{
       TMatrixDSym GetCovariance() { return _covMatrix; }
       TMatrixDSym GetBaseMatrix() { return _baseMatrix; }
 
-      // Cleanly updates the scale and rebuilds the matrix without losing base covariance
       void ApplyNewScale(Float_t newScale) {
           SetScale(newScale);
       }
 
-      // Overridden to guarantee Cholesky is rebuilt when BruMcmc adjusts scale
-      void SetScale(Float_t scale)  {
+      void SetScale(Float_t scale) override {
           BruSequentialProposal::SetScale(scale);
           UpdateCholesky(); 
+      }
+
+      void SetGibbsBlockSize(Int_t size) override {
+          BruSequentialProposal::SetGibbsBlockSize(size);
+          UpdateCholesky();
       }
 
       Bool_t CheckStepSize(Float_t acceptance) override {
@@ -63,7 +61,6 @@ namespace HS{
       
       void TuneCovarianceStep(Bool_t tune) { _tuneCovStep = tune; }
 
-      // Set the yields so they are masked from global step scaling
       void SetYields(const RooArgList& yields) { 
           _yieldPars.removeAll(); 
           _yieldPars.add(yields); 
@@ -75,9 +72,9 @@ namespace HS{
       TMatrixD _lMatrix;       
 
       RooArgList _xVec;
-      RooArgList _yieldPars; // Track yield parameters
-      std::vector<RooRealVar*> _varCache;   // Fast cache for base variables
-      std::vector<RooRealVar*> _primeCache; // Fast cache for xPrime targets
+      RooArgList _yieldPars; 
+      std::vector<RooRealVar*> _varCache;   
+      std::vector<RooRealVar*> _primeCache; 
        
       Bool_t _tuneCovStep = kFALSE;
 

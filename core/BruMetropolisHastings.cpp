@@ -5,12 +5,12 @@
 #include <RooStats/SequentialProposal.h>
 #include <RooStats/ProposalHelper.h>
 #include <TRandom.h>
+#include <algorithm>
 #include "BruSequentialProposal.h"
 
 namespace HS{
   namespace FIT{
     
-   
     RooStats::MarkovChain* BruMetropolisHastings::ConstructChain()
     {
       if (fParameters.getSize() == 0 || !fPropFunc || !fFunction) {
@@ -29,7 +29,6 @@ namespace HS{
       chain->SetParameters(fChainParams);
 
       // --- 1. FAST MEMORY MAPPING ---
-      // Map the RooRealVars into fast C++ vectors to bypass string-lookups during the loop
       std::vector<RooRealVar*> curVars, propVars, masterVars;
       for (auto *var : static_range_cast<RooRealVar*>(x)) curVars.push_back(var);
       for (auto *var : static_range_cast<RooRealVar*>(xPrime)) propVars.push_back(var);
@@ -37,7 +36,6 @@ namespace HS{
       size_t nVars = curVars.size();
 
       // --- 2. CHAIN BUFFER ---
-      // Buffer the accepted steps in RAM to avoid RooDataSet overhead during the loop
       std::vector<std::vector<Double_t>> chainBufferVals;
       std::vector<Double_t> chainBufferNLL;
       std::vector<Double_t> chainBufferWeights;
@@ -62,7 +60,12 @@ namespace HS{
       int havePrinted = 0;
       Long64_t totalProposals = 0;
       
-      fEvalErrorCount= 0;
+      // Hard proposal ceiling prevents infinite runtimes when low-acceptance chains are used
+      const Long64_t maxProposals = std::max<Long64_t>(
+          static_cast<Long64_t>(fBailoutThreshold) * 2LL,
+          static_cast<Long64_t>(fNumIters) * 100LL);
+
+      fEvalErrorCount = 0;
 
       auto bseqprop = dynamic_cast<BruSequentialProposal*>(fPropFunc);
       if(bseqprop == nullptr){
@@ -78,39 +81,32 @@ namespace HS{
 
       std::cout<<"INITIAL STATUS "<<std::endl;
       for (size_t i = 0; i < nVars; ++i) {
-	std::cout<< masterVars[i]->GetName()<<" "<<masterVars[i]->getVal()<<std::endl;
+        std::cout<< masterVars[i]->GetName()<<" "<<masterVars[i]->getVal()<<std::endl;
       }
       std::cout<< xL<<std::endl;
 
       // --- THE BARE-METAL MCMC LOOP ---
       while (icount < fNumIters) {
 
-	// --- STOCHASTIC HOT-SWAP ---
-	if (fBatchedNLLs.size() > 0 && fSwapFreq > 0 && totalProposals > 0 && (totalProposals % fSwapFreq == 0)) {
+        // --- STOCHASTIC HOT-SWAP ---
+        if (fBatchedNLLs.size() > 0 && fSwapFreq > 0 && totalProposals > 0 && (totalProposals % fSwapFreq == 0)) {
           fCurrentBatch = (fCurrentBatch + 1) % fBatchedNLLs.size();
           fFunction = fBatchedNLLs[fCurrentBatch]; 
           std::cout << "Shaking the landscape! Swapped to Batch " << fCurrentBatch << std::endl;
           
-          // =======================================================
-          // THE FIX: Reset the Baseline NLL safely
-          // =======================================================
-          // 1. Force the master RooRealVars back to the current accepted 
-          //    state (curVars). If the last step was rejected, masterVars 
-          //    are currently stuck at the bad proposed values!
           for (size_t i = 0; i < nVars; ++i) {
-	    masterVars[i]->setVal(curVars[i]->getVal());
+            masterVars[i]->setVal(curVars[i]->getVal());
           }
           
-          // 2. Re-evaluate the baseline NLL on the new batch
           xL = fFunction->getVal(); 
-	}
+        }
 
         totcount++; 
         totalProposals++;  
         hadEvalError = false;
 
-	// ==========================================================
-        // --- FAST-FAIL BAILOUT ---
+        // ==========================================================
+        // --- FAST-FAIL BAILOUT & HARD PROPOSAL CEILING ---
         // ==========================================================
         if (totalProposals % 1000 == 0) {
             double currentAcc = (double)icount / totalProposals;
@@ -119,15 +115,22 @@ namespace HS{
                 std::cout << "\nBruMetropolisHastings: WARNING - Fast Bailout Triggered! "
                           << "Acceptance is critically low (" << currentAcc * 100 << "%) after " 
                           << totalProposals << " proposals. Aborting chain to allow immediate retuning." << std::endl;
-		for (size_t i = 0; i < nVars; ++i) {
-		  std::cout<< masterVars[i]->GetName()<<" "<<masterVars[i]->getVal()<<std::endl;
-		}
-		std::cout<< xL<<" " << xPrimeL<<std::endl;
+                for (size_t i = 0; i < nVars; ++i) {
+                  std::cout<< masterVars[i]->GetName()<<" "<<masterVars[i]->getVal()<<std::endl;
+                }
+                std::cout<< xL<<" " << xPrimeL<<std::endl;
+                break;
+            }
+
+            if (totalProposals >= maxProposals) {
+                std::cout << "\nBruMetropolisHastings: WARNING - Reached hard proposal ceiling ("
+                          << totalProposals << " proposals, " << icount << "/" << fNumIters
+                          << " accepted, Acc = " << currentAcc * 100.0 << "%). Terminating chain safely." << std::endl;
                 break;
             }
         }
 
-	// ==========================================================
+        // ==========================================================
         // Acceptance Tuning Logic
         if (totcount % 1000 == 0) {
           fAcceptance = ((Double_t)snapcount) / totcount;
@@ -159,10 +162,9 @@ namespace HS{
         xPrimeL = fFunction->getVal();
         
         if (wasEvalErrors()) {
-	  xPrimeL = RooNumber::infinity();
-	  //xPrimeL = 0;
-	  hadEvalError = true;
-	  fEvalErrorCount++;
+          xPrimeL = RooNumber::infinity();
+          hadEvalError = true;
+          fEvalErrorCount++;
         }
 
         a = xPrimeL - xL;
@@ -176,15 +178,15 @@ namespace HS{
         if (!hadEvalError && ShouldTakeStep(a)) {
           // ACCEPTED: Record CURRENT state (x) with its accumulated weight
           if (weight != 0.0) {
-	    std::vector<Double_t> stepVals(nVars);
-	    for (size_t i = 0; i < nVars; ++i) stepVals[i] = curVars[i]->getVal();
+            std::vector<Double_t> stepVals(nVars);
+            for (size_t i = 0; i < nVars; ++i) stepVals[i] = curVars[i]->getVal();
               
-	    chainBufferVals.push_back(std::move(stepVals));
-	    chainBufferNLL.push_back(CalcNLL(xL));
-	    chainBufferWeights.push_back((Double_t)weight);
+            chainBufferVals.push_back(std::move(stepVals));
+            chainBufferNLL.push_back(CalcNLL(xL));
+            chainBufferWeights.push_back((Double_t)weight);
               
-	    icount++;
-	    snapcount++;
+            icount++;
+            snapcount++;
           }
           
           // Jump to new state (xPrime)
@@ -199,28 +201,27 @@ namespace HS{
 
       // Record the final point
       if (weight != 0.0) {
-	std::vector<Double_t> stepVals(nVars);
-	for (size_t i = 0; i < nVars; ++i) stepVals[i] = curVars[i]->getVal();
-	chainBufferVals.push_back(std::move(stepVals));
-	chainBufferNLL.push_back(CalcNLL(xL));
-	chainBufferWeights.push_back((Double_t)weight);
+        std::vector<Double_t> stepVals(nVars);
+        for (size_t i = 0; i < nVars; ++i) stepVals[i] = curVars[i]->getVal();
+        chainBufferVals.push_back(std::move(stepVals));
+        chainBufferNLL.push_back(CalcNLL(xL));
+        chainBufferWeights.push_back((Double_t)weight);
       }
       
       ooccoutP((TObject *)nullptr, Generation) << std::endl;
 
       // --- 3. FLUSH BUFFER TO CHAIN ---
-      // Now we pay the RooDataSet memory penalty exactly once at the very end
       for(size_t i = 0; i < chainBufferVals.size(); ++i) {
-	for (size_t v = 0; v < nVars; ++v) masterVars[v]->setVal(chainBufferVals[i][v]);
-	chain->Add(fParameters, chainBufferNLL[i], chainBufferWeights[i]);
+        for (size_t v = 0; v < nVars; ++v) masterVars[v]->setVal(chainBufferVals[i][v]);
+        chain->Add(fParameters, chainBufferNLL[i], chainBufferWeights[i]);
       }
 
       RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
 
       Int_t numAccepted = chain->Size();
-      fAcceptance = ((Double_t)icount) / totalProposals;
+      fAcceptance = (totalProposals > 0) ? (((Double_t)icount) / totalProposals) : 0.0;
       
-      coutI(Eval) << "Proposal acceptance rate: " << ((float)icount)/totalProposals * 100 << "%" << std::endl;
+      coutI(Eval) << "Proposal acceptance rate: " << fAcceptance * 100.0 << "%" << std::endl;
       coutI(Eval) << "Number of steps in chain: " << numAccepted << std::endl;
  
       return chain;
@@ -228,78 +229,14 @@ namespace HS{
 
     Bool_t BruMetropolisHastings::wasEvalErrors(){
       if(RooAbsReal::numEvalErrors()){
-	RooAbsReal::clearEvalErrorLog();
-	return kTRUE;
+        RooAbsReal::clearEvalErrorLog();
+        return kTRUE;
       }
       return kFALSE;
-	    
     }
 
     Bool_t BruMetropolisHastings::CheckForBurnIn(RooStats::MarkovChain* chain){
       return true;
-      //      Check RMS and mean for last 100 events
-      auto Nentries=chain->Size();
-      auto vars = chain->Get();
-      RooDataSet current("current","current",*vars);
-     
-      Int_t Ntests=vars->getSize()*50;
-      
-      if(Ntests>Nentries){
-	//	std::cout<<" ntests "<<Ntests<<" "<<Nentries<<std::endl; return kTRUE;
-      }//not enough events Ntests=Nentries/2;
-      if(Ntests>Nentries-fLastEntries){std::cout<<" not enough entries "<<Ntests<<" > "<<Nentries-fLastEntries<<" "<<Nentries<<std::endl; return kTRUE;}
- 
-      for(Int_t i=Nentries-1;i>Nentries-100;--i){
-	if(gRandom->Uniform()<1./chain->Weight(i))current.add(*chain->Get(i));
-      }
-
-      if(fMeans.empty()==true){
-	fMeans.resize(vars->getSize());
-	fSigmas.resize(vars->getSize());
-      }
-      //loop over variables and get current mean and rms
-      Int_t iv=0;
-      Int_t Npass=0;
-      for(auto& var: *vars){
-	RooRealVar* rvar=static_cast<RooRealVar*>(var);
-	Double_t mean=current.mean(*rvar);
-	Double_t sigma=current.sigma(*rvar);
-	//std::cout<<"BruMetropolisHastings CheckForBurnIn "<<var->GetName()<<" mean "<<mean<<" "<<sigma<<" out of "<<current.numEntries()<<" diff "<< (mean-fMeans[iv])/TMath::Sqrt(fSigmas[iv]*fSigmas[iv]+sigma*sigma)<<std::endl;
-
-	auto biggestSigma=fSigmas[iv]>sigma? fSigmas[iv]:sigma;
-	if(biggestSigma==0)biggestSigma=1;
-	//std::cout<<"sigma "<<biggestSigma<<" "<<fSigmas[iv]<<" "<<fMeans[iv]<<" "<<TMath::Abs((mean-fMeans[iv])/biggestSigma)<<std::endl;
-	
-	if(TMath::Abs((mean-fMeans[iv])/biggestSigma)<3)++Npass;
-	
-
-	if(var==(*vars)[vars->getSize()-1]){
-	  std::cout<<"NLL diff "<<mean<<" "<<fMeans[iv]<<" diff "<<mean-fMeans[iv]<<" "<<TMath::Abs((mean-fMeans[iv])/biggestSigma)<<" "<<std::endl;
-
-	  if(mean-fMeans[iv]>0){
-	    ++fNWorse;
-	    if(fSaveNLL==0)
-	      fSaveNLL=mean;
-	  }
-	  
-	  else if(fNWorse>0) ++fNBetter;
-
-	  
-	  if(mean-fSaveNLL>0)
-	    ++fNWorseThanSave;
-	  if(mean-fSaveNLL<0)
-	    ++fNBetterThanSave;
-	  
-	}
-	
-	fMeans[iv]=mean;
-	fSigmas[iv]=sigma;
-	++iv;
-      }
-      std::cout<<Npass<<" out of "<<vars->getSize()<<" up to "<<Nentries<<" and Worse "<<fNWorse<<" and Better "<<fNBetter<<" and Worse than save "<<fNWorseThanSave<<" and Better "<<fNBetterThanSave<<" which is " <<fSaveNLL<<std::endl;
-      fLastEntries=Nentries;
-      return kTRUE;
     } 
   }//namespace FIT
-
 }//namespace HS

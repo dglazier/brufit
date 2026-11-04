@@ -4,6 +4,7 @@
 #include <RooRealVar.h>
 #include <cmath>
 #include <limits>
+#include <algorithm>
 #include <iostream>
 
 namespace HS {
@@ -103,7 +104,7 @@ namespace FIT {
         double var_plus = ((half - 1.0) / half) * W + B / half;
         double rhat = std::sqrt(var_plus / W);
 
-        // --- NEW: Calculate Effective Sample Size (ESS) via Variogram ---
+        // Calculate Effective Sample Size (ESS) via Variogram
         double sum_rho = 0.0;
         for (int t = 1; t < half; ++t) {
             double vt = 0.0;
@@ -152,34 +153,72 @@ namespace FIT {
         tree->ResetBranchAddresses();
 
         int numPoints = rawPoints.size();
+        if (numPoints < kMinRequiredEntries) return {kConvergenceFailure, 0.0};
 
-        // Z-SCORE NORMALIZATION
-        if (numPoints > 0 && nPars > 0) {
-            std::vector<double> means(nPars, 0.0);
-            std::vector<double> stdDevs(nPars, 0.0);
+        // Z-SCORE NORMALIZATION & FROZEN PARAMETER CHECK
+        std::vector<double> means(nPars, 0.0);
+        std::vector<double> stdDevs(nPars, 0.0);
 
-            for (int p = 0; p < nPars; ++p) {
-                for (int i = 0; i < numPoints; ++i) means[p] += rawPoints[i][p];
-                means[p] /= numPoints;
-            }
-            for (int p = 0; p < nPars; ++p) {
-                for (int i = 0; i < numPoints; ++i) stdDevs[p] += (rawPoints[i][p] - means[p]) * (rawPoints[i][p] - means[p]);
-                stdDevs[p] = std::sqrt(stdDevs[p] / numPoints);
-                if (stdDevs[p] < 1e-12) stdDevs[p] = 1.0; 
-            }
-            for (int i = 0; i < numPoints; ++i) {
-                for (int p = 0; p < nPars; ++p) rawPoints[i][p] = (rawPoints[i][p] - means[p]) / stdDevs[p];
+        for (int p = 0; p < nPars; ++p) {
+            for (int i = 0; i < numPoints; ++i) means[p] += rawPoints[i][p];
+            means[p] /= numPoints;
+        }
+        for (int p = 0; p < nPars; ++p) {
+            for (int i = 0; i < numPoints; ++i) stdDevs[p] += (rawPoints[i][p] - means[p]) * (rawPoints[i][p] - means[p]);
+            stdDevs[p] = std::sqrt(stdDevs[p] / numPoints);
+            if (stdDevs[p] < 1e-12) {
+                // Parameter is completely frozen in this window
+                return {kConvergenceFailure, 0.0};
             }
         }
-        
-        std::vector<ROOT::RVec<double>> points;
-        points.reserve(numPoints);
-        for (int i = 0; i < numPoints; ++i) points.emplace_back(rawPoints[i].data(), nPars);
+        for (int i = 0; i < numPoints; ++i) {
+            for (int p = 0; p < nPars; ++p) rawPoints[i][p] = (rawPoints[i][p] - means[p]) / stdDevs[p];
+        }
 
-        ROOT::RVec<double> mapped = PM_NearestNeighborProximityMap(points);
-        ROOT::RVec<double> z = Vehtari_RankNormalize(mapped);
-        
-        return Vehtari_Diagnostics(z);
+        // Evaluate Vehtari rank-normalized split-Rhat and ESS across each coordinate
+        // in the block AND along the correlated diagonal projections of the block.
+        // This avoids the 5D greedy-TSP t -> t+1 path-length monotonicity artifact
+        // (which falsely reports Rhat = sqrt((pi+2)/(pi-2)) = 2.122 at normal acceptance).
+        Double_t worstRhat = 0.0;
+        Double_t worstESS  = std::numeric_limits<Double_t>::max();
+
+        for (int p = 0; p < nPars; ++p) {
+            ROOT::RVec<double> coordSeries(numPoints);
+            for (int i = 0; i < numPoints; ++i) coordSeries[i] = rawPoints[i][p];
+
+            ROOT::RVec<double> z = Vehtari_RankNormalize(coordSeries);
+            auto diag = Vehtari_Diagnostics(z);
+            if (diag.first == kConvergenceFailure) return {kConvergenceFailure, 0.0};
+            if (diag.first > worstRhat) worstRhat = diag.first;
+            if (diag.second < worstESS) worstESS  = diag.second;
+        }
+
+        if (nPars > 1) {
+            ROOT::RVec<double> sumProj(numPoints, 0.0);
+            ROOT::RVec<double> altProj(numPoints, 0.0);
+            const double invSqrtP = 1.0 / std::sqrt(static_cast<double>(nPars));
+
+            for (int i = 0; i < numPoints; ++i) {
+                double sPlus = 0.0, sMinus = 0.0;
+                for (int p = 0; p < nPars; ++p) {
+                    sPlus  += rawPoints[i][p];
+                    sMinus += (p % 2 == 0) ? rawPoints[i][p] : -rawPoints[i][p];
+                }
+                sumProj[i] = sPlus * invSqrtP;
+                altProj[i] = sMinus * invSqrtP;
+            }
+
+            for (const auto& proj : {sumProj, altProj}) {
+                ROOT::RVec<double> z = Vehtari_RankNormalize(proj);
+                auto diag = Vehtari_Diagnostics(z);
+                if (diag.first != kConvergenceFailure) {
+                    if (diag.first > worstRhat) worstRhat = diag.first;
+                    if (diag.second < worstESS) worstESS  = diag.second;
+                }
+            }
+        }
+
+        return {worstRhat, worstESS};
     }
 
 } // namespace FIT
