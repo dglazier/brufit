@@ -21,6 +21,7 @@
 #include <RooAddition.h>
 #include <cmath>
 #include <algorithm>
+#include <numeric>
 
 namespace HS{
   namespace FIT{
@@ -62,6 +63,7 @@ namespace HS{
       SetupBasicUsage();
 
       MakeChain();
+      CalculateChainNLLStats();
     }
     
     RooAbsReal* BruMcmc::BuildNLL(RooAbsData* data,
@@ -86,37 +88,50 @@ namespace HS{
         baseNll->constOptimizeTestStatistic(RooAbsArg::Activate, false);
 
         Double_t combinedScale = 1.0;
+        fLastBetaFactor = 1.0;
         
         if (!_isBatchMode && fSetup->ApplyMCVariance()) {
-            Double_t max_sigma_rel = 0.0;
-            TString domName = "None";
+            if (fCachedBetaVal > 0.0) {
+                // Hard-staged routing: reuse frozen Beta factor during Phase 3 tuning & Phase 4 sampling
+                fLastBetaFactor = fCachedBetaVal;
+                combinedScale *= fCachedBetaVal;
+            } else {
+                Double_t max_sigma_rel = 0.0;
+                TString domName = "None";
 
-            baseNll->getVal(); 
+                baseNll->getVal(); 
 
-            RooArgSet* allComps = fPdf->getComponents();
-            for (auto* obj : *allComps) {
-                if (obj->InheritsFrom("bru::BruEventsPDF")) {
-                    auto* evPdf = static_cast<bru::BruEventsPDF*>(obj);
-                    
-                    Double_t sig = evPdf->GetRelativeVariance();
-                    if (sig > max_sigma_rel) { 
-                        max_sigma_rel = sig; 
-                        domName = evPdf->GetName(); 
+                RooArgSet* allComps = fPdf->getComponents();
+                for (auto* obj : *allComps) {
+                    if (obj->InheritsFrom("bru::BruEventsPDF")) {
+                        auto* evPdf = static_cast<bru::BruEventsPDF*>(obj);
+                        
+                        Double_t sig = evPdf->GetRelativeVariance();
+                        if (sig > max_sigma_rel) { 
+                            max_sigma_rel = sig; 
+                            domName = evPdf->GetName(); 
+                        }
                     }
                 }
-            }
-            delete allComps;
-            
-            if (max_sigma_rel > 0.0) {
-                Double_t N_data = data->sumEntries(); 
-                Double_t betaVal = 1.0 / (1.0 + N_data * (max_sigma_rel * max_sigma_rel));
-                combinedScale *= betaVal;
+                delete allComps;
                 
-                std::cout << "\n=========================================" << std::endl;
-                std::cout << " [BruMcmc Likelihood Scaling] " << std::endl;
-                std::cout << " -> Dominant PDF : " << domName << " (Rel Err: " << max_sigma_rel * 100.0 << " %)" << std::endl;
-                std::cout << " -> Beta Factor  : " << betaVal << std::endl;
-                std::cout << "=========================================\n" << std::endl;
+                if (max_sigma_rel > 0.0) {
+                    Double_t N_data = data->sumEntries(); 
+                    Double_t betaVal = 1.0 / (1.0 + N_data * (max_sigma_rel * max_sigma_rel));
+                    fLastBetaFactor = betaVal;
+                    combinedScale *= betaVal;
+                    
+                    // Lock Beta once Phase 2 mapping has finished and Phase 3/4 begins
+                    if (!_isCovarianceMode) {
+                        fCachedBetaVal = betaVal;
+                    }
+                    
+                    std::cout << "\n=========================================" << std::endl;
+                    std::cout << " [BruMcmc Likelihood Scaling] " << std::endl;
+                    std::cout << " -> Dominant PDF : " << domName << " (Rel Err: " << max_sigma_rel * 100.0 << " %)" << std::endl;
+                    std::cout << " -> Beta Factor  : " << betaVal << (fCachedBetaVal > 0.0 ? " [LOCKED]" : "") << std::endl;
+                    std::cout << "=========================================\n" << std::endl;
+                }
             }
         }
         
@@ -245,6 +260,130 @@ namespace HS{
         saveDir->cd();
     }
 
+    void BruMcmc::CalculateChainNLLStats() {
+        fMeanNLL  = 1e12;
+        fSigmaNLL = 0.0;
+        fMinNLL   = 1e12;
+
+        if (!fChainData || fChainData->numEntries() == 0) return;
+
+        const Double_t invBeta = (fLastBetaFactor > 1e-9) ? (1.0 / fLastBetaFactor) : 1.0;
+        Double_t sumW  = 0.0;
+        Double_t sumWN = 0.0;
+        Double_t minVal = 1e12;
+
+        for (int i = 0; i < fChainData->numEntries(); ++i) {
+            const RooArgSet* row = fChainData->get(i);
+            if (!row) continue;
+            Double_t w = fChainData->weight();
+            if (w <= 0.0) w = 1.0;
+
+            Double_t rawNll = row->getRealValue("nll_MarkovChain_local_", 1e12);
+            if (rawNll >= 1e11 && fChain && i + fNumBurnInSteps < fChain->Size()) {
+                rawNll = fChain->NLL(i + fNumBurnInSteps);
+            }
+            if (rawNll >= 1e11) continue;
+
+            Double_t physNll = rawNll * invBeta;
+            if (physNll < minVal) minVal = physNll;
+            sumW  += w;
+            sumWN += w * physNll;
+        }
+
+        if (sumW <= 0.0) return;
+
+        fMeanNLL = sumWN / sumW;
+        fMinNLL  = minVal;
+
+        Double_t sumVar = 0.0;
+        for (int i = 0; i < fChainData->numEntries(); ++i) {
+            const RooArgSet* row = fChainData->get(i);
+            if (!row) continue;
+            Double_t w = fChainData->weight();
+            if (w <= 0.0) w = 1.0;
+
+            Double_t rawNll = row->getRealValue("nll_MarkovChain_local_", 1e12);
+            if (rawNll >= 1e11 && fChain && i + fNumBurnInSteps < fChain->Size()) {
+                rawNll = fChain->NLL(i + fNumBurnInSteps);
+            }
+            if (rawNll >= 1e11) continue;
+
+            Double_t physNll = rawNll * invBeta;
+            Double_t diff = physNll - fMeanNLL;
+            sumVar += w * diff * diff;
+        }
+
+        fSigmaNLL = std::sqrt(sumVar / sumW);
+    }
+
+    // ======================================================================
+    // Stationarity Gate: Locate where Phase 2 NLL enters the stationary basin
+    // ======================================================================
+    size_t BruMcmc::FindStationaryBurnIn(TTree* tree, Int_t nPars) const {
+        if (!tree) return 0;
+        Long64_t nEntries = tree->GetEntries();
+        if (nEntries < 400) return static_cast<size_t>(nEntries / 2);
+
+        TBranch* nllBranch = tree->GetBranch("nll_MarkovChain_local_");
+        if (!nllBranch) return static_cast<size_t>(nEntries / 2);
+
+        Double_t nllVal = 0.0;
+        tree->ResetBranchAddresses();
+        tree->SetBranchAddress("nll_MarkovChain_local_", &nllVal);
+
+        std::vector<Double_t> nllSeries(nEntries, 0.0);
+        for (Long64_t i = 0; i < nEntries; ++i) {
+            tree->GetEntry(i);
+            nllSeries[i] = nllVal;
+        }
+        tree->ResetBranchAddresses();
+
+        // Characterize the stationary basin using the final 25% of the chain
+        Long64_t tailStart = static_cast<Long64_t>(nEntries * 0.75);
+        Long64_t tailCount = nEntries - tailStart;
+        if (tailCount <= 10) return static_cast<size_t>(nEntries / 2);
+
+        Double_t sumTail = 0.0;
+        for (Long64_t i = tailStart; i < nEntries; ++i) sumTail += nllSeries[i];
+        Double_t meanTail = sumTail / tailCount;
+
+        Double_t varTail = 0.0;
+        for (Long64_t i = tailStart; i < nEntries; ++i) {
+            Double_t d = nllSeries[i] - meanTail;
+            varTail += d * d;
+        }
+        Double_t sigmaTail = std::sqrt(varTail / (tailCount - 1));
+
+        // Allow 3.5 sigma thermal fluctuation above the stationary tail mean
+        Double_t thermalFloor = 0.5 * std::sqrt(static_cast<Double_t>(std::max(1, nPars)));
+        Double_t threshold = meanTail + std::max(3.5 * sigmaTail, thermalFloor);
+
+        // Scan forward in blocks from 25% to 70% of the chain to find where it settled
+        Long64_t minBurn = static_cast<Long64_t>(nEntries * 0.25);
+        Long64_t maxBurn = static_cast<Long64_t>(nEntries * 0.70);
+        Long64_t blockSize = std::max<Long64_t>(200, nEntries / 100);
+
+        Long64_t chosenBurn = maxBurn;
+        for (Long64_t idx = minBurn; idx <= maxBurn; idx += blockSize) {
+            Long64_t bEnd = std::min(nEntries, idx + blockSize);
+            Double_t bMean = 0.0;
+            for (Long64_t j = idx; j < bEnd; ++j) bMean += nllSeries[j];
+            bMean /= (bEnd - idx);
+
+            if (bMean <= threshold) {
+                chosenBurn = idx;
+                break;
+            }
+        }
+
+        std::cout << "BruMcmc: Stationarity gate selected burn-in = " << chosenBurn << " / " << nEntries
+                  << " (" << Form("%.1f%%", 100.0 * chosenBurn / nEntries) << " discarded, retaining "
+                  << (nEntries - chosenBurn) << " stationary steps | Tail NLL = "
+                  << Form("%.2f +/- %.2f", meanTail, sigmaTail) << ")" << std::endl;
+
+        return static_cast<size_t>(chosenBurn);
+    }
+
     Bool_t BruMcmc::MakeChain() {
       fSuccess = kFALSE; 
       
@@ -339,8 +478,9 @@ namespace HS{
         TMatrixDSym covMatSym(Npars);
         covMatSym.Zero();
 
-        // Use K contiguous sub-windows to detrend slow macroscopic drift from Phase 2
-        const Int_t numWindows = (Nentries >= 2000) ? 20 : 1;
+        // Use 4 large sub-windows to detrend residual macroscopic drift while preserving
+        // the natural oscillation period of slow polarized moments (H_1, H_2).
+        const Int_t numWindows = (Nentries >= 8000) ? 4 : 1;
         const Int_t winSize = Nentries / numWindows;
 
         for (Int_t w = 0; w < numWindows; ++w) {
@@ -399,8 +539,8 @@ namespace HS{
     }
 
     // ======================================================================
-    // Helper 4: Rogue Element Clamping, Diagonal Blending & Variance Floor
-    //           (Yields are strictly excluded and left untouched)
+    // Helper 4: Minimum Relative Variance Floor & Off-Diagonal Shrinkage
+    //           (Preserves exact diagonal variances & leaves yields untouched)
     // ======================================================================
     void BruMcmc::ApplyLinearShrinkage(TMatrixDSym& covMat, const std::vector<bool>& isYield, Double_t alpha, Double_t minRelCov) {
         int Npars = covMat.GetNrows();
@@ -414,33 +554,23 @@ namespace HS{
         }
         if (physVars.empty()) return;
 
-        // Use median physics variance so rogue elements do not skew the reference scale
         std::sort(physVars.begin(), physVars.end());
         Double_t medianPhysVar = physVars[physVars.size() / 2];
-        Double_t epsilon    = std::max(medianPhysVar * minRelCov, 1e-8);
-        Double_t varCeiling = medianPhysVar * 15.0;
+        Double_t epsilon = std::max(medianPhysVar * minRelCov, 1e-8);
 
-        // 1. Clamp rogue physics variances while preserving correlation structure; never touch yields
+        // 1. Apply floor ONLY to pinned/collapsed physics parameters (< epsilon);
+        //    never clamp large physical variances (such as low-L polarized moments H_1_0_0).
         for (int i = 0; i < Npars; i++) {
             if (isYield[i]) continue;
-            Double_t curVar = covMat(i, i);
-            Double_t clampedVar = std::clamp(curVar, epsilon, varCeiling);
-            if (curVar > 0.0 && clampedVar != curVar) {
-                Double_t rescale = std::sqrt(clampedVar / curVar);
-                for (int j = 0; j < Npars; j++) {
-                    if (isYield[j]) continue;
-                    covMat(i, j) *= rescale;
-                    covMat(j, i) *= rescale;
-                }
-                covMat(i, i) = clampedVar;
-            } else if (curVar <= 0.0) {
+            if (covMat(i, i) < epsilon) {
                 covMat(i, i) = epsilon;
             }
         }
 
         if (alpha <= 0.0) return;
 
-        // 2. Diagonal blending (Yield diagonals stay covMat(i, i) and yield off-diagonals stay 0)
+        // 2. Diagonal blending: shrinks noisy off-diagonal elements by (1 - alpha)
+        //    while preserving 100% of every diagonal variance.
         TMatrixDSym diagMat(Npars);
         diagMat.Zero();
         for (int i = 0; i < Npars; i++) {
@@ -467,7 +597,6 @@ namespace HS{
         auto pars = fSetup->NonConstParsAndYields();
         Int_t Npars = pars.size();
         
-        // --- SAFEGUARD: Prevent negative math and 0-matrices ---
         Int_t Nentries = 0;
         if (tree && tree->GetEntries() > static_cast<Long64_t>(burnin)) {
             Nentries = tree->GetEntries() - burnin;
@@ -507,18 +636,25 @@ namespace HS{
             }
         }
 
-        std::cout << "BruMcmc: Calculating Empirical Covariance for " << Nentries << " accepted steps..." << std::endl;
+        // If shrinkageAlpha < 0.0, apply mild dimension-adaptive off-diagonal shrinkage
+        // (e.g. 2.7% at d=40, 5.1% at d=77) to suppress sample noise in N*(N-1)/2 elements.
+        Double_t effAlpha = shrinkageAlpha;
+        if (effAlpha < 0.0) {
+            effAlpha = std::clamp(static_cast<Double_t>(Npars) / 1500.0, 0.02, 0.08);
+        }
+
+        std::cout << "BruMcmc: Calculating Empirical Covariance for " << Nentries
+                  << " accepted steps (Shrinkage alpha = " << effAlpha << ")..." << std::endl;
 
         std::vector<double> means = ExtractChainMeans(tree, burnin, Nentries, Npars, params, isCyclic, minVal, maxVal);
         TMatrixDSym covMatSym = CalculateEmpiricalCovariance(tree, burnin, Nentries, Npars, params, means, isCyclic, minVal, maxVal);
         
-        // Always zero off-diagonal yield covariances first so yields never mix with shape parameters
         if (decoupleYields) {
             DecoupleYields(covMatSym, isYield);
         }
         
-        if (shrinkageAlpha > 0.0 || minRelCov > 0.0) {
-            ApplyLinearShrinkage(covMatSym, isYield, shrinkageAlpha, minRelCov);
+        if (effAlpha > 0.0 || minRelCov > 0.0) {
+            ApplyLinearShrinkage(covMatSym, isYield, effAlpha, minRelCov);
         }
 
         if (decoupleYields) {
@@ -538,10 +674,12 @@ namespace HS{
           auto entryBranch = fTreeMCMC->Branch("entry", &entry, "entry/L");
           auto weightBranch = fTreeMCMC->Branch("weight", &weight, "weight/D");
           
-          const RooDataSet* internalData = fChain ? fChain->GetAsConstDataSet() : nullptr;
+          const RooDataSet* internalData = (fChain && fChain->Size() == fTreeMCMC->GetEntries())
+                                           ? fChain->GetAsConstDataSet()
+                                           : fChainData.get();
           
           for(entry = 0; entry < fTreeMCMC->GetEntries(); entry++) {
-              if (internalData) {
+              if (internalData && entry < internalData->numEntries()) {
                   internalData->get(entry); 
                   weight = internalData->weight(); 
               }
@@ -554,8 +692,10 @@ namespace HS{
     void BruMcmc::Result(){
       AddEntryBranch();
       AddFormulaToMCMCTree();
-  
-      for(auto* arg : *fParams){
+      CalculateChainNLLStats();
+
+      auto activeList = fSetup->NonConstParsAndYields();
+      for(auto* arg : activeList){
         auto* targetPar = dynamic_cast<RooRealVar*>(arg);
         if (!targetPar) continue;
         
@@ -594,14 +734,15 @@ namespace HS{
     } 
 
     void BruMcmc::AddFormulaToMCMCTree(){
+      if (!fTreeMCMC) return;
       fTreeMCMC->ResetBranchAddresses();
 
       std::cout<<"BruMcmc::AddFormulaToMCMCTree()"<<std::endl;
       auto formulas=fSetup->ParameterFormulas(); 
       if(!formulas.getSize()) return;
 
-      _formVals.reserve(formulas.getSize());
-      _formBranches.reserve(formulas.getSize());
+      _formVals.assign(formulas.getSize(), 0.0);
+      _formBranches.assign(formulas.getSize(), nullptr);
 
       Int_t iform=0;
 
@@ -618,21 +759,19 @@ namespace HS{
 
       Long64_t Nmcmc=fTreeMCMC->GetEntries();
       Int_t Nleaf=parLeaves->GetEntries();
+      RooArgSet allPars(fSetup->ParsAndYields());
  
       for(Int_t entry=0;entry<Nmcmc;entry++){
-        
         fTreeMCMC->GetEntry(entry);
  
         for(Int_t ibr=0;ibr<Nleaf;ibr++){
           auto *leaf=dynamic_cast<TLeaf*>(parLeaves->At(ibr));	
-          auto* brVar=dynamic_cast<RooRealVar*>(fParams->find(leaf->GetName()));
+          auto* brVar=dynamic_cast<RooRealVar*>(allPars.find(leaf->GetName()));
           if(brVar!=nullptr) brVar->setVal(leaf->GetValue());
-            
         }
         iform=0;
         for(auto* formu_abs:formulas){
           auto* formu=dynamic_cast<RooFormulaVar*>(formu_abs);
-          
           _formVals[iform]=formu->getValV();
           _formBranches[iform]->Fill();
           iform++;
@@ -672,6 +811,10 @@ namespace HS{
     void BruMcmc::SetupBasicUsage()
     {
       fPropFunc = nullptr;
+      if (fTreeMCMC) {
+          delete fTreeMCMC;
+          fTreeMCMC = nullptr;
+      }
       TString fileName=fSetup->GetOutDir()+fSetup->GetName()+"/Results"+fSetup->GetTitle()+GetName()+GetTag()+".root";
       fOutFile.reset(TFile::Open(fileName,"recreate"));
     }
@@ -694,8 +837,8 @@ namespace HS{
       RooArgSet saveArgs(fSetup->Parameters());
       saveArgs.add(fSetup->Yields());
       
-      RooRealVar Nllval("NLL", "NLL", fChain ? NLL() : 0.0);
-      if (fChain) {
+      RooRealVar Nllval("NLL", "NLL", NLL());
+      if (fChain || fChainData) {
           saveArgs.add(Nllval);
       }
      
@@ -725,6 +868,7 @@ namespace HS{
           fTreeMCMC->Write();
           delete fTreeMCMC; fTreeMCMC=nullptr;
       }
+      if (saveDir) saveDir->cd();
     }
 
     void BruMcmc::SetParVals(RooArgSet* toThesePars){
@@ -745,6 +889,7 @@ namespace HS{
         RooStats::SequentialProposal sp(fNorm);
         SetProposalFunction(sp);
         MakeChain();
+        CalculateChainNLLStats();
     }
 
     void BruMcmcSeqHelper::Run(Setup &setup,RooAbsData &fitdata){
@@ -756,14 +901,75 @@ namespace HS{
 
          SetProposalFunction(_proposal);
          MakeChain();
+         CalculateChainNLLStats();
+    }
+
+    // =======================================================
+    // Per-Parameter Sample Count Scaling for BruMcmcCovariance
+    // Formula: N_phase_i = Nuser_i * N_base_i * N_parameters
+    // Base defaults: N_base = {500, 5000, 250}
+    // =======================================================
+    void BruMcmcCovariance::ConfigureSampleCounts(Int_t nActivePars) {
+        if (_fUserScaleVec.empty()) return;
+
+        Int_t effectivePars = std::max(1, nActivePars);
+        _fNumItersVec.resize(_fUserScaleVec.size());
+
+        for (size_t i = 0; i < _fUserScaleVec.size(); ++i) {
+            Int_t basePerPar = (i < _baseSamplesPerPar.size()) ? _baseSamplesPerPar[i] : 250;
+            Double_t userMult = _fUserScaleVec[i];
+
+            if (_scaleSamplesByPars) {
+                // Legacy safety guard: if a script passes raw sample counts (> 500, e.g. {20000, 200000, 10000}),
+                // normalize by the 40-parameter (Lmax=4) baseline so it scales proportionally with nActivePars.
+                if (userMult > 500.0) {
+                    userMult = userMult / (static_cast<Double_t>(basePerPar) * 40.0);
+                }
+                Long64_t scaled = std::llround(userMult * static_cast<Double_t>(basePerPar) * sqrt(effectivePars));
+                _fNumItersVec[i] = static_cast<Int_t>(std::clamp<Long64_t>(scaled, 500LL, 5000000LL));
+            } else {
+                if (userMult > 500.0) {
+                    _fNumItersVec[i] = static_cast<Int_t>(std::llround(userMult));
+                } else {
+                    Long64_t scaled = std::llround(userMult * static_cast<Double_t>(basePerPar) * 40.0);
+                    _fNumItersVec[i] = static_cast<Int_t>(std::clamp<Long64_t>(scaled, 500LL, 5000000LL));
+                }
+            }
+        }
+
+        _iNIter = 0;
+        if (_fNumItersVec.size() >= 3) {
+            std::cout << "BruMcmcCovariance: Configured sample counts for " << effectivePars
+                      << " active parameters -> Phase 1 (1D): " << _fNumItersVec[0]
+                      << ", Phase 2 (ND): " << _fNumItersVec[1]
+                      << ", Phase 4 (Cov): " << _fNumItersVec[2] << std::endl;
+        }
     }
 
     // =======================================================
     // Modular Phase Implementations for BruMcmcCovariance
     // =======================================================
+    void BruMcmcCovariance::RestorePhase2Params() {
+        if (!fPhase2EndParams) return;
+        for (auto* arg : fSetup->ParsAndYields()) {
+            auto* masterVar = dynamic_cast<RooRealVar*>(arg);
+            auto* snapVar   = dynamic_cast<RooRealVar*>(fPhase2EndParams->find(arg->GetName()));
+            if (masterVar && snapVar && !masterVar->isConstant()) {
+                masterVar->setVal(snapVar->getVal());
+            }
+        }
+    }
+
     Bool_t BruMcmcCovariance::ExecutePhase1_BurnIn(Int_t maxRetries, Int_t numBatches) {
         std::cout << "\n*** Starting Phase 1: Burn-in ***" << std::endl;
         
+        // Ensure Phase 1 starts cleanly in 1D sequential mode with a 1D-appropriate acceptance window
+        _propSeq.ClearParStepScales();
+        _propSeq.SetIsSequential(kTRUE);
+        _propSeq.SetScale(fNorm);
+        _propSeq.SetAcceptanceRange(fMinAcc, fMaxAcc);
+        _propSeq.SetTargetAccept(fTargetAcc);
+
         _isBatchMode = (numBatches > 1) ? kTRUE : kFALSE;
         if (_isBatchMode) {
             BuildBatchedNLLs(numBatches);
@@ -784,7 +990,6 @@ namespace HS{
         Bool_t made = MakeChain();
         Int_t retries = 0;
         
-        // Fast Bailout Protection
         while((made == kFALSE || (fChain && fChain->Size() < fNumIters * 0.8)) && retries < maxRetries) {
             std::cout << "\n*** BruMcmcCovariance: 1DStep Aborted Early! Retrying (" << retries + 1 << "/" << maxRetries << ") with adapted scale ***\n" << std::endl;
             made = MakeChain();
@@ -801,6 +1006,66 @@ namespace HS{
             }
         }
         _isBatchMode = kFALSE;
+
+        // Extract 1D parameter step widths from the converged second half of Phase 1
+        // so Phase 2 (NDStep) steps each parameter according to its actual sensitivity
+        if (fTreeMCMC && fTreeMCMC->GetEntries() > 100) {
+            auto allPars = fSetup->NonConstParsAndYields();
+            Int_t maxPars = allPars.size();
+            size_t p1Burn = fTreeMCMC->GetEntries() / 2;
+            Int_t p1Entries = fTreeMCMC->GetEntries() - static_cast<Long64_t>(p1Burn);
+
+            std::vector<Double_t> pVals(maxPars, 0.0);
+            std::vector<RooRealVar*> activeVars;
+            activeVars.reserve(maxPars);
+            RooArgList activeParList;
+
+            Int_t pindex = 0;
+            fTreeMCMC->ResetBranchAddresses();
+            for (RooAbsArg* ipar : allPars) {
+                if (ipar->isConstant()) continue;
+                auto* var = dynamic_cast<RooRealVar*>(ipar);
+                if (var && fTreeMCMC->SetBranchAddress(var->GetName(), &pVals[pindex]) == 0) {
+                    activeVars.push_back(var);
+                    activeParList.add(*var);
+                    pindex++;
+                }
+            }
+            Int_t nPars = pindex;
+
+            if (nPars > 0 && p1Entries > 10) {
+                std::vector<bool> isCyclic(nPars, false);
+                std::vector<double> minVal(nPars, 0.0), maxVal(nPars, 0.0);
+
+                for (int i = 0; i < nPars; ++i) {
+                    if (fCyclicPars.contains(*activeVars[i])) {
+                        isCyclic[i] = true;
+                        minVal[i] = activeVars[i]->getMin();
+                        maxVal[i] = activeVars[i]->getMax();
+                    }
+                }
+
+                std::vector<double> p1Means = ExtractChainMeans(fTreeMCMC, p1Burn, p1Entries, nPars, pVals, isCyclic, minVal, maxVal);
+                TMatrixDSym p1Cov = CalculateEmpiricalCovariance(fTreeMCMC, p1Burn, p1Entries, nPars, pVals, p1Means, isCyclic, minVal, maxVal);
+                fTreeMCMC->ResetBranchAddresses();
+
+                std::vector<Double_t> p1Sigmas(nPars, 0.0);
+                for (int i = 0; i < nPars; ++i) {
+                    Double_t len = activeVars[i]->getMax() - activeVars[i]->getMin();
+                    Double_t sig = (p1Cov(i, i) > 0.0) ? std::sqrt(p1Cov(i, i)) : 0.05 * len;
+                    // Compensate for the 4x batching scale on yields during Phase 1
+                    if (fSetup->Yields().contains(*activeVars[i]) && numBatches > 1) {
+                        sig *= std::sqrt(static_cast<Double_t>(numBatches));
+                    }
+                    p1Sigmas[i] = sig;
+                }
+                _propSeq.SetParStepScales(activeParList, p1Sigmas);
+                _propSeq.SetScale(2.382 / std::sqrt(static_cast<Double_t>(std::max(1, nPars))));
+            } else {
+                fTreeMCMC->ResetBranchAddresses();
+            }
+        }
+
         return made;
     }
 
@@ -816,7 +1081,6 @@ namespace HS{
         Bool_t made = MakeChain();
         Int_t retries = 0;
         
-        // Fast Bailout Protection
         while((made == kFALSE || (fChain && fChain->Size() < fNumIters * 0.8)) && retries < maxRetries) {
             std::cout << "\n*** BruMcmcCovariance: NDStep Aborted Early! Retrying (" << retries + 1 << "/" << maxRetries << ") with adapted scale ***\n" << std::endl;
             made = MakeChain();
@@ -853,193 +1117,319 @@ namespace HS{
     }
 
     // =======================================================
-    // PHASE 3A: Pure Acceptance Tuning (Clamped Failsafe)
+    // PHASE 3A: Bracketed Acceptance Pre-Tuning
     // =======================================================
     Bool_t BruMcmcCovariance::ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries) {
         std::cout << "\n*** Phase 3A: Adaptive Acceptance Tuning ***" << std::endl;
         _isTuningMode = kTRUE;
-        _propCov.TuneCovarianceStep(kFALSE); // Lock out mid-chain CheckStepSize interference
-
-        Int_t officialIters = fNumIters;
-        SetNumIters(500); 
         
-        Bool_t tuned = kFALSE;
-        Int_t retries = 0;
-        Bool_t usedGibbsFallback = kFALSE;
+        Int_t originalIters = fNumIters;
+        Int_t tuningIters = 500;
+        SetNumIters(tuningIters);
 
-        while(!tuned && retries < maxRetries) {
-            MakeChain(); 
-            
-            std::cout << " -> Step " << retries + 1 << "/" << maxRetries 
-                      << " (Scale: " << _propCov.StepSizeFactor() << ", Gibbs: " << _propCov.GetGibbsBlockSize() << ")"
-                      << " | Acceptance: " << Form("%.2f%%", fChainAcceptance * 100.0) << std::endl;
+        Double_t currentScale = _propCov.StepSizeFactor();
+        Int_t currentGibbs = _propCov.GetGibbsBlockSize();
 
-            if (fChainAcceptance > fMinAcc && fChainAcceptance < fMaxAcc) {
-                std::cout << "--> [SUCCESS] Optimal acceptance achieved." << std::endl;
-                tuned = kTRUE;
-            } else {
-                retries++;
-                
-                // --- THE GIBBS FALLBACK TRIGGER ---
-                if (retries == maxRetries && !usedGibbsFallback) {
-                    std::cout << "\n--> [ACTION] Global jump tuning exhausted." << std::endl;
-                    std::cout << "--> Reverting to Block-Wise (Gibbs) Covariance Jumps to navigate boundaries.\n" << std::endl;
-                    
-                    Int_t fallbackSize = (_NGibbs > 0 && _NGibbs < activePars.getSize()) ? _NGibbs : 5;
-                    _propCov.SetGibbsBlockSize(fallbackSize);
-                    _propCov.SetScale(0.25); 
-                    usedGibbsFallback = kTRUE;
-                    retries = 0; 
-                } else if (retries >= maxRetries) {
-                    std::cout << "\n--> [WARNING] Acceptance tuning completely exhausted." << std::endl;
-                    std::cout << "--> Proceeding with best-effort step scale.\n" << std::endl;
-                    break;
-                } else {
-                    Double_t safeAcc = fChainAcceptance > 0.005 ? fChainAcceptance : 0.005;
-                    Double_t scaleFactor = std::clamp(safeAcc / fTargetAcc, 0.25, 3.0);
-                    Double_t currentScale = _propCov.StepSizeFactor();
-                    Double_t newScale = std::clamp(currentScale * scaleFactor, 1E-5, 10.0);
-                    _propCov.SetScale(newScale);
+        // Steer into [1.5%, 8.0%] (targeting 3.5%) before Phase 3B starts
+        Double_t effMinAcc = (_tuneMode == McmcTuneMode::kMappedRhat || fMaxAcc > 0.5) ? 0.01 : fMinAcc;
+        Double_t effMaxAcc = (_tuneMode == McmcTuneMode::kMappedRhat || fMaxAcc > 0.5) ? 0.1 : fMaxAcc;
+        Double_t targetBandCenter = (_tuneMode == McmcTuneMode::kMappedRhat || fMaxAcc > 0.5) ? 0.035 : fTargetAcc;
+        const Double_t minValidAcc = std::max(0.001, fAbsoluteMinAcc);
+
+        for (int step = 0; step < maxRetries; ++step) {
+            RestorePhase2Params();
+            _propCov.SetScale(currentScale);
+            _propCov.SetGibbsBlockSize(currentGibbs);
+            SetProposalFunction(_propCov);
+
+            Bool_t made = MakeChain();
+            Int_t actualSteps = fChain ? fChain->Size() : 0;
+            Double_t acc = fChainAcceptance;
+            Bool_t bailedOut = (!made || actualSteps < tuningIters * 0.8);
+
+            std::cout << " -> Step " << step + 1 << "/" << maxRetries 
+                      << " (Scale: " << currentScale << ", Gibbs: " << currentGibbs 
+                      << ") | Acceptance: " << acc * 100.0 << "% (Target Band: " 
+                      << effMinAcc * 100.0 << "% - " << effMaxAcc * 100.0 << "%)" << std::endl;
+
+            if (!bailedOut && acc >= effMinAcc && acc <= effMaxAcc) {
+                std::cout << "--> [SUCCESS] Optimal acceptance band achieved." << std::endl;
+                RestorePhase2Params();
+                SetNumIters(originalIters);
+                _isTuningMode = kFALSE;
+                return kTRUE;
+            }
+
+            if (bailedOut || acc < minValidAcc) {
+                currentScale *= 0.5;
+                if (currentScale < 0.02) {
+                    if (currentGibbs == 0) currentGibbs = 15;
+                    else if (currentGibbs > 5) currentGibbs = std::max(5, currentGibbs / 2);
+                    _propCov.SetGibbsBlockSize(currentGibbs);
+                    currentScale = 0.25; 
+                    std::cout << "    [FALLBACK] Global steps blocked by boundaries. Engaging Gibbs Block Size: " << currentGibbs << std::endl;
                 }
-                
-                if (fTreeMCMC) { delete fTreeMCMC; fTreeMCMC = nullptr; }
+            } else {
+                Double_t ratio = acc / targetBandCenter;
+                Double_t multiplier = 1.0;
+                if (ratio > 1.0) {
+                    multiplier = std::min(2.2, std::pow(ratio, 0.7));
+                } else {
+                    multiplier = std::max(0.45, std::pow(ratio, 0.6));
+                }
+                currentScale *= multiplier;
             }
         }
-        
-        SetNumIters(officialIters);
+
+        std::cout << "--> [WARNING] Acceptance tuning exhausted retries. Proceeding with best-effort config." << std::endl;
+        RestorePhase2Params();
+        SetNumIters(originalIters);
         _isTuningMode = kFALSE;
-        return tuned;
+        return kFALSE; 
     }
 
     // =======================================================
-    // PHASE 3B: Grouped Diagnostic Tuning (R-hat + ESS)
+    // PHASE 3B: Grouped Diagnostic Verification (R-hat + ESS)
     // =======================================================
     Bool_t BruMcmcCovariance::ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries) {
         std::cout << "\n*** Phase 3B: Grouped Diagnostic Verification (R-hat + ESS) ***" << std::endl;
         _isTuningMode = kTRUE;
-        _propCov.TuneCovarianceStep(kFALSE); // Lock out mid-chain CheckStepSize interference
-        
-        Int_t officialIters = fNumIters;
-        Int_t tuneWindow = (_rhatWindowSize > 0) ? _rhatWindowSize : 1000; 
-        Bool_t tuned = kFALSE;
-        Int_t retries = 0;
-        Bool_t usedGibbsFallback = kFALSE;
-        
-        Double_t overrideScale = _propCov.StepSizeFactor();
-        Double_t bestScale = overrideScale;
-        Int_t bestGibbsSize = _propCov.GetGibbsBlockSize();
-        Double_t bestScore = 1e9;
-        
+
+        Int_t originalIters = fNumIters;
+        Int_t nActivePars = activePars.getSize();
+
+        // Scale trial window with dimension: 1000 for d=40, 1925 for d=77, 2500 for d=126
+        Int_t tuneWindow = 5000;//std::clamp(25 * nActivePars, _rhatWindowSize, 2500);
+        // Realistic RWM ESS target in a short trial window (~15.0) so Phase 3B does not over-inflate
+        Double_t targetESS = std::max(15.0, static_cast<Double_t>(tuneWindow) / std::max(15.0, 2.5 * nActivePars));
+        // Allow acceptance down to fAbsoluteMinAcc (0.1%) in high dimensions
+        const Double_t minValidAcc = std::max(0.001, fAbsoluteMinAcc);
+
+        SetNumIters(tuneWindow);
+
+        std::vector<RooArgList> paramGroups = BuildDiagnosticGroups(activePars);
         BruMappedRhat diagHelper;
-        std::vector<RooArgList> groups = BuildDiagnosticGroups(activePars);
-        Double_t targetESS = tuneWindow * _essFraction;
 
-        while (!tuned && retries < maxRetries) {
-            _propCov.SetScale(overrideScale);
+        Int_t initialGibbs = _propCov.GetGibbsBlockSize();
+        Double_t initialScale = _propCov.StepSizeFactor();
 
-            SetNumIters(tuneWindow);
-            MakeChain();
+        Double_t bestScale = initialScale;
+        Int_t bestGibbs = initialGibbs;
+        Double_t bestScore = 1e9;
+        Double_t bestGlobalMeanRhat = 9999.0;
 
-            Double_t acc = fChainAcceptance;
-            Int_t nAccepted = fTreeMCMC ? fTreeMCMC->GetEntries() : 0;
-            Double_t totalProposals = (acc > 0.0) ? (nAccepted / acc) : tuneWindow;
-            Double_t errorFraction = (totalProposals > 0.0) ? ((Double_t)fLastEvalErrorCount / totalProposals) : 0.0;
-            std::cout << "    [DIAGNOSTIC] there were " << errorFraction << " fraction of likelihood error evaluations" << std::endl;
+        auto runTuningStage = [&](Int_t stageGibbs, Double_t startScale, Int_t stageRetries) -> Bool_t {
+            Int_t currentGibbs = stageGibbs;
+            Double_t overrideScale = startScale;
+            Double_t lastGoodScale = 0.0;
+            Double_t minBailoutScale = 1e9;
 
-            Double_t maxRhat = 0.0;
-            Double_t minESS = 1e9;
-            bool abortedEarly = (nAccepted < tuneWindow * 0.8);
-            
-            if (abortedEarly) {
-                std::cout << "    [DIAGNOSTIC] Chain aborted early (" << nAccepted << "/" << tuneWindow << " steps)." << std::endl;
-                maxRhat = BruMappedRhat::kConvergenceFailure;
-                minESS = 0.0;
-            } else {
-                for (const auto& group : groups) {
-                    std::pair<Double_t, Double_t> diag = diagHelper.CalculateDiagnostics(fTreeMCMC, group, tuneWindow);
-                    if (diag.first == BruMappedRhat::kConvergenceFailure) { maxRhat = BruMappedRhat::kConvergenceFailure; minESS = 0.0; break; }
-                    if (diag.first > maxRhat) maxRhat = diag.first;
-                    if (diag.second < minESS) minESS = diag.second;
+            for (int retry = 0; retry < stageRetries; ++retry) {
+                RestorePhase2Params();
+                _propCov.SetGibbsBlockSize(currentGibbs);
+                _propCov.SetScale(overrideScale);
+                SetProposalFunction(_propCov);
+                SetNumIters(tuneWindow);
+
+                Bool_t made = MakeChain();
+                Int_t actualSteps = fChain ? fChain->Size() : 0;
+                Double_t acc = fChainAcceptance;
+
+                double errFrac = static_cast<double>(fLastEvalErrorCount) / (actualSteps > 0 ? actualSteps : 1);
+                std::cout << "    [DIAGNOSTIC] there were " << errFrac << " fraction of likelihood error evaluations" << std::endl;
+
+                Bool_t bailedOut = (!made || actualSteps < tuneWindow * 0.85 || fTreeMCMC == nullptr);
+                if (bailedOut) {
+                    std::cout << "    [DIAGNOSTIC] Chain aborted early (" << actualSteps << "/" << tuneWindow << " steps)." << std::endl;
                 }
-            }
 
-            std::cout << " -> Step " << retries + 1 << "/" << maxRetries 
-                      << " (Scale: " << overrideScale << ", Gibbs: " << _propCov.GetGibbsBlockSize() << ")"
-                      << "\n    | Acc: " << Form("%.2f%%", acc * 100.0) 
-                      << " | Worst R-hat: " << (maxRhat == BruMappedRhat::kConvergenceFailure ? "FAIL" : Form("%.4f", maxRhat))
-                      << " | Worst ESS: " << Form("%.1f", minESS) << " (Target: >" << targetESS << ")" << std::endl;
+                Double_t maxRhat = 0.0;
+                Double_t sumRhat = 0.0;
+                Double_t minESS = 1e9;
+                Double_t sumESS = 0.0;
+                Int_t nPhysGroups = 0;
 
-            // Track best observed configuration across all trial steps (Slide 8)
-            if (maxRhat != BruMappedRhat::kConvergenceFailure && acc >= 0.003) {
-                Double_t essPenalty = (targetESS > 0.0) ? std::max(0.0, (targetESS - minESS) / targetESS) : 0.0;
-                Double_t score = maxRhat + essPenalty;
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestScale = overrideScale;
-                    bestGibbsSize = _propCov.GetGibbsBlockSize();
-                }
-            }
-
-            if (maxRhat != BruMappedRhat::kConvergenceFailure && maxRhat <= _rhatTarget && minESS >= targetESS) {
-                std::cout << "--> [SUCCESS] Topology is symmetric and ESS is healthy across all groups." << std::endl;
-                bestScale = overrideScale;
-                bestGibbsSize = _propCov.GetGibbsBlockSize();
-                tuned = kTRUE;
-            } else {
-                retries++;
-                
-                if (retries == maxRetries && !usedGibbsFallback) {
-                    std::cout << "\n--> [ACTION] Global jump tuning exhausted." << std::endl;
-                    std::cout << "--> Reverting to Block-Wise (Gibbs) Covariance Jumps to navigate boundaries.\n" << std::endl;
-                    
-                    Int_t fallbackSize = (_NGibbs > 0 && _NGibbs < activePars.getSize()) ? _NGibbs : 5;
-                    _propCov.SetGibbsBlockSize(fallbackSize);
-                    usedGibbsFallback = kTRUE;
-                    retries = 0; 
-                    overrideScale = 0.5;
-                } else if (retries >= maxRetries) {
-                    std::cout << "\n===========================================================" << std::endl;
-                    std::cout << " [WARNING] Diagnostic tuning exhausted. Restoring best observed" << std::endl;
-                    std::cout << "           config (Scale = " << bestScale << ", Gibbs = " << bestGibbsSize << ")." << std::endl;
-                    std::cout << "===========================================================\n" << std::endl;
-                    break;
+                if (!bailedOut && fTreeMCMC != nullptr) {
+                    for (size_t i = 0; i < paramGroups.size(); ++i) {
+                        std::pair<Double_t, Double_t> res = diagHelper.CalculateDiagnostics(fTreeMCMC, paramGroups[i]);
+                        if (i > 0 || paramGroups.size() == 1) {
+                            if (res.first > maxRhat) maxRhat = res.first;
+                            if (res.second < minESS) minESS = res.second;
+                            sumRhat += res.first;
+                            sumESS += res.second;
+                            nPhysGroups++;
+                        }
+                    }
                 } else {
-                    // Bidirectional scale adaptation:
-                    // If chain bailed out early or acceptance collapsed (< 0.5%), shrink step size.
-                    // Otherwise, inflate step size to take broader, less correlated jumps.
-                    if (abortedEarly || acc < 0.005) {
-                        overrideScale = std::max(overrideScale * 0.5, 1e-4);
-                        std::cout << "    [DIAGNOSTIC] Acceptance too low / bailout. Shrinking step scale to " << overrideScale << std::endl;
-                    } else {
-                        overrideScale = std::min(overrideScale * 1.4, 5.0);
-                        std::cout << "    [DIAGNOSTIC] Poor ESS/R-hat. Forcing step scale to " << overrideScale << " for broader mixing." << std::endl;
+                    maxRhat = BruMappedRhat::kConvergenceFailure;
+                    minESS = 0.0;
+                }
+
+                Double_t meanRhat = (nPhysGroups > 0) ? (sumRhat / nPhysGroups) : BruMappedRhat::kConvergenceFailure;
+                Double_t meanESS  = (nPhysGroups > 0) ? (sumESS / nPhysGroups) : 0.0;
+
+                std::cout << " -> Step " << retry + 1 << "/" << stageRetries
+                          << " (Scale: " << overrideScale << ", Gibbs: " << currentGibbs << ", Win: " << tuneWindow << ")\n"
+                          << "    | Acc: " << acc * 100.0 << "%"
+                          << " | Mean R-hat: " << (meanRhat > 100 ? "FAIL" : Form("%.4f", meanRhat))
+                          << " | Worst R-hat: " << (maxRhat > 100 ? "FAIL" : Form("%.4f", maxRhat))
+                          << " | Mean ESS: " << Form("%.1f", meanESS)
+                          << " | Worst ESS: " << Form("%.1f", minESS)
+                          << " (Target: >" << Form("%.1f", targetESS) << ")" << std::endl;
+
+                if (!bailedOut && acc >= minValidAcc && meanRhat < 50.0) {
+                    Double_t score = meanRhat + 0.35 * (maxRhat - meanRhat) - 0.002 * meanESS;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestScale = overrideScale;
+                        bestGibbs = currentGibbs;
+                    }
+                    if (currentGibbs == 0 && meanRhat < bestGlobalMeanRhat) {
+                        bestGlobalMeanRhat = meanRhat;
                     }
                 }
 
-                if (fTreeMCMC) { delete fTreeMCMC; fTreeMCMC = nullptr; }
+                if (!bailedOut && acc >= minValidAcc &&
+                    (((maxRhat <= _rhatTarget) && (meanESS >= (targetESS * 0.75))) )) {
+                    std::cout << "--> [SUCCESS] All parameter blocks achieved stationarity and mixing!" << std::endl;
+                    bestScale = overrideScale;
+                    bestGibbs = currentGibbs;
+                    return kTRUE;
+                }
+
+                // Bracketed geometric search: only bisect downward on bailout or acc < minValidAcc (0.1%)
+                if (bailedOut || acc < minValidAcc) {
+                    minBailoutScale = std::min(minBailoutScale, overrideScale);
+                    if (lastGoodScale > 0.0) {
+                        overrideScale = std::sqrt(lastGoodScale * minBailoutScale);
+                        std::cout << "    [DIAGNOSTIC] Bailout/low-acc at ceiling. Bisecting scale to " << overrideScale
+                                  << " in bracket [" << lastGoodScale << ", " << minBailoutScale << "]." << std::endl;
+                    } else {
+                        overrideScale *= 0.6;
+                        std::cout << "    [DIAGNOSTIC] Bailout at initial scale. Deflating scale to " << overrideScale << std::endl;
+                    }
+                } else {
+                    lastGoodScale = std::max(lastGoodScale, overrideScale);
+                    if (minBailoutScale < 1e8) {
+                        Double_t nextScale = std::sqrt(lastGoodScale * minBailoutScale);
+                        if (std::abs(nextScale - overrideScale) / overrideScale < 0.05) {
+                            std::cout << "    [DIAGNOSTIC] Bracket converged around scale = " << bestScale << "." << std::endl;
+                            break;
+                        }
+                        overrideScale = nextScale;
+                        std::cout << "    [DIAGNOSTIC] Bisecting upward toward bailout ceiling: scale = " << overrideScale << std::endl;
+                    } else {
+                        overrideScale *= 1.35;
+                        std::cout << "    [DIAGNOSTIC] Inflating step scale to " << overrideScale << " for broader mixing." << std::endl;
+                    }
+                }
+            }
+            return kFALSE;
+        };
+
+        // Stage 1: Global Covariance Jumps (or user-specified initialGibbs)
+        if (runTuningStage(initialGibbs, initialScale, maxRetries)) {
+            _propCov.SetGibbsBlockSize(bestGibbs);
+            _propCov.SetScale(bestScale);
+            RestorePhase2Params();
+            SetNumIters(originalIters);
+            _isTuningMode = kFALSE;
+            return kTRUE;
+        }
+
+        // Stage 2: Conditional Gibbs Fallback ONLY if Global jumps completely failed (Mean R-hat > 1.50)
+        if (initialGibbs == 0 && bestGlobalMeanRhat > 1.50) {
+            Int_t fallbackGibbs = std::clamp(nActivePars / 4, 5, 25);
+            std::cout << "\n===========================================================\n"
+                      << " [FALLBACK] Global jumps failed to mix (Best Mean R-hat = " << bestGlobalMeanRhat << ").\n"
+                      << "            Engaging Gibbs Block Size = " << fallbackGibbs << ".\n"
+                      << "===========================================================\n" << std::endl;
+            if (runTuningStage(fallbackGibbs, 0.35, std::max(3, maxRetries / 2))) {
+                _propCov.SetGibbsBlockSize(bestGibbs);
+                _propCov.SetScale(bestScale);
+                RestorePhase2Params();
+                SetNumIters(originalIters);
+                _isTuningMode = kFALSE;
+                return kTRUE;
             }
         }
 
-        // Lock optimal scale and Gibbs block size for Phase 4
-        _propCov.SetGibbsBlockSize(bestGibbsSize);
+        std::cout << "\n===========================================================\n"
+                  << " [INFO] Diagnostic tuning complete. Locking best observed\n"
+                  << "        config (Scale = " << bestScale << ", Gibbs = " << bestGibbs << ").\n"
+                  << "===========================================================\n" << std::endl;
+
+        _propCov.SetGibbsBlockSize(bestGibbs);
         _propCov.SetScale(bestScale);
-        SetNumIters(officialIters);
+        RestorePhase2Params();
+        SetNumIters(originalIters);
         _isTuningMode = kFALSE;
-        return tuned;
+        return (bestGlobalMeanRhat <= 1.35);
     }
-   
+
     // =======================================================
     // PHASE 4: Official Run
     // =======================================================
     Bool_t BruMcmcCovariance::ExecutePhase4_Official() {
+        RestorePhase2Params();
+        if (_fNumItersVec.size() >= 3) {
+            SetNumIters(_fNumItersVec[2]);
+        }
+        SetProposalFunction(_propCov);
         std::cout << "\n*** Launching Official Covariance Chain (Scale: "
                   << _propCov.StepSizeFactor() << ", Gibbs: " << _propCov.GetGibbsBlockSize() << ") ***\n" << std::endl;
         _isResultMode = kTRUE;
-        _propCov.TuneCovarianceStep(kFALSE); // Keep transition kernel strictly stationary in Phase 4
+        _propCov.TuneCovarianceStep(kFALSE);
         Bool_t made = MakeChain();
         if(!made) std::cerr << "BruMcmcCovariance: Official covariance chain failed." << std::endl;
         _isResultMode = kFALSE;
         return made;
+    }
+
+    void BruMcmcCovariance::WriteDiagnosticsAndCovariance(const TMatrixDSym& finalCovMat,
+                                                          const std::vector<Double_t>& rhatVals,
+                                                          const std::vector<Double_t>& essVals) {
+        if (!fOutFile) return;
+        auto saveDir = gDirectory;
+        fOutFile->cd();
+
+        finalCovMat.Write("PosteriorCovariance");
+
+        Double_t finalAcc = fChainAcceptance;
+        Double_t meanNll  = fMeanNLL;
+        Double_t sigmaNll = fSigmaNLL;
+        Double_t minNll   = fMinNLL;
+        Double_t maxRhat  = fMaxRhat;
+        Double_t minEss   = fMinESS;
+        Double_t meanEss  = fMeanESS;
+
+        auto allPars = fSetup->NonConstParsAndYields();
+        std::vector<RooArgList> paramGroups = BuildDiagnosticGroups(allPars);
+        std::vector<Double_t> localRhat = rhatVals;
+        std::vector<Double_t> localEss  = essVals;
+        localRhat.resize(paramGroups.size(), 0.0);
+        localEss.resize(paramGroups.size(), 0.0);
+
+        TTree* diagTree = new TTree("MCDiagnostics", "MCMC Convergence Diagnostics");
+        diagTree->Branch("Acceptance", &finalAcc, "Acceptance/D");
+        diagTree->Branch("MeanNLL", &meanNll, "MeanNLL/D");
+        diagTree->Branch("SigmaNLL", &sigmaNll, "SigmaNLL/D");
+        diagTree->Branch("MinNLL", &minNll, "MinNLL/D");
+        diagTree->Branch("MaxRhat", &maxRhat, "MaxRhat/D");
+        diagTree->Branch("MinESS", &minEss, "MinESS/D");
+        diagTree->Branch("MeanESS", &meanEss, "MeanESS/D");
+
+        for (size_t i = 0; i < paramGroups.size(); ++i) {
+            TString groupName = (i == 0 && fSetup->Yields().getSize() > 0) ? "Yields" : Form("Physics_Block_%zu", i);
+            diagTree->Branch(groupName + "_Rhat", &localRhat[i], groupName + "_Rhat/D");
+            diagTree->Branch(groupName + "_ESS", &localEss[i], groupName + "_ESS/D");
+        }
+        diagTree->Fill();
+        diagTree->Write();
+        delete diagTree;
+
+        if (saveDir) saveDir->cd();
+        std::cout << "--> Diagnostics successfully written to 'MCDiagnostics' tree.\n" << std::endl;
     }
 
     // ==============================================================================================
@@ -1049,13 +1439,28 @@ namespace HS{
         fData = &fitdata;
         fSetup = &setup;
         InitModel();
+
+        auto allPars = fSetup->NonConstParsAndYields();
+        ConfigureSampleCounts(allPars.size());
+
+        // Reset per-chain cached state
+        fCachedBetaVal = -1.0;
+        fLastBetaFactor = 1.0;
+        fMeanNLL = 1e12;
+        fSigmaNLL = 0.0;
+        fMinNLL = 1e12;
+        fMaxRhat = BruMappedRhat::kConvergenceFailure;
+        fMinESS = 0.0;
+        fMeanESS = 0.0;
+        fWasRescued = kFALSE;
+        fPhase2EndParams.reset();
         
         _propSeq.SetCyclicParameters(fCyclicPars);
         _propCov.SetCyclicParameters(fCyclicPars);
         _propSeq.SetScale(fNorm);
         _propCov.SetScale(fNorm);
         _propCov.SetYields(fSetup->Yields()); 
-        _propCov.TuneCovarianceStep(kFALSE); // Prevent mid-chain CheckStepSize interference on _propCov
+        _propCov.TuneCovarianceStep(kFALSE);
 	
         _propSeq.SetGibbsBlockSize(_NGibbs);
         _propCov.SetGibbsBlockSize(_NGibbs);
@@ -1085,22 +1490,24 @@ namespace HS{
         
         if (fTreeMCMC != nullptr && _doCov) {
             
-            // --- BACKUP MAPPING DATA BEFORE DELETION ---
+            // Snapshot converged Phase 2 parameters so Phase 3 trial chains never corrupt Phase 4's start
+            RooArgSet allParsAndYields(fSetup->ParsAndYields());
+            fPhase2EndParams.reset(dynamic_cast<RooArgSet*>(allParsAndYields.snapshot()));
+
             if (fChainData) {
                 phase2DataBackup.reset(dynamic_cast<RooDataSet*>(fChainData->Clone("phase2_backup")));
             }
 
             ChangeNIter();
             
-            // EXTRACT CONVERGED TAIL OF PHASE 2 WITH DETRENDING, YIELD DECOUPLING, AND SHRINKAGE
-            size_t actualBurnIn = fTreeMCMC->GetEntries() / 2;
+            // Locate stationary burn-in point from Phase 2 NLL trajectory and apply adaptive shrinkage
+            size_t actualBurnIn = FindStationaryBurnIn(fTreeMCMC, allPars.size());
             std::unique_ptr<TMatrixDSym> covMat(new TMatrixDSym(
-                MakeMcmcCovarianceMatrix(fTreeMCMC, actualBurnIn, kTRUE, 0.15, 0.05)));
+                MakeMcmcCovarianceMatrix(fTreeMCMC, actualBurnIn, kTRUE, -1.0, 1e-4)));
 
-            auto allPars = fSetup->NonConstParsAndYields();
             _propCov.SetCovariance(*covMat, allPars);
             
-            SaveStepInfo(); // This deletes fTreeMCMC!
+            SaveStepInfo();
             fTreeMCMC = nullptr; 
             
             SetTag("");
@@ -1108,7 +1515,7 @@ namespace HS{
             
             _propCov.SetGibbsBlockSize(0);
             _propCov.TuneCovarianceStep(kFALSE);
-            _propCov.SetScale(0.25); // Start with conservative scale
+            _propCov.SetScale(0.25);
 
             SetProposalFunction(_propCov);
 
@@ -1124,9 +1531,8 @@ namespace HS{
                     std::cout << "=======================================================\n" << std::endl;
                 }
 
-                // STRICTLY DECOUPLED TUNING PIPELINE
                 if (fTuneCovStep || _tuneCovStep) {
-                    ExecuteTuning_Acceptance(allPars, 10);
+                    ExecuteTuning_Acceptance(allPars, 8);
                 }
                 if (_tuneMode == McmcTuneMode::kMappedRhat) {
                     ExecuteTuning_MappedRhat(allPars, _rhatMaxRetries);
@@ -1155,6 +1561,7 @@ namespace HS{
                         fChainAcceptance = _coldTargetAcc;
                         
                         fNumBurnInSteps = 0;
+                        fWasRescued = kTRUE;
                         globalConvergence = kTRUE;
                     } else {
                         std::cout << " -> Phase 2 mapping data was also severely truncated. Cannot safely rescue." << std::endl;
@@ -1162,14 +1569,16 @@ namespace HS{
                 }
                 
                 if (fTreeMCMC != nullptr) {
-                    
+                    CalculateChainNLLStats();
+
                     std::cout << "\n*** Calculating Sub-Set Diagnostics (R-hat & ESS) ***" << std::endl;
                     BruMappedRhat diagHelper;
                     std::vector<RooArgList> paramGroups = BuildDiagnosticGroups(allPars);
                     
-                    Double_t finalAcc = fChainAcceptance;
                     Double_t maxRhat = 0.0;
                     Double_t minESS = 1e9;
+                    Double_t sumESS = 0.0;
+                    Int_t nEssGroups = 0;
                     
                     std::vector<Double_t> rhatVals(paramGroups.size());
                     std::vector<Double_t> essVals(paramGroups.size());
@@ -1181,12 +1590,18 @@ namespace HS{
                         
                         if (res.first > maxRhat) maxRhat = res.first;
                         if (res.second < minESS) minESS = res.second;
+                        sumESS += res.second;
+                        nEssGroups++;
                         
                         TString groupName = (i == 0 && fSetup->Yields().getSize() > 0) ? "Yields" : Form("Physics_Block_%zu", i);
                         std::cout << " -> " << groupName << " [" << paramGroups[i].getSize() << " pars]" 
                                   << " | R-hat: " << Form("%.4f", rhatVals[i]) 
                                   << " | ESS: " << Form("%.1f", essVals[i]) << std::endl;
                     }
+
+                    fMaxRhat = maxRhat;
+                    fMinESS  = (nEssGroups > 0) ? minESS : 0.0;
+                    fMeanESS = (nEssGroups > 0) ? (sumESS / nEssGroups) : 0.0;
 
                     if (globalConvergence) {
                         std::cout << "--> [SUCCESS] Posterior rescued and finalized." << std::endl;
@@ -1198,7 +1613,7 @@ namespace HS{
                             std::cout << "--> [WARNING] Chain failed global convergence (Worst R-hat: " << maxRhat << ")." << std::endl;
                             
                             std::cout << "--> Rebuilding covariance matrix from recent sampling to improve proposal..." << std::endl;
-                            TMatrixDSym rescuedMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kTRUE, 0.15, 0.05);
+                            TMatrixDSym rescuedMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kTRUE, -1.0, 1e-4);
                             _propCov.SetCovariance(rescuedMat, allPars);
                             
                             if (fTreeMCMC) { delete fTreeMCMC; fTreeMCMC = nullptr; }
@@ -1209,23 +1624,12 @@ namespace HS{
 
                     if (globalConvergence || globalRetryCount == maxGlobalRetries - 1) {
                         TMatrixDSym finalCovMat = MakeMcmcCovarianceMatrix(fTreeMCMC, fNumBurnInSteps, kTRUE, 0.0, 0.0);
-                        if (fOutFile) {
-                            fOutFile->cd();
-                            finalCovMat.Write("PosteriorCovariance");
-                            
-                            TTree* diagTree = new TTree("MCDiagnostics", "MCMC Convergence Diagnostics");
-                            diagTree->Branch("Acceptance", &finalAcc, "Acceptance/D");
-                            for (size_t i = 0; i < paramGroups.size(); ++i) {
-                                TString groupName = (i == 0 && fSetup->Yields().getSize() > 0) ? "Yields" : Form("Physics_Block_%zu", i);
-                                diagTree->Branch(groupName + "_Rhat", &rhatVals[i], groupName + "_Rhat/D");
-                                diagTree->Branch(groupName + "_ESS", &essVals[i], groupName + "_ESS/D");
-                            }
-                            diagTree->Fill(); 
-                            diagTree->Write(); 
-                            delete diagTree; 
-                            
-                            std::cout << "--> Diagnostics successfully written to 'MCDiagnostics' tree.\n" << std::endl;
-                        }
+                        fLastPosteriorCov.ResizeTo(finalCovMat.GetNrows(), finalCovMat.GetNcols());
+                        fLastPosteriorCov = finalCovMat;
+                        fLastRhatVals = rhatVals;
+                        fLastEssVals  = essVals;
+
+                        WriteDiagnosticsAndCovariance(finalCovMat, rhatVals, essVals);
                     }
                 } 
                 

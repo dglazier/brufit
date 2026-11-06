@@ -9,6 +9,7 @@
 #include "Minimiser.h"
 #include "BruSequentialProposal.h"
 #include "BruCovarianceProposal.h"
+#include "BruMappedRhat.h"
 #include <RooAbsData.h>
 #include <TTree.h>
 #include <RooStats/MarkovChain.h>
@@ -16,7 +17,9 @@
 #include <RooFitResult.h>
 #include <RooProduct.h>
 #include <RooAddition.h>
+#include <TMatrixDSym.h>
 #include <memory> 
+#include <vector>
 
 namespace HS{
   namespace FIT{
@@ -53,7 +56,7 @@ namespace HS{
       
       Bool_t MakeChain();
       TMatrixDSym MakeMinuitCovarianceMatrix();
-      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree, size_t burnin, Bool_t decoupleYields = kTRUE, Double_t shrinkageAlpha = 0.15, Double_t minRelCov = 0.05);
+      TMatrixDSym MakeMcmcCovarianceMatrix(TTree* tree, size_t burnin, Bool_t decoupleYields = kTRUE, Double_t shrinkageAlpha = -1.0, Double_t minRelCov = 1e-4);
       TTree* GetTree(){return fTreeMCMC;}
       Double_t SumWeights();
       Double_t SumWeights2();
@@ -61,7 +64,16 @@ namespace HS{
       void NoWeightCorrection(){fCorrectForWeights=kFALSE;}
       
       void Result();
-      Double_t NLL(){return fChain->NLL();}
+      Double_t NLL(){ return (fMeanNLL < 1e11) ? fMeanNLL : (fChain ? fChain->NLL() : 0.0); }
+
+      // Post-burn-in Chain NLL & Convergence Diagnostic Getters
+      Double_t GetMeanNLL() const { return fMeanNLL; }
+      Double_t GetSigmaNLL() const { return fSigmaNLL; }
+      Double_t GetMinNLL() const { return fMinNLL; }
+      Double_t GetMaxRhat() const { return fMaxRhat; }
+      Double_t GetMinESS() const { return fMinESS; }
+      Double_t GetMeanESS() const { return fMeanESS; }
+      Bool_t   WasRescued() const { return fWasRescued; }
 
       //MCMCCalculator
       void InitModel(); 
@@ -108,6 +120,8 @@ namespace HS{
    protected :
       bool RunHastings(RooAbsReal* nll);
       void SaveChainToTree();
+      void CalculateChainNLLStats();
+      size_t FindStationaryBurnIn(TTree* tree, Int_t nPars) const;
 
       void AddEntryBranch();
       void CleanMakeChain(){};
@@ -192,11 +206,22 @@ namespace HS{
       Bool_t _isTuningMode=kFALSE;
       Bool_t _isResultMode=kFALSE;
 
+      // Locked Beta Factor & Chain Summary Metrics
+      Double_t fCachedBetaVal = -1.0; //!
+      Double_t fLastBetaFactor = 1.0; //!
+      Double_t fMeanNLL = 1e12;       //!
+      Double_t fSigmaNLL = 0.0;       //!
+      Double_t fMinNLL = 1e12;        //!
+      Double_t fMaxRhat = BruMappedRhat::kConvergenceFailure; //!
+      Double_t fMinESS = 0.0;         //!
+      Double_t fMeanESS = 0.0;        //!
+      Bool_t   fWasRescued = kFALSE;  //!
+
       // Tuning State Variables
       McmcTuneMode _tuneMode = McmcTuneMode::kAcceptance; 
-      Int_t _rhatWindowSize = 1000;
-      Double_t _rhatTarget = 1.05;
-      Int_t _rhatMaxRetries = 5;
+      Int_t _rhatWindowSize = 5000;
+      Double_t _rhatTarget = 1.1;
+      Int_t _rhatMaxRetries = 6;
       
       ClassDefOverride(HS::FIT::BruMcmc,1);
       
@@ -245,14 +270,27 @@ namespace HS{
        SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
        SetDesiredAcceptance(accmin,accmax,target);
      }
+
+     // Accepts {Nuser1, Nuser2, Nuser3} multipliers (or legacy sample counts)
+     BruMcmcCovariance(std::vector<Double_t> Nuser,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.16,float accmax=0.3):
+        BruMcmc(100,Nburn,norm),
+        _propSeq{norm,target,accmin,accmax},
+        _propCov{norm,target,accmin,accmax},
+        _fUserScaleVec{Nuser}
+    {
+       SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
+       SetDesiredAcceptance(accmin,accmax,target);
+    }
+
      BruMcmcCovariance(std::vector<Int_t> Niters,Int_t Nburn=10, Float_t norm=0.01,float target=0.234,float accmin=0.16,float accmax=0.3):
-        BruMcmc(Niters[0],Nburn,norm),
+        BruMcmc(Niters.empty() ? 100 : Niters[0],Nburn,norm),
         _propSeq{norm,target,accmin,accmax},
         _propCov{norm,target,accmin,accmax},
         _fNumItersVec{Niters}
     {
        SetNameTitle("BruMcmcCovariance","BruMcmcCovariance minimiser");
        SetDesiredAcceptance(accmin,accmax,target);
+       _fUserScaleVec.assign(Niters.begin(), Niters.end());
     }
   
      void Run(Setup &setup,RooAbsData &fitdata) override;
@@ -264,13 +302,24 @@ namespace HS{
      void SetTuneCovariance(Bool_t keep=kTRUE) override { _tuneCovStep=keep; fTuneCovStep=keep; }
      
      // --------------------------------------------------------
+     // Per-Parameter Sample Scaling Configuration
+     // Formula: N_phase_i = Nuser_i * N_base_i * N_parameters
+     // Default base values: N1 = 500 (1D), N2 = 5000 (ND), N3 = 250 (Cov)
+     // (For N_pars = 40 at Lmax=4, {1, 1, 1} -> {20000, 200000, 10000})
+     // --------------------------------------------------------
+     void SetBaseSamplesPerParameter(Int_t n1 = 500, Int_t n2 = 5000, Int_t n3 = 250) {
+       _baseSamplesPerPar = {n1, n2, n3};
+     }
+     void SetScaleSamplesByParams(Bool_t scale = kTRUE) { _scaleSamplesByPars = scale; }
+
+     // --------------------------------------------------------
      // Robust Configuration Setters
      // --------------------------------------------------------
      void SetTuningMode(McmcTuneMode mode) { _tuneMode = mode; }
      void SetGibbsBlockSize(Int_t size) { _NGibbs = size; }
      void SetColdWarmUpAcceptance(Double_t acc) { _coldTargetAcc = acc; }
     
-     void SetDiagnosticTuningParameters(Int_t initialWindow = 1000, Double_t targetRhat = 1.05, Double_t essFraction = 0.10, Int_t maxRetries = 5) {
+     void SetDiagnosticTuningParameters(Int_t initialWindow = 1000, Double_t targetRhat = 1.05, Double_t essFraction = 0.08, Int_t maxRetries = 6) {
             _rhatWindowSize = initialWindow;
             _rhatTarget = targetRhat;
             _essFraction = essFraction; 
@@ -282,35 +331,49 @@ namespace HS{
         SetNumIters(_fNumItersVec[_iNIter]);
        std::cout<<" change nuiters "<<_fNumItersVec[_iNIter]<<" "<<_iNIter<<" "<<_fNumItersVec.size()<<std::endl;
        _iNIter++;
-    }
+     }
      void ResetNIter() { _iNIter = 0; }
 
+     const TMatrixDSym& GetLastPosteriorCov() const { return fLastPosteriorCov; }
+     const std::vector<Double_t>& GetLastRhatVals() const { return fLastRhatVals; }
+     const std::vector<Double_t>& GetLastEssVals() const { return fLastEssVals; }
+
    protected:
+        void ConfigureSampleCounts(Int_t nActivePars);
         virtual Bool_t ExecutePhase1_BurnIn(Int_t maxRetries, Int_t numBatches);
         virtual Bool_t ExecutePhase2_Mapping(Int_t maxRetries);
         Bool_t ExecutePhase3_Tuning(const RooArgSet& activePars, Int_t maxRetries = 10);
-        Bool_t ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries = 10);
-        Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 5);
+        Bool_t ExecuteTuning_Acceptance(const RooArgSet& activePars, Int_t maxRetries = 8);
+        Bool_t ExecuteTuning_MappedRhat(const RooArgSet& activePars, Int_t maxRetries = 6);
         virtual Bool_t ExecutePhase4_Official();
         std::vector<RooArgList> BuildDiagnosticGroups(const RooArgSet& activePars);
+        void RestorePhase2Params();
+        void WriteDiagnosticsAndCovariance(const TMatrixDSym& finalCovMat,
+                                           const std::vector<Double_t>& rhatVals,
+                                           const std::vector<Double_t>& essVals);
 
         BruSequentialProposal _propSeq;
         BruCovarianceProposal _propCov;
 
         std::vector<Int_t> _fNumItersVec;
+        std::vector<Double_t> _fUserScaleVec;
+        std::vector<Int_t> _baseSamplesPerPar = {50, 500, 100};
+        Bool_t _scaleSamplesByPars = kTRUE;
         UInt_t _iNIter = 0;
         
         Bool_t _doSeq = kTRUE;
         Bool_t _doND = kTRUE;
         Bool_t _doCov = kTRUE;
         Bool_t _tuneCovStep = kFALSE;
-        Double_t _essFraction = 0.10; 
+        Double_t _essFraction = 0.08; 
         
-        // --------------------------------------------------------
-        // Gibbs and Warm-Up State Variables
-        // --------------------------------------------------------
         Int_t _NGibbs = 0;               
         Double_t _coldTargetAcc = 0.15;  
+
+        std::unique_ptr<RooArgSet> fPhase2EndParams; //!
+        TMatrixDSym fLastPosteriorCov;               //!
+        std::vector<Double_t> fLastRhatVals;         //!
+        std::vector<Double_t> fLastEssVals;          //!
 
       ClassDefOverride(HS::FIT::BruMcmcCovariance,1);
    };

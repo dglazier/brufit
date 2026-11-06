@@ -31,6 +31,7 @@ namespace HS{
       
       // Make virtual so derived classes update Cholesky when scale or block size changes
       virtual void SetScale(Float_t scale) { fScale = scale; }
+      Float_t GetScale()const {return fScale;}
       virtual Bool_t CheckStepSize(Float_t acceptance);
 
       Float_t StepSizeFactor() const {return fScale;}
@@ -39,10 +40,15 @@ namespace HS{
       virtual void SetGibbsBlockSize(Int_t size) { _gibbsBlockSize = size; }
       Int_t GetGibbsBlockSize() const { return _gibbsBlockSize; }
 
+      // Per-parameter empirical step widths learned from Phase 1 (1DStep)
+      void SetParStepScales(const RooArgList& pars, const std::vector<Double_t>& sigmas);
+      void ClearParStepScales() { _parStepNames.clear(); _parStepSigmas.clear(); _cachedStepWidths.clear(); }
+
       virtual void ResetCounter(){
         fNminScale = 0;
         _inValley = kFALSE;
         _varCache.clear(); 
+        _cachedStepWidths.clear();
       }    
 
       void SetCyclicParameters(const RooArgList& cyclics) { 
@@ -53,7 +59,6 @@ namespace HS{
 
     protected:
       RooArgList fCyclicPars;
-      // Protected so BruCovarianceProposal can access block sizes
       Int_t _gibbsBlockSize = 0; // 0 = Full Global Jumps
 
     private:
@@ -67,6 +72,9 @@ namespace HS{
       
       Bool_t _inValley = kFALSE; 
       std::vector<RooRealVar*> _varCache; 
+      std::vector<std::string> _parStepNames;
+      std::vector<Double_t> _parStepSigmas;
+      std::vector<Double_t> _cachedStepWidths;
  
       ClassDefOverride(BruSequentialProposal,1) 
     };

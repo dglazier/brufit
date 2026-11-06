@@ -16,17 +16,42 @@ namespace HS{
       fMaxAcc{accmax}
     {
     }
+
+    void BruSequentialProposal::SetParStepScales(const RooArgList& pars, const std::vector<Double_t>& sigmas) {
+      _parStepNames.clear();
+      _parStepSigmas.clear();
+      _cachedStepWidths.clear();
+
+      int n = std::min(static_cast<int>(pars.getSize()), static_cast<int>(sigmas.size()));
+      for (int i = 0; i < n; ++i) {
+        _parStepNames.emplace_back(pars.at(i)->GetName());
+        _parStepSigmas.push_back(sigmas[i]);
+      }
+    }
  
     void BruSequentialProposal::Propose(RooArgSet& xPrime, RooArgSet& x )
     {
       RooStats::SetParameters(&x, &xPrime);
       int n = xPrime.getSize();
       
-      // 1. FAST C++ POINTER CACHE
+      // 1. FAST C++ POINTER & STEP-WIDTH CACHE
       if (_varCache.empty() || _varCache.size() != (size_t)n) {
           _varCache.clear();
+          _cachedStepWidths.clear();
           for (auto *var : static_range_cast<RooRealVar *>(xPrime)) {
               _varCache.push_back(var);
+              double len = var->getMax() - var->getMin();
+              double width = len;
+              if (!_parStepNames.empty()) {
+                  std::string vname = var->GetName();
+                  for (size_t k = 0; k < _parStepNames.size(); ++k) {
+                      if (_parStepNames[k] == vname && _parStepSigmas[k] > 0.0) {
+                          width = std::clamp(_parStepSigmas[k], 1e-4 * len, 0.5 * len);
+                          break;
+                      }
+                  }
+              }
+              _cachedStepWidths.push_back(width);
           }
       }
 
@@ -60,9 +85,10 @@ namespace HS{
         if (updateThis) {
           RooRealVar* var = _varCache[i];
           double val = var->getVal(), max = var->getMax(), min = var->getMin(), len = max - min;
+          double baseWidth = (i < (int)_cachedStepWidths.size()) ? _cachedStepWidths[i] : len;
           bool isCyclic = fCyclicPars.contains(*var);
           
-          auto step = RooRandom::gaussian() * len * fScale;
+          auto step = RooRandom::gaussian() * baseWidth * fScale;
           
           if (isCyclic) {
               // --- CYCLIC WRAP AROUND ---
@@ -72,7 +98,7 @@ namespace HS{
               // --- LEGACY STICKY BOUNDARY (RE-DRAW) ---
               int redraws = 0;
               while (((val + step > max) || (val + step < min)) && redraws < 100) {
-                  step = RooRandom::gaussian() * len * fScale;
+                  step = RooRandom::gaussian() * baseWidth * fScale;
                   redraws++;
               }
               if (val + step > max) step = max - val;
@@ -87,9 +113,9 @@ namespace HS{
       if(acceptance < fMinAcc || acceptance > fMaxAcc){
         Double_t oldScale = fScale; 
         
-        // Damped scaling prevents 40D acceptance ping-ponging (e.g. 45% <-> 5%) during Phase 2
+        // Damped scaling prevents 40D-77D acceptance ping-ponging during Phase 2
         if (acceptance <= 0.005f) {
-            fScale *= 0.2f;
+            fScale *= 0.25f;
         } else {
             Double_t ratio = std::sqrt(static_cast<Double_t>(acceptance) / static_cast<Double_t>(fTargetAcc));
             ratio = std::clamp(ratio, 0.4, 2.0);

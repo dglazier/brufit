@@ -58,13 +58,15 @@ namespace HS{
       int totcount = 0;
       int snapcount = 0;
       int havePrinted = 0;
-      Long64_t totalProposals = 0;
-      
-      // Hard proposal ceiling prevents infinite runtimes when low-acceptance chains are used
+
+      // Allow down to 0.1% acceptance (1000 proposals per desired accepted step)
+      // Use 64-bit integer so large Phase 2 chains never overflow 32-bit Int_t
       const Long64_t maxProposals = std::max<Long64_t>(
           static_cast<Long64_t>(fBailoutThreshold) * 2LL,
-          static_cast<Long64_t>(fNumIters) * 100LL);
-
+          static_cast<Long64_t>(fNumIters) * 1000LL);
+      const Int_t maxConsecutiveRejects = 50000;
+      Long64_t totalProposals = 0;
+      Int_t consecutiveRejects = 0;
       fEvalErrorCount = 0;
 
       auto bseqprop = dynamic_cast<BruSequentialProposal*>(fPropFunc);
@@ -176,6 +178,7 @@ namespace HS{
         }
        
         if (!hadEvalError && ShouldTakeStep(a)) {
+          consecutiveRejects = 0;
           // ACCEPTED: Record CURRENT state (x) with its accumulated weight
           if (weight != 0.0) {
             std::vector<Double_t> stepVals(nVars);
@@ -196,6 +199,13 @@ namespace HS{
         } else {
           // REJECTED: Stay at current state, increment weight
           weight++;
+          consecutiveRejects++;
+          if (consecutiveRejects >= maxConsecutiveRejects) {
+            std::cout << "\nBruMetropolisHastings: WARNING - Chain deadlocked for " << consecutiveRejects
+                      << " consecutive proposals (" << icount << "/" << fNumIters
+                      << " accepted). Terminating chain safely." << std::endl;
+            break;
+          }
         }
       }
 

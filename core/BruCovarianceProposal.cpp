@@ -39,17 +39,20 @@ namespace HS{
     void BruCovarianceProposal::UpdateCholesky() {
       if (_baseMatrix.GetNrows() == 0) return;
 
-      int d = (_gibbsBlockSize > 0 && _gibbsBlockSize < _baseMatrix.GetNrows()) 
-              ? _gibbsBlockSize : _baseMatrix.GetNrows();
+      int nTotal = _baseMatrix.GetNrows();
+      int d = (_gibbsBlockSize > 0 && _gibbsBlockSize < nTotal) 
+              ? _gibbsBlockSize : nTotal;
       double gelmanScale = (2.382 * 2.382) / (double)d; 
+      // Yields are updated on every step even in Gibbs mode, so keep yield scale locked to nTotal
+      double gelmanScaleYield = (2.382 * 2.382) / (double)nTotal;
  
-      _covMatrix.ResizeTo(_baseMatrix.GetNrows(), _baseMatrix.GetNcols());
+      _covMatrix.ResizeTo(nTotal, nTotal);
       
-      // 1. Apply the global MCMC tuning scale to the entire matrix
+      // 1. Apply the global MCMC tuning scale to the physics matrix
       double scale = static_cast<Double_t>(StepSizeFactor() * gelmanScale);
       _covMatrix = _baseMatrix * scale;
       
-      // 2. THE YIELD MASK: Lock yields to gelmanScale (ignoring StepSizeFactor) and zero off-diagonals
+      // 2. THE YIELD MASK: Lock yields to gelmanScaleYield (ignoring StepSizeFactor) and zero off-diagonals
       for (size_t i = 0; i < _varCache.size(); ++i) {
           if (_yieldPars.contains(*_varCache[i])) {
               for (size_t j = 0; j < _varCache.size(); ++j) {
@@ -57,7 +60,7 @@ namespace HS{
                       _covMatrix(i, j) = 0.0;
                       _covMatrix(j, i) = 0.0;
                   } else {
-                      _covMatrix(i, i) = _baseMatrix(i, i) * gelmanScale;
+                      _covMatrix(i, i) = _baseMatrix(i, i) * gelmanScaleYield;
                   }
               }
           }
@@ -120,8 +123,8 @@ namespace HS{
       }
 
       // 2. Correlate them via Cholesky decomposition (L * z)
-      TVectorD step = _lMatrix * z;
-
+      TVectorD step = (_lMatrix * z);
+      
       // 3. Determine active Gibbs block if _gibbsBlockSize > 0
       int startIdx = 0;
       int endIdx = n;

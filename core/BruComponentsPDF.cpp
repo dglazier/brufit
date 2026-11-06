@@ -16,7 +16,7 @@ namespace bru {
     // Mathematically guarantees the PDF is strictly > 0, C1-continuous at val = epsilon
     // (f(eps) = eps, f'(eps) = 1), and bounded below by epsMin = 0.5 * epsilon as val -> -infinity
     // so negative-weight events (w_i < 0) cannot drive NLL -> -infinity at high Lmax.
-    inline double ApplySoftFloor(double val, double epsilon = 5e-3) {
+    inline double ApplySoftFloor(double val, double epsilon = 1e-4) {
         if (std::isnan(val)) return epsilon;
         if (val >= epsilon) return val;
         const double epsMin = 0.5 * epsilon;
@@ -99,9 +99,6 @@ namespace bru {
         _CacheCompCrossIntegral = other._CacheCompCrossIntegral;
         _MCAPDepTerm = other._MCAPDepTerm;
 
-        // =======================================================
-        // Inherit the integration state so clones don't recalculate!
-        // =======================================================
         _FirstCalculation = other._FirstCalculation;
         _PrevParVals = other._PrevParVals;
     } 
@@ -147,17 +144,11 @@ namespace bru {
         return 0;
     }
 
-    // =========================================================================
-    // AVX2 Vectorized Batch Engine for Components
-    // =========================================================================
     void BruComponentsPDF::doEval(RooFit::EvalContext& ctx) const {
         auto output = ctx.output();
         size_t nEvents = output.size();
         
-        // Fill baseline efficiently
         std::fill(output.begin(), output.end(), _BaseLine);
-
-        // Buffer array to prevent allocations inside the loop
         std::vector<double> compBuffer(nEvents);
          
         for (auto& comp : _Components) {
@@ -166,8 +157,6 @@ namespace bru {
             for (auto& termProxy : comp) {
                 auto termData = ctx.at(*termProxy); 
                 
-                // BRANCH HOISTING: Check scalar vs array outside the loop 
-                // to allow the compiler to auto-vectorize (SIMD)
                 if (termData.size() == 1) {
                     const double scalarVal = termData[0];
                     for (size_t i = 0; i < nEvents; ++i) {
@@ -180,16 +169,14 @@ namespace bru {
                 }
             }
             
-            // Add component product to the final PDF array
             for (size_t i = 0; i < nEvents; ++i) {
                 output[i] += compBuffer[i];
             }
         }
 
-        // --- SAFETY CLAMP ---
         if (_allowNegativePDF) {
             for (size_t i = 0; i < nEvents; ++i) {
-                output[i] = ApplySoftFloor(output[i], 5e-3);
+                output[i] = ApplySoftFloor(output[i], 1e-4);
             }
         } else {
             for (size_t i = 0; i < nEvents; ++i) {
@@ -211,7 +198,7 @@ namespace bru {
         }
 
         if (_allowNegativePDF) {
-            return ApplySoftFloor(val, 5e-3);
+            return ApplySoftFloor(val, 1e-4);
         }
         
         return val;
@@ -301,7 +288,7 @@ namespace bru {
         }
 
         if (_allowNegativePDF) {
-            return ApplySoftFloor(val, 5e-3);
+            return ApplySoftFloor(val, 1e-4);
         }
         
         return val;
@@ -332,8 +319,8 @@ namespace bru {
     }
 
     void BruComponentsPDF::initIntegrator() const {
-        if (!_once) return; // GUARD: Ensure this only ever runs once
-        _once = kFALSE;     // Flip the flag
+        if (!_once) return;
+        _once = kFALSE;
        
         BruEventsPDF::initIntegrator();
      
@@ -341,7 +328,6 @@ namespace bru {
         _DependentTermParams.resize(_NComps);
         _IndependentTermProxy.resize(_NComps);
     
-        // Check if we inherited a perfectly good cache from a master PDF clone!
         bool inheritedCache = (_PrevParVals.size() == _NComps);
         
         if (!inheritedCache) {
@@ -358,13 +344,11 @@ namespace bru {
             for (auto& term : comp) {
                 auto arg = _ActualComps.find(term->GetName());
                 
-                // 1. Analyze dependencies FIRST
                 std::unique_ptr<RooArgSet> deps(arg->getObservables(VarSet(0)));
                 std::unique_ptr<RooArgSet> parDeps(arg->getObservables(_Parameters));
                 
                 bool hasObs = (deps->getSize() > 0);
                 
-                // --- Differentiate Free vs Constant Parameters ---
                 bool hasFreePars = false;
                 for (auto* p : *parDeps) {
                     auto* rarg = dynamic_cast<RooRealVar*>(p);
@@ -374,7 +358,6 @@ namespace bru {
                     }
                 }
                 
-                // 2. Trigger warning ONLY if it mixes Data and FREE Parameters
                 if (hasObs && hasFreePars && !inheritedCache) { 
                     hasBadFactorization = true;
                     
@@ -439,7 +422,6 @@ namespace bru {
                     std::cout << (childrenBreakdown.Length() > 0 ? childrenBreakdown : "       (None)\n");
                     std::cout << " -----------------------------------------------------------" << std::endl;
                 } 
-                // 3. Route to the correct caching proxy
                 if (hasObs) {
                     _DependentTermProxy[icomp].push_back(term.get());
                     
@@ -488,12 +470,15 @@ namespace bru {
         if (_UseSamplingIntegral == kTRUE)
             RecalcComponentIntegralsSampling(0, rangeName);
 
-        if (_allowNegativePDF && _MCAPDepTerm.empty()) {
+        if (_allowNegativePDF && _MCAPDepTerm.empty() && _ProxSet.size() > 0) {
             if (_AssertPosDataReal.empty()) {
                 const_cast<BruComponentsPDF*>(this)->MakeAssertPostiveData();
             }
-            InitAssertPositiveCheck();
-            FinishAssertPositiveCheck();
+            if (!_AssertPosDataReal.empty()) {
+                RedirectServersToPdf();
+                cacheMCAP(&_AssertPosDataReal, &_AssertPosDataCats);
+                RedirectServersToData();
+            }
         }
         
         _FirstCalculation = kFALSE;
@@ -538,6 +523,7 @@ namespace bru {
              
                     if (pval != previous) { 
                         needRecalc = kTRUE;
+                        _PrevParVals[icomp][ipar] = pval;
                         if (!vecContains(icomp, _RecalcComponent)) _RecalcComponent.push_back(icomp);
                     }
                     ipar++;
@@ -553,12 +539,15 @@ namespace bru {
 
         // --- HIGH-LMAX NEGATIVE PDF REGULARIZATION & NORMALIZATION GUARD ---
         if (_allowNegativePDF) {
-            if (_MCAPDepTerm.empty()) {
+            if (_MCAPDepTerm.empty() && _ProxSet.size() > 0) {
                 if (_AssertPosDataReal.empty()) {
                     const_cast<BruComponentsPDF*>(this)->MakeAssertPostiveData();
                 }
-                InitAssertPositiveCheck();
-                FinishAssertPositiveCheck();
+                if (!_AssertPosDataReal.empty()) {
+                    RedirectServersToPdf();
+                    cacheMCAP(&_AssertPosDataReal, &_AssertPosDataCats);
+                    RedirectServersToData();
+                }
             }
 
             if (!_MCAPDepTerm.empty()) {
@@ -570,30 +559,32 @@ namespace bru {
                 }
 
                 Double_t negPenaltySum = 0.0;
-                const Double_t softEps = 5e-3;
+                const Double_t softEps = 1e-4;
                 const Double_t lambdaNeg = 10.0;
 
-                Long64_t nCheck = static_cast<Long64_t>(_MCAPDepTerm.size());
-                for (Long64_t iev = 0; iev < nCheck; ++iev) {
+                Long64_t nTotal = static_cast<Long64_t>(_MCAPDepTerm.size());
+                Long64_t stride = std::max<Long64_t>(1, nTotal / 1000);
+                Long64_t nEval  = 0;
+
+                for (Long64_t iev = 0; iev < nTotal; iev += stride) {
                     Double_t val = _BaseLine;
                     for (UInt_t icomp = 0; icomp < _NComps; ++icomp) {
                         val += _MCAPDepTerm[iev][icomp] * indepProd[icomp];
                     }
                     if (val < softEps) {
                         Double_t floored = ApplySoftFloor(val, softEps);
-                        // 1. Restore missing positive area between floored PDF and linear integral
                         negPenaltySum += (floored - val);
-                        // 2. Quadratic barrier against deep negative lobes at high Lmax
                         if (val < 0.0) {
                             negPenaltySum += lambdaNeg * val * val;
                         }
                     }
+                    nEval++;
                 }
-                if (nCheck > 0) {
-                    integral += negPenaltySum / static_cast<Double_t>(nCheck);
+                if (nEval > 0) {
+                    integral += negPenaltySum / static_cast<Double_t>(nEval);
                 }
             }
-            integral = ApplySoftFloor(integral, 5e-3);
+            integral = ApplySoftFloor(integral, 1e-4);
         }
 
         _Last[0] = integral;
@@ -712,7 +703,6 @@ namespace bru {
             for (Int_t ii = 0; ii < _Ncats; ii++)
                 _IntegrateCats[ii]->setIndex(_DataCache->_vecCat[_TreeEntry * _Ncats + ii]);
           
-            // 1. Evaluate all components for this event
             for (const auto& icomp : activeComps) {
                 Double_t product = 1;
                 for (const auto& term : _DependentTermProxy[icomp]) {
@@ -722,7 +712,6 @@ namespace bru {
                 _CacheCompDepIntegral[icomp] += tempVals[icomp];
             }
 
-            // 2. Build the cross-matrix (C_ij = sum(P_i * P_j))
             for (const auto& icomp : activeComps) {
                 for (UInt_t jcomp = 0; jcomp < _NComps; jcomp++) {
                     _CacheCompCrossIntegral[icomp][jcomp] += tempVals[icomp] * tempVals[jcomp];
@@ -733,7 +722,6 @@ namespace bru {
             ++all;
         }
       
-        // 3. Normalize by the number of accepted events
         if (accepted > 0) {
             for (const auto& icomp : activeComps) {
                 _CacheCompDepIntegral[icomp] /= accepted;
@@ -770,7 +758,6 @@ namespace bru {
         std::vector<Double_t> Tc(_NComps, 1.0);
         Double_t sum_Tc_Ic = 0.0;
 
-        // 1. Calculate the independent parameter multipliers (Tc) and the mean
         for (UInt_t c = 0; c < _NComps; c++) {
             for (auto& term : _IndependentTermProxy[c]) {
                 Tc[c] *= *term;
@@ -782,7 +769,6 @@ namespace bru {
 
         if (std::abs(meanF) < 1E-15) return 1E-12; 
 
-        // 2. Analytically construct E[F^2] using the cached cross-matrix
         Double_t meanF2 = _WeightedBaseLine * _WeightedBaseLine;
         meanF2 += 2.0 * _WeightedBaseLine * sum_Tc_Ic;
 
@@ -792,7 +778,6 @@ namespace bru {
             }
         }
 
-        // 3. V(F) = E[F^2] - (E[F])^2
         Double_t variance = meanF2 - (meanF * meanF);
         
         if (variance <= 0 || std::isnan(variance)) return 1E-12;
@@ -801,9 +786,6 @@ namespace bru {
         
         if (std::isnan(relError) || std::isinf(relError) || relError <= 1E-9) return 1E-12;
         
-        // ==========================================================
-        // --- AUDIT TRAIL: Exact Coherent Variance Evaluation ---
-        // ==========================================================
         std::cout << "\n  --- Exact Coherent Variance Audit ---" << std::endl;
         std::cout << "  PDF Name          : " << GetName() << std::endl;
         std::cout << "  N MC Events       : " << _NUsedForIntegral << std::endl;
