@@ -138,35 +138,32 @@ namespace HS{
     }
   
     void PhotoTwoSpin0Amps::LoadModelPDF(Long64_t Nevents){
-      //Nevents in case this is a toy generator
-      //  ComponentsPdfParser  parser = PolarisedSphHarmonicMoments("AngularDist","trucosThGJ","truphiGJ","truphiCM","trucosThCM",_Lmax*2,0,_Lmax*2);
-      // ComponentsPdfParser  parser = PolarisedSphHarmonicMoments();
-      _parser = PolarisedSphHarmonicMoments();
+       //Nevents in case this is a toy generator
+     _parser = PolarisedSphHarmonicMoments();
       
-      //std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF got a parser"<<std::endl;
       auto level = RooMsgService::instance().globalKillBelow();
-      RooMsgService::instance().setGlobalKillBelow(RooFit::DEBUG) ;
-      _Setup->ParserPDF(_Sum,_parser);
-      //dynamic_cast<RooHSEventsPDF*>(_Setup->WS().pdf("PWA"))->SetConstInt();
-      // std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF loaded parser"<<std::endl;
-      _Setup->LoadSpeciesPDF(GetName(),Nevents); //100000 events
-      RooMsgService::instance().setGlobalKillBelow(level) ;
+      RooMsgService::instance().setGlobalKillBelow(RooFit::DEBUG);
+
+      TString sumWithWeights = _Sum;
+      if (!_MCWeights.empty()) {
+        sumWithWeights += _MCWeights;
+      }
+      _Setup->ParserPDF(sumWithWeights, _parser);
+
+      _Setup->LoadSpeciesPDF(GetName(), Nevents);
+      RooMsgService::instance().setGlobalKillBelow(level);
  
-       // std::cout<<"PhotoTwoSpin0Amps::LoadModelPDF loaded a pdf"<<std::endl;
      //the range of moments depends on L, so here reset the ranges
       auto& pars = _Setup->Parameters();
-
-      // std::cout<<" PhotoTwoSpin0Amps::LoadModelPDF static_range_cast not available until 6.28 c++14"<<std::endl;exit(0);
-      for(auto par:static_range_cast<RooRealVar *>(pars)){
-      	TString parname = par->GetName();
-      	if(parname.Contains("H_")){
-      	  auto parts = parname.Tokenize('_');
-      	  auto L = TString(parts->At(2)->GetName()).Atoi();
-      	  par->setMin(-2/sqrt(2*L+1));par->setMax(2/sqrt(2*L+1));
-      	}
+      for(auto par : static_range_cast<RooRealVar *>(pars)){
+        TString parname = par->GetName();
+        if(parname.Contains("H_")){
+          auto parts = parname.Tokenize('_');
+          auto L = TString(parts->At(2)->GetName()).Atoi();
+          par->setMin(-2/sqrt(2*L+1)); par->setMax(2/sqrt(2*L+1));
+        }
       }
     }
-    
     void PhotoTwoSpin0Amps::PrintModel(){
       const auto pars = _Setup->Parameters();
       cout<<"PhotoTwoSpin0Amps::PrintModel() "<<GetName()<<" : Parameters "<<endl;

@@ -418,6 +418,7 @@ Setup& Setup::operator=(const Setup& other) {
             // Weights are mapped specifically for BruEventsPDFs
             if (auto *evPdf = dynamic_cast<BruEventsPDF*>(pdf)) {
                 fPDFInWeights[evPdf->GetName()] = wopt;
+		evPdf->SetAllowNegativePDF(fAllowNegativePDF);
             } else {	
                 cout << "WARNING Setup::FactoryPDF trying to give weights to non BruEventsPDF " << opt << " " << wopt << endl;
             }	

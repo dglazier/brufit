@@ -14,8 +14,13 @@ void CreateWeights() {
 	
 	TH1* weightHist = new TH1F("impWeights","impWeights",100,-50,50);
 	impWeights->ImportanceSampling(treeMC, treeData, weightHist, "Eg");
+	// Alternatively give weights to signal distribution, these should also be Weights objects create by sPlot fit for example.
+	//impWeights->ImportanceSampling(treeMC, treeData, weightHist, "Pi2tprime",
+	//                       nullptr, "",
+	//                       dataWeights, "Signal");
+
 	impWeights->PrintWeight();
-	
+	impWeights->SortWeights();
 	TH1* weightedHist = new TH1F("WeightedMC","WeightedMC",50,-10,30);
 	
 	//Draw MC distribution with weights

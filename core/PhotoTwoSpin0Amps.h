@@ -115,7 +115,14 @@ namespace HS{
 
       const std::string&  GetSummation(){return _Sum;}
 
-  
+       void LoadMCWeights(const TString& species, const TString& file, const TString& wname) {
+        _MCWeights = Form("WEIGHTS@%s,%s,%s", species.Data(), file.Data(), wname.Data());
+      }
+      void SetMCWeights(const TString& wopt) {
+        if (wopt.BeginsWith("WEIGHTS@")) _MCWeights = wopt.Data();
+        else if (wopt.Length() > 0) _MCWeights = ("WEIGHTS@" + wopt).Data();
+        else _MCWeights.clear();
+      }
     protected:
 
       ComponentsPdfParser PolarisedSphHarmonicMoments();
@@ -130,6 +137,7 @@ namespace HS{
       std::string _BeamHelicity;
       std::string _Sum;
       std::string _Name;
+      std::string _MCWeights;
       
       Int_t _Lmax=0;
       Int_t _Mmax=0;

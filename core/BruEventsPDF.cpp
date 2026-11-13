@@ -142,6 +142,19 @@ namespace bru {
         }
 
         auto newCache = std::make_shared<MCEventCache>();
+	if (_WgtsConf.IsValid()) {
+            Info("BruEventsPDF::SetEvTree",
+                 "PDF '%s' loading MC weights: Species='%s', Object='%s', File='%s'",
+                 GetName(), _WgtsConf.Species().Data(), _WgtsConf.ObjName().Data(), _WgtsConf.File().Data());
+        } else if (_InWeightCut != TString()) {
+            Info("BruEventsPDF::SetEvTree",
+                 "PDF '%s' applying MC weight cut: '%s'",
+                 GetName(), _InWeightCut.Data());
+        } else {
+            Info("BruEventsPDF::SetEvTree",
+                 "PDF '%s' loading MC tree '%s' with no weights",
+                 GetName(), tree->GetName());
+        }
         _BranchStatus = newCache->LoadTree(tree, _Cut, varNames, catNames, _TruthPrefix, _WgtsConf, MCGenTree);
 
         _ConstInt = newCache->_NTreeEntries;
